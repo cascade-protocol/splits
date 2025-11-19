@@ -2,12 +2,6 @@
 //!
 //! NOTE: This is written for mollusk-svm 0.5.1 with solana-sdk 2.2
 //! This instruction requires Token and Associated Token programs for vault creation
-//!
-//! LIMITATION: All create_split_config tests are ignored because:
-//! 1. The instruction CPIs into Associated Token Program to create vault ATA
-//! 2. Mollusk only supports Token program, not ATA program
-//! 3. Anchor's account init happens before handler validation, so even error tests fail
-//! Run `anchor test` for full integration testing of this instruction.
 
 mod helpers;
 

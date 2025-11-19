@@ -47,7 +47,7 @@
     "spl-token"
   ],
   "author": "Cascade Labs <hello@cascade-protocol.xyz>",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "publishConfig": {
     "access": "public"
   },

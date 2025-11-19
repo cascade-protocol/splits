@@ -7,3 +7,5 @@ test-ledger
 .yarn
 dist
 *.log
+docker-target
+.claude/*local.json
