@@ -1,6 +1,7 @@
 {
   "name": "@cascade-labs/splits",
   "version": "0.1.0",
+  "type": "module",
   "description": "TypeScript SDK for Cascade Splits payment splitting protocol",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -29,7 +30,9 @@
     "prepublishOnly": "pnpm build",
     "dev": "tsdown --watch",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "solana",
@@ -58,8 +61,13 @@
   "homepage": "https://github.com/cascade-protocol/splits#readme",
   "peerDependencies": {
     "@coral-xyz/anchor": "^0.32.1",
-    "@solana-program/token": "^0.8.0",
-    "@solana/kit": "^5.0.0"
+    "@solana/kit": "^5.0.0",
+    "@solana/web3.js": "^1.98.0"
+  },
+  "peerDependenciesMeta": {
+    "@coral-xyz/anchor": { "optional": true },
+    "@solana/kit": { "optional": true },
+    "@solana/web3.js": { "optional": true }
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
@@ -67,13 +75,16 @@
     "@solana/codecs": "^5.0.0",
     "@solana/compat": "^5.0.0",
     "@solana/kit": "^5.0.0",
-    "borsh": "^2.0.0"
+    "@solana/web3.js": "^1.98.0"
   },
   "devDependencies": {
+    "@solana/spl-token": "^0.4.14",
     "@types/node": "^20.0.0",
+    "litesvm": "^0.3.3",
     "ts-node": "^10.9.0",
     "tsdown": "^0.16.1",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.10"
   },
   "packageManager": "pnpm@10.20.0"
 }

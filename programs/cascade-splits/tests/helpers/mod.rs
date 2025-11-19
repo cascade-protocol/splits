@@ -6,12 +6,12 @@
 //! - Token accounts MUST have owner explicitly set to spl_token::id()
 
 pub mod accounts;
+pub mod errors;
 pub mod instructions;
 pub mod serialization;
 
-pub use accounts::*;
-pub use instructions::*;
-pub use serialization::*;
+pub use errors::*;
+
 
 use mollusk_svm::Mollusk;
 use mollusk_svm_programs_token::{associated_token, token};

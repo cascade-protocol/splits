@@ -14,24 +14,20 @@ mod helpers;
 use {
     helpers::{
         accounts::{
-            derive_ata, get_rent, mint_account, system_account,
-            token_account, uninitialized_account,
+            derive_ata, get_rent, mint_account, system_account, token_account,
+            uninitialized_account,
         },
+        error_code, ErrorCode,
         instructions::{
-            build_create_split_config, derive_split_config, derive_vault,
-            RecipientInput, PROGRAM_ID,
+            build_create_split_config, derive_split_config, derive_vault, RecipientInput,
+            PROGRAM_ID,
         },
         serialization::SPLIT_CONFIG_SIZE,
         setup_mollusk_with_token,
     },
     mollusk_svm::result::Check,
     mollusk_svm_programs_token::{associated_token, token},
-    // 0.5.1: All imports from solana_sdk
-    solana_sdk::{
-        account::Account,
-        pubkey::Pubkey,
-        system_program,
-    },
+    solana_sdk::{account::Account, program_error::ProgramError, pubkey::Pubkey, system_program},
 };
 
 #[test]
@@ -164,7 +160,7 @@ fn test_create_split_config_invalid_split_total_fails() {
 
     // Should fail with InvalidSplitTotal
     let checks = vec![
-        Check::err(solana_sdk::program_error::ProgramError::Custom(6001)),
+        Check::err(ProgramError::Custom(error_code(ErrorCode::InvalidSplitTotal))),
     ];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
@@ -218,7 +214,7 @@ fn test_create_split_config_zero_recipients_fails() {
 
     // Should fail with InvalidRecipientCount
     let checks = vec![
-        Check::err(solana_sdk::program_error::ProgramError::Custom(6000)),
+        Check::err(ProgramError::Custom(error_code(ErrorCode::InvalidRecipientCount))),
     ];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
@@ -285,7 +281,7 @@ fn test_create_split_config_duplicate_recipients_fails() {
 
     // Should fail with DuplicateRecipient
     let checks = vec![
-        Check::err(solana_sdk::program_error::ProgramError::Custom(6002)),
+        Check::err(ProgramError::Custom(error_code(ErrorCode::DuplicateRecipient))),
     ];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
@@ -346,7 +342,7 @@ fn test_create_split_config_zero_address_fails() {
 
     // Should fail with ZeroAddress
     let checks = vec![
-        Check::err(solana_sdk::program_error::ProgramError::Custom(6003)),
+        Check::err(ProgramError::Custom(error_code(ErrorCode::ZeroAddress))),
     ];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
@@ -416,7 +412,7 @@ fn test_create_split_config_zero_percentage_fails() {
 
     // Should fail with ZeroPercentage
     let checks = vec![
-        Check::err(solana_sdk::program_error::ProgramError::Custom(6004)),
+        Check::err(ProgramError::Custom(error_code(ErrorCode::ZeroPercentage))),
     ];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);

@@ -15,6 +15,16 @@ use {
 /// Program ID - must match lib.rs
 pub const PROGRAM_ID: Pubkey = solana_sdk::pubkey!("SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB");
 
+// Anchor discriminators (first 8 bytes of sha256("global:function_name"))
+// These must match the IDL/program
+pub const DISCRIMINATOR_INITIALIZE_PROTOCOL: [u8; 8] = [0xbc, 0xe9, 0xfc, 0x6a, 0x86, 0x92, 0xca, 0x5b];
+pub const DISCRIMINATOR_UPDATE_PROTOCOL_CONFIG: [u8; 8] = [0xc5, 0x61, 0x7b, 0x36, 0xdd, 0xa8, 0x0b, 0x87];
+pub const DISCRIMINATOR_TRANSFER_PROTOCOL_AUTHORITY: [u8; 8] = [0x23, 0x4c, 0x24, 0x4d, 0x88, 0x70, 0x9e, 0xde];
+pub const DISCRIMINATOR_CREATE_SPLIT_CONFIG: [u8; 8] = [0x80, 0x2a, 0x3c, 0x6a, 0x04, 0xe9, 0x12, 0xbe];
+pub const DISCRIMINATOR_EXECUTE_SPLIT: [u8; 8] = [0x06, 0x2d, 0xab, 0x28, 0x31, 0x81, 0x17, 0x59];
+pub const DISCRIMINATOR_UPDATE_SPLIT_CONFIG: [u8; 8] = [0x2f, 0x67, 0x4a, 0xaa, 0x37, 0xfb, 0x82, 0x92];
+pub const DISCRIMINATOR_CLOSE_SPLIT_CONFIG: [u8; 8] = [0xaa, 0xca, 0xfc, 0x5c, 0xc4, 0xa0, 0xf7, 0xe5];
+
 /// Recipient input for instructions
 #[derive(Clone, Debug)]
 pub struct RecipientInput {
@@ -73,8 +83,7 @@ pub fn build_initialize_protocol(
     program_data: Pubkey,
     fee_wallet: Pubkey,
 ) -> Instruction {
-    // Anchor discriminator for "initialize_protocol" (from IDL)
-    let discriminator: [u8; 8] = [0xbc, 0xe9, 0xfc, 0x6a, 0x86, 0x92, 0xca, 0x5b];
+    let discriminator = DISCRIMINATOR_INITIALIZE_PROTOCOL;
 
     let mut data = Vec::with_capacity(8 + 32);
     data.extend_from_slice(&discriminator);
@@ -102,8 +111,7 @@ pub fn build_update_protocol_config(
     authority: Pubkey,
     new_fee_wallet: Pubkey,
 ) -> Instruction {
-    // Anchor discriminator for "update_protocol_config" (from IDL)
-    let discriminator: [u8; 8] = [0xc5, 0x61, 0x7b, 0x36, 0xdd, 0xa8, 0x0b, 0x87];
+    let discriminator = DISCRIMINATOR_UPDATE_PROTOCOL_CONFIG;
 
     let mut data = Vec::with_capacity(8 + 32);
     data.extend_from_slice(&discriminator);
@@ -129,8 +137,7 @@ pub fn build_transfer_protocol_authority(
     authority: Pubkey,
     new_authority: Pubkey,
 ) -> Instruction {
-    // Anchor discriminator for "transfer_protocol_authority" (from IDL)
-    let discriminator: [u8; 8] = [0x23, 0x4c, 0x24, 0x4d, 0x88, 0x70, 0x9e, 0xde];
+    let discriminator = DISCRIMINATOR_TRANSFER_PROTOCOL_AUTHORITY;
 
     let mut data = Vec::with_capacity(8 + 32);
     data.extend_from_slice(&discriminator);
@@ -167,8 +174,7 @@ pub fn build_create_split_config(
     recipients: &[RecipientInput],
     recipient_atas: &[Pubkey],
 ) -> Instruction {
-    // Anchor discriminator for "create_split_config" (from IDL)
-    let discriminator: [u8; 8] = [0x80, 0x2a, 0x3c, 0x6a, 0x04, 0xe9, 0x12, 0xbe];
+    let discriminator = DISCRIMINATOR_CREATE_SPLIT_CONFIG;
 
     // Serialize instruction data
     let mut data = Vec::new();
@@ -227,8 +233,7 @@ pub fn build_execute_split(
     recipient_atas: &[Pubkey],
     protocol_ata: Pubkey,
 ) -> Instruction {
-    // Anchor discriminator for "execute_split" (from IDL)
-    let discriminator: [u8; 8] = [0x06, 0x2d, 0xab, 0x28, 0x31, 0x81, 0x17, 0x59];
+    let discriminator = DISCRIMINATOR_EXECUTE_SPLIT;
 
     let mut accounts = vec![
         AccountMeta::new(split_config, false),
@@ -271,8 +276,7 @@ pub fn build_update_split_config(
     new_recipients: &[RecipientInput],
     recipient_atas: &[Pubkey],
 ) -> Instruction {
-    // Anchor discriminator for "update_split_config" (from IDL)
-    let discriminator: [u8; 8] = [0x2f, 0x67, 0x4a, 0xaa, 0x37, 0xfb, 0x82, 0x92];
+    let discriminator = DISCRIMINATOR_UPDATE_SPLIT_CONFIG;
 
     // Serialize instruction data
     let mut data = Vec::new();
@@ -318,8 +322,7 @@ pub fn build_close_split_config(
     vault: Pubkey,
     authority: Pubkey,
 ) -> Instruction {
-    // Anchor discriminator for "close_split_config" (from IDL)
-    let discriminator: [u8; 8] = [0xaa, 0xca, 0xfc, 0x5c, 0xc4, 0xa0, 0xf7, 0xe5];
+    let discriminator = DISCRIMINATOR_CLOSE_SPLIT_CONFIG;
 
     Instruction {
         program_id: PROGRAM_ID,

@@ -229,11 +229,9 @@ fn main() {
     // ============================================
     let (update_ix, update_accounts) = {
         let authority = Pubkey::new_unique();
-        let fee_wallet = Pubkey::new_unique();
         let unique_id = Pubkey::new_unique();
         let mint = Pubkey::new_unique();
 
-        let (protocol_config, protocol_bump) = derive_protocol_config();
         let (split_config, split_bump) = derive_split_config(&authority, &mint, &unique_id);
         let vault = derive_vault(&split_config, &mint);
 
@@ -294,11 +292,9 @@ fn main() {
     // ============================================
     let (close_ix, close_accounts) = {
         let authority = Pubkey::new_unique();
-        let fee_wallet = Pubkey::new_unique();
         let unique_id = Pubkey::new_unique();
         let mint = Pubkey::new_unique();
 
-        let (protocol_config, protocol_bump) = derive_protocol_config();
         let (split_config, split_bump) = derive_split_config(&authority, &mint, &unique_id);
         let vault = derive_vault(&split_config, &mint);
 

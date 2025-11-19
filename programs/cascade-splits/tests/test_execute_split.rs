@@ -7,7 +7,10 @@ mod helpers;
 
 use {
     helpers::{
-        accounts::{derive_ata, get_rent, mint_account, program_account, system_account, token_account},
+        accounts::{
+            derive_ata, get_rent, mint_account, program_account, system_account, token_account,
+        },
+        error_code, ErrorCode,
         instructions::{
             build_execute_split, derive_protocol_config, derive_split_config, derive_vault,
             PROGRAM_ID,
@@ -20,11 +23,7 @@ use {
     },
     mollusk_svm::result::Check,
     mollusk_svm_programs_token::token,
-    // 0.5.1: All imports from solana_sdk
-    solana_sdk::{
-        program_error::ProgramError,
-        pubkey::Pubkey,
-    },
+    solana_sdk::{program_error::ProgramError, pubkey::Pubkey},
 };
 
 /// Test successful split execution with token transfers
@@ -265,7 +264,9 @@ fn test_execute_split_insufficient_remaining_accounts_fails() {
 
     // Should fail with InsufficientRemainingAccounts
     let checks = vec![
-        Check::err(ProgramError::Custom(6011)), // ErrorCode::InsufficientRemainingAccounts
+        Check::err(ProgramError::Custom(error_code(
+            ErrorCode::InsufficientRemainingAccounts,
+        )))
     ];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);

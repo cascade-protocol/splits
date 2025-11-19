@@ -36,7 +36,7 @@ mollusk-svm-bencher = "0.5.1"
 mollusk-svm-programs-token = "0.5.1"
 solana-sdk = "2.2"
 spl-token = "7.0"
-spl-associated-token-account = "6.0"
+spl-associated-token-account = { version = "6.0", features = ["no-entrypoint"] }
 
 [[bench]]
 name = "compute_units"

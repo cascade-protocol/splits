@@ -30,17 +30,6 @@ pub fn system_account(lamports: u64) -> Account {
     }
 }
 
-/// Create a rent-exempt account owned by given program
-pub fn rent_exempt_account(data_len: usize, owner: Pubkey, rent: &Rent) -> Account {
-    Account {
-        lamports: rent.minimum_balance(data_len),
-        data: vec![0; data_len],
-        owner,
-        executable: false,
-        rent_epoch: 0,
-    }
-}
-
 /// Create an uninitialized account (for init)
 pub fn uninitialized_account() -> Account {
     Account {
@@ -163,4 +152,32 @@ pub fn derive_ata(wallet: &Pubkey, mint: &Pubkey) -> Pubkey {
 /// Get rent from Mollusk
 pub fn get_rent(mollusk: &Mollusk) -> Rent {
     mollusk.sysvars.rent.clone()
+}
+
+/// Create a system program account tuple for test setup
+pub fn system_program_account() -> (Pubkey, Account) {
+    (
+        system_program::id(),
+        Account {
+            lamports: 1,
+            data: vec![],
+            owner: solana_sdk::native_loader::id(),
+            executable: true,
+            rent_epoch: 0,
+        },
+    )
+}
+
+/// Create a token program account tuple for test setup
+pub fn token_program_account() -> (Pubkey, Account) {
+    (
+        spl_token::id(),
+        Account {
+            lamports: 1,
+            data: vec![],
+            owner: solana_sdk::native_loader::id(),
+            executable: true,
+            rent_epoch: 0,
+        },
+    )
 }

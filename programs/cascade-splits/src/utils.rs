@@ -7,6 +7,26 @@ use anchor_spl::{
 
 use crate::{errors::ErrorCode, state::Recipient};
 
+/// Calculate recipient's share of the total amount
+/// Returns None on overflow
+#[cfg(test)]
+pub fn calculate_recipient_amount(total: u64, percentage_bps: u16) -> Option<u64> {
+    (total as u128)
+        .checked_mul(percentage_bps as u128)?
+        .checked_div(10000)?
+        .try_into()
+        .ok()
+}
+
+/// Sum all recipient basis points
+/// Returns None on overflow
+#[cfg(test)]
+pub fn sum_recipient_bps(recipients: &[Recipient]) -> Option<u32> {
+    recipients
+        .iter()
+        .try_fold(0u32, |acc, r| acc.checked_add(r.percentage_bps as u32))
+}
+
 /// Validates recipient ATA and transfers tokens
 /// Returns error if ATA is invalid; caller should check data_is_empty() first
 pub fn validate_and_send_to_recipient<'info>(
@@ -77,4 +97,86 @@ pub fn validate_recipient_ata<'info>(
     require!(token_account.mint == *mint, ErrorCode::RecipientATAWrongMint);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn calculate_amount_normal() {
+        // 50% of 1,000,000
+        assert_eq!(calculate_recipient_amount(1_000_000, 5000), Some(500_000));
+        // 99% of 1,000,000
+        assert_eq!(calculate_recipient_amount(1_000_000, 9900), Some(990_000));
+        // 1% of 1,000,000
+        assert_eq!(calculate_recipient_amount(1_000_000, 100), Some(10_000));
+    }
+
+    #[test]
+    fn calculate_amount_rounds_down() {
+        // 0.01% of 100 = 0.01, rounds to 0
+        assert_eq!(calculate_recipient_amount(100, 1), Some(0));
+        // 1% of 99 = 0.99, rounds to 0
+        assert_eq!(calculate_recipient_amount(99, 100), Some(0));
+        // 50% of 1 = 0.5, rounds to 0
+        assert_eq!(calculate_recipient_amount(1, 5000), Some(0));
+    }
+
+    #[test]
+    fn calculate_amount_zero() {
+        assert_eq!(calculate_recipient_amount(0, 5000), Some(0));
+        assert_eq!(calculate_recipient_amount(1_000_000, 0), Some(0));
+        assert_eq!(calculate_recipient_amount(0, 0), Some(0));
+    }
+
+    #[test]
+    fn calculate_amount_max_values() {
+        // Max u64 with 100% - should fit in u64
+        assert_eq!(calculate_recipient_amount(u64::MAX, 10000), Some(u64::MAX));
+        // Max u64 with 99%
+        let expected = (u64::MAX as u128 * 9900 / 10000) as u64;
+        assert_eq!(calculate_recipient_amount(u64::MAX, 9900), Some(expected));
+    }
+
+    #[test]
+    fn sum_bps_normal() {
+        let recipients = [
+            Recipient { address: Pubkey::default(), percentage_bps: 5000 },
+            Recipient { address: Pubkey::default(), percentage_bps: 4900 },
+        ];
+        assert_eq!(sum_recipient_bps(&recipients), Some(9900));
+    }
+
+    #[test]
+    fn sum_bps_single() {
+        let recipients = [
+            Recipient { address: Pubkey::default(), percentage_bps: 9900 },
+        ];
+        assert_eq!(sum_recipient_bps(&recipients), Some(9900));
+    }
+
+    #[test]
+    fn sum_bps_empty() {
+        let recipients: [Recipient; 0] = [];
+        assert_eq!(sum_recipient_bps(&recipients), Some(0));
+    }
+
+    #[test]
+    fn sum_bps_max_recipients() {
+        // 20 recipients at 495 bps each = 9900
+        let recipients: Vec<Recipient> = (0..20)
+            .map(|_| Recipient { address: Pubkey::default(), percentage_bps: 495 })
+            .collect();
+        assert_eq!(sum_recipient_bps(&recipients), Some(9900));
+    }
+
+    #[test]
+    fn sum_bps_no_overflow() {
+        // u16 max (65535) * 20 = 1,310,700 < u32::MAX
+        let recipients: Vec<Recipient> = (0..20)
+            .map(|_| Recipient { address: Pubkey::default(), percentage_bps: u16::MAX })
+            .collect();
+        assert_eq!(sum_recipient_bps(&recipients), Some(20 * u16::MAX as u32));
+    }
 }
