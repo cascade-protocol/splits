@@ -16,7 +16,14 @@ pub struct ProtocolConfigUpdated {
 }
 
 #[event]
-pub struct ProtocolAuthorityTransferred {
+pub struct ProtocolAuthorityTransferProposed {
+    pub authority: Pubkey,
+    pub pending_authority: Pubkey,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct ProtocolAuthorityTransferAccepted {
     pub old_authority: Pubkey,
     pub new_authority: Pubkey,
     pub timestamp: i64,

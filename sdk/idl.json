@@ -9,6 +9,58 @@
   },
   "instructions": [
     {
+      "name": "accept_protocol_authority",
+      "docs": [
+        "Accepts a pending protocol authority transfer",
+        "Only callable by the pending authority"
+      ],
+      "discriminator": [
+        237,
+        122,
+        6,
+        39,
+        53,
+        202,
+        141,
+        113
+      ],
+      "accounts": [
+        {
+          "name": "protocol_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "close_split_config",
       "docs": [
         "Closes split config and recovers rent",
@@ -389,8 +441,9 @@
     {
       "name": "transfer_protocol_authority",
       "docs": [
-        "Transfers protocol authority to a new address",
-        "Only callable by current protocol authority"
+        "Proposes protocol authority transfer to a new address (two-step pattern)",
+        "Only callable by current protocol authority",
+        "New authority must call accept_protocol_authority to complete"
       ],
       "discriminator": [
         35,
@@ -612,16 +665,29 @@
   ],
   "events": [
     {
-      "name": "ProtocolAuthorityTransferred",
+      "name": "ProtocolAuthorityTransferAccepted",
       "discriminator": [
-        161,
-        166,
-        124,
-        109,
-        213,
-        33,
-        94,
-        248
+        176,
+        251,
+        96,
+        41,
+        195,
+        145,
+        131,
+        126
+      ]
+    },
+    {
+      "name": "ProtocolAuthorityTransferProposed",
+      "discriminator": [
+        20,
+        173,
+        122,
+        4,
+        172,
+        144,
+        48,
+        94
       ]
     },
     {
@@ -798,11 +864,16 @@
       "code": 6018,
       "name": "InvalidTokenProgram",
       "msg": "Invalid token program"
+    },
+    {
+      "code": 6019,
+      "name": "NoPendingTransfer",
+      "msg": "No pending authority transfer"
     }
   ],
   "types": [
     {
-      "name": "ProtocolAuthorityTransferred",
+      "name": "ProtocolAuthorityTransferAccepted",
       "type": {
         "kind": "struct",
         "fields": [
@@ -812,6 +883,26 @@
           },
           {
             "name": "new_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolAuthorityTransferProposed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "pending_authority",
             "type": "pubkey"
           },
           {
@@ -837,6 +928,13 @@
             "name": "authority",
             "docs": [
               "Authority that can update config (initially program upgrade authority)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "pending_authority",
+            "docs": [
+              "Pending authority for two-step transfer (default = no pending transfer)"
             ],
             "type": "pubkey"
           },

@@ -90,3 +90,42 @@ fn test_update_protocol_config_wrong_authority_fails() {
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
+
+#[test]
+fn test_update_protocol_config_zero_fee_wallet_fails() {
+    let mollusk = setup_mollusk();
+    let rent = get_rent(&mollusk);
+
+    // Setup accounts
+    let authority = Pubkey::new_unique();
+    let old_fee_wallet = Pubkey::new_unique();
+    let zero_fee_wallet = Pubkey::default(); // Zero address
+    let (protocol_config, bump) = derive_protocol_config();
+
+    // Create existing protocol config state
+    let protocol_config_data = serialize_protocol_config(authority, old_fee_wallet, bump);
+
+    // Build instruction with zero fee wallet
+    let instruction =
+        build_update_protocol_config(protocol_config, authority, zero_fee_wallet);
+
+    // Setup account states
+    let accounts = vec![
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                protocol_config_data,
+                PROGRAM_ID,
+            ),
+        ),
+        (authority, system_account(1_000_000)),
+    ];
+
+    // Should fail because fee_wallet is zero address
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::ZeroAddress,
+    )))];
+
+    mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
+}

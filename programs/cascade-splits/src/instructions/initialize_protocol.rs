@@ -35,6 +35,9 @@ pub struct InitializeProtocol<'info> {
 /// Initializes the protocol configuration
 /// Can only be called once by the program's upgrade authority
 pub fn handler(ctx: Context<InitializeProtocol>, fee_wallet: Pubkey) -> Result<()> {
+    // Validate fee wallet is not zero address
+    require!(fee_wallet != Pubkey::default(), ErrorCode::ZeroAddress);
+
     // Verify program_data is the correct PDA for our program
     let (expected_program_data, _) = Pubkey::find_program_address(
         &[ID.as_ref()],
@@ -72,6 +75,7 @@ pub fn handler(ctx: Context<InitializeProtocol>, fee_wallet: Pubkey) -> Result<(
     let protocol_config = &mut ctx.accounts.protocol_config.load_init()?;
 
     protocol_config.authority = ctx.accounts.authority.key();
+    protocol_config.pending_authority = Pubkey::default(); // No pending transfer initially
     protocol_config.fee_wallet = fee_wallet;
     protocol_config.bump = ctx.bumps.protocol_config;
 

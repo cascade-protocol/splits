@@ -8,6 +8,8 @@ use crate::constants::MAX_RECIPIENTS;
 pub struct ProtocolConfig {
     /// Authority that can update config (initially program upgrade authority)
     pub authority: Pubkey,
+    /// Pending authority for two-step transfer (default = no pending transfer)
+    pub pending_authority: Pubkey,
     /// Wallet that receives protocol fees
     pub fee_wallet: Pubkey,
     /// Bump seed for PDA derivation (stored for CU optimization)
@@ -81,3 +83,10 @@ impl Default for UnclaimedAmount {
         }
     }
 }
+
+// Compile-time size assertions to catch accidental struct changes
+// ProtocolConfig: discriminator (8) + authority (32) + pending_authority (32) + fee_wallet (32) + bump (1) = 105
+const _: () = assert!(std::mem::size_of::<ProtocolConfig>() == 97); // 105 - 8 (discriminator added by Anchor)
+
+// SplitConfig: See constants.rs for full breakdown = 1792
+const _: () = assert!(std::mem::size_of::<SplitConfig>() == 1784); // 1792 - 8 (discriminator added by Anchor)

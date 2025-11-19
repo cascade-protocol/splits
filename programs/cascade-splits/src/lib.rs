@@ -41,13 +41,20 @@ pub mod cascade_splits {
         instructions::update_protocol_config::handler(ctx, new_fee_wallet)
     }
 
-    /// Transfers protocol authority to a new address
+    /// Proposes protocol authority transfer to a new address (two-step pattern)
     /// Only callable by current protocol authority
+    /// New authority must call accept_protocol_authority to complete
     pub fn transfer_protocol_authority(
         ctx: Context<TransferProtocolAuthority>,
         new_authority: Pubkey,
     ) -> Result<()> {
         instructions::transfer_protocol_authority::handler(ctx, new_authority)
+    }
+
+    /// Accepts a pending protocol authority transfer
+    /// Only callable by the pending authority
+    pub fn accept_protocol_authority(ctx: Context<AcceptProtocolAuthority>) -> Result<()> {
+        instructions::accept_protocol_authority::handler(ctx)
     }
 
     /// Creates a new split configuration with vault

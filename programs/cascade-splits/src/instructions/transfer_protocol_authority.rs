@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 use crate::{
     errors::ErrorCode,
-    events::ProtocolAuthorityTransferred,
+    events::ProtocolAuthorityTransferProposed,
     state::ProtocolConfig,
 };
 
@@ -19,18 +19,19 @@ pub struct TransferProtocolAuthority<'info> {
     pub authority: Signer<'info>,
 }
 
-/// Transfers protocol authority to a new address
+/// Proposes protocol authority transfer to a new address (two-step pattern)
 /// Only callable by current protocol authority
-/// Use for transferring to multisig or new governance
+/// New authority must call accept_protocol_authority to complete transfer
+/// Can be overwritten by calling again with different address
+/// Set to Pubkey::default() to cancel pending transfer
 pub fn handler(ctx: Context<TransferProtocolAuthority>, new_authority: Pubkey) -> Result<()> {
     let protocol_config = &mut ctx.accounts.protocol_config.load_mut()?;
-    let old_authority = protocol_config.authority;
 
-    protocol_config.authority = new_authority;
+    protocol_config.pending_authority = new_authority;
 
-    emit!(ProtocolAuthorityTransferred {
-        old_authority,
-        new_authority,
+    emit!(ProtocolAuthorityTransferProposed {
+        authority: ctx.accounts.authority.key(),
+        pending_authority: new_authority,
         timestamp: Clock::get()?.unix_timestamp,
     });
 

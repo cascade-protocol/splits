@@ -115,6 +115,21 @@ export function buildTransferProtocolAuthorityInstruction(
 	};
 }
 
+export function buildAcceptProtocolAuthorityInstruction(
+	newAuthority: Address,
+): Instruction {
+	const { address: protocolConfig } = deriveProtocolConfig();
+
+	return {
+		programAddress,
+		accounts: [
+			{ address: address(protocolConfig), role: AccountRole.WRITABLE },
+			{ address: newAuthority, role: AccountRole.READONLY_SIGNER },
+		],
+		data: DISCRIMINATORS.acceptProtocolAuthority,
+	};
+}
+
 export function buildCreateSplitConfigInstruction(
 	authority: Address,
 	mint: Address,

@@ -58,4 +58,7 @@ pub enum ErrorCode {
 
     #[msg("Invalid token program")]
     InvalidTokenProgram,
+
+    #[msg("No pending authority transfer")]
+    NoPendingTransfer,
 }

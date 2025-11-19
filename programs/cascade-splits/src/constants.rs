@@ -7,8 +7,8 @@ pub const MIN_RECIPIENTS: usize = 1;
 pub const MAX_RECIPIENTS: usize = 20;
 
 // Account sizes for zero-copy structs
-// ProtocolConfig: discriminator (8) + authority (32) + fee_wallet (32) + bump (1)
-pub const PROTOCOL_CONFIG_SIZE: usize = 8 + 32 + 32 + 1;  // 73 bytes
+// ProtocolConfig: discriminator (8) + authority (32) + pending_authority (32) + fee_wallet (32) + bump (1)
+pub const PROTOCOL_CONFIG_SIZE: usize = 8 + 32 + 32 + 32 + 1;  // 105 bytes
 
 // SplitConfig size calculation:
 // - discriminator: 8

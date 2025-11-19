@@ -121,6 +121,25 @@ export function buildTransferProtocolAuthorityInstruction(
 	});
 }
 
+export function buildAcceptProtocolAuthorityInstruction(
+	newAuthority: PublicKey,
+): TransactionInstruction {
+	const { address: protocolConfig } = deriveProtocolConfig();
+
+	return new TransactionInstruction({
+		programId,
+		keys: [
+			{
+				pubkey: new PublicKey(protocolConfig),
+				isSigner: false,
+				isWritable: true,
+			},
+			{ pubkey: newAuthority, isSigner: true, isWritable: false },
+		],
+		data: Buffer.from(DISCRIMINATORS.acceptProtocolAuthority),
+	});
+}
+
 export function buildCreateSplitConfigInstruction(
 	authority: PublicKey,
 	mint: PublicKey,

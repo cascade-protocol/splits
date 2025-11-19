@@ -197,3 +197,33 @@ fn test_initialize_protocol_already_initialized_fails() {
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
+
+#[test]
+fn test_initialize_protocol_zero_fee_wallet_fails() {
+    let mollusk = setup_mollusk();
+
+    // Setup accounts
+    let authority = Pubkey::new_unique();
+    let zero_fee_wallet = Pubkey::default(); // Zero address
+    let (protocol_config, _bump) = derive_protocol_config();
+    let (program_data, _) = derive_program_data();
+
+    // Build instruction with zero fee wallet
+    let instruction =
+        build_initialize_protocol(protocol_config, authority, program_data, zero_fee_wallet);
+
+    // Setup account states
+    let accounts = vec![
+        (protocol_config, uninitialized_account()),
+        (authority, system_account(10_000_000_000)),
+        (program_data, program_data_account(authority)),
+        system_program_account(),
+    ];
+
+    // Should fail because fee_wallet is zero address
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::ZeroAddress,
+    )))];
+
+    mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
+}

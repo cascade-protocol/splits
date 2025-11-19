@@ -20,6 +20,7 @@ pub const PROGRAM_ID: Pubkey = solana_sdk::pubkey!("SPL1T3rERcu6P6dyBiG7K8LUr21C
 pub const DISCRIMINATOR_INITIALIZE_PROTOCOL: [u8; 8] = [0xbc, 0xe9, 0xfc, 0x6a, 0x86, 0x92, 0xca, 0x5b];
 pub const DISCRIMINATOR_UPDATE_PROTOCOL_CONFIG: [u8; 8] = [0xc5, 0x61, 0x7b, 0x36, 0xdd, 0xa8, 0x0b, 0x87];
 pub const DISCRIMINATOR_TRANSFER_PROTOCOL_AUTHORITY: [u8; 8] = [0x23, 0x4c, 0x24, 0x4d, 0x88, 0x70, 0x9e, 0xde];
+pub const DISCRIMINATOR_ACCEPT_PROTOCOL_AUTHORITY: [u8; 8] = [0xed, 0x7a, 0x06, 0x27, 0x35, 0xca, 0x8d, 0x71];
 pub const DISCRIMINATOR_CREATE_SPLIT_CONFIG: [u8; 8] = [0x80, 0x2a, 0x3c, 0x6a, 0x04, 0xe9, 0x12, 0xbe];
 pub const DISCRIMINATOR_EXECUTE_SPLIT: [u8; 8] = [0x06, 0x2d, 0xab, 0x28, 0x31, 0x81, 0x17, 0x59];
 pub const DISCRIMINATOR_UPDATE_SPLIT_CONFIG: [u8; 8] = [0x2f, 0x67, 0x4a, 0xaa, 0x37, 0xfb, 0x82, 0x92];
@@ -150,6 +151,27 @@ pub fn build_transfer_protocol_authority(
             AccountMeta::new_readonly(authority, true),
         ],
         data,
+    }
+}
+
+/// Build accept_protocol_authority instruction
+///
+/// Accounts:
+/// 0. protocol_config (writable)
+/// 1. new_authority (signer)
+pub fn build_accept_protocol_authority(
+    protocol_config: Pubkey,
+    new_authority: Pubkey,
+) -> Instruction {
+    let discriminator = DISCRIMINATOR_ACCEPT_PROTOCOL_AUTHORITY;
+
+    Instruction {
+        program_id: PROGRAM_ID,
+        accounts: vec![
+            AccountMeta::new(protocol_config, false),
+            AccountMeta::new_readonly(new_authority, true),
+        ],
+        data: discriminator.to_vec(),
     }
 }
 

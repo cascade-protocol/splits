@@ -8,7 +8,7 @@ use solana_sdk::pubkey::Pubkey;
 
 // Constants matching the program
 pub const MAX_RECIPIENTS: usize = 20;
-pub const PROTOCOL_CONFIG_SIZE: usize = 8 + 32 + 32 + 1; // 73 bytes
+pub const PROTOCOL_CONFIG_SIZE: usize = 8 + 32 + 32 + 32 + 1; // 105 bytes
 // SplitConfig actual size with #[repr(C)] alignment padding:
 // After recipients array (offset 819), 5 bytes padding for 8-byte alignment of unclaimed_amounts
 pub const SPLIT_CONFIG_SIZE: usize = 1792;
@@ -56,10 +56,21 @@ impl Default for UnclaimedAmountData {
 /// Layout (zero-copy #[repr(C)]):
 /// - 8 bytes: discriminator
 /// - 32 bytes: authority
+/// - 32 bytes: pending_authority
 /// - 32 bytes: fee_wallet
 /// - 1 byte: bump
 pub fn serialize_protocol_config(
     authority: Pubkey,
+    fee_wallet: Pubkey,
+    bump: u8,
+) -> Vec<u8> {
+    serialize_protocol_config_with_pending(authority, Pubkey::default(), fee_wallet, bump)
+}
+
+/// Serialize ProtocolConfig with pending authority for test account data
+pub fn serialize_protocol_config_with_pending(
+    authority: Pubkey,
+    pending_authority: Pubkey,
     fee_wallet: Pubkey,
     bump: u8,
 ) -> Vec<u8> {
@@ -71,11 +82,14 @@ pub fn serialize_protocol_config(
     // Authority
     data[8..40].copy_from_slice(&authority.to_bytes());
 
+    // Pending authority
+    data[40..72].copy_from_slice(&pending_authority.to_bytes());
+
     // Fee wallet
-    data[40..72].copy_from_slice(&fee_wallet.to_bytes());
+    data[72..104].copy_from_slice(&fee_wallet.to_bytes());
 
     // Bump
-    data[72] = bump;
+    data[104] = bump;
 
     data
 }

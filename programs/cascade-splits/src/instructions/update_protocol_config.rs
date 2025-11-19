@@ -22,6 +22,9 @@ pub struct UpdateProtocolConfig<'info> {
 /// Updates the protocol fee wallet
 /// Only callable by current protocol authority
 pub fn handler(ctx: Context<UpdateProtocolConfig>, new_fee_wallet: Pubkey) -> Result<()> {
+    // Validate fee wallet is not zero address
+    require!(new_fee_wallet != Pubkey::default(), ErrorCode::ZeroAddress);
+
     let protocol_config = &mut ctx.accounts.protocol_config.load_mut()?;
     let old_fee_wallet = protocol_config.fee_wallet;
 
