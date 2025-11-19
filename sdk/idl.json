@@ -1,0 +1,1228 @@
+{
+  "address": "SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB",
+  "metadata": {
+    "name": "cascade_splits",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Non-custodial payment splitter for Solana - distribute incoming payments to multiple recipients automatically",
+    "repository": "https://github.com/cascade-protocol/splits"
+  },
+  "instructions": [
+    {
+      "name": "close_split_config",
+      "docs": [
+        "Closes split config and recovers rent",
+        "Requires vault empty and all unclaimed cleared"
+      ],
+      "discriminator": [
+        170,
+        202,
+        252,
+        92,
+        196,
+        160,
+        247,
+        229
+      ],
+      "accounts": [
+        {
+          "name": "split_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  108,
+                  105,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "split_config"
+              },
+              {
+                "kind": "account",
+                "path": "split_config"
+              },
+              {
+                "kind": "account",
+                "path": "split_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault"
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_split_config",
+      "docs": [
+        "Creates a new split configuration with vault",
+        "Validates recipient ATAs on-chain (defense in depth)"
+      ],
+      "discriminator": [
+        128,
+        42,
+        60,
+        106,
+        4,
+        233,
+        18,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "split_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  108,
+                  105,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "arg",
+                "path": "mint"
+              },
+              {
+                "kind": "account",
+                "path": "unique_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "unique_id"
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint_account"
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "split_config"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint_account"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "mint",
+          "type": "pubkey"
+        },
+        {
+          "name": "recipients",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "RecipientInput"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "execute_split",
+      "docs": [
+        "Executes a payment split with self-healing unclaimed recovery",
+        "Permissionless - anyone can call"
+      ],
+      "discriminator": [
+        6,
+        45,
+        171,
+        40,
+        49,
+        129,
+        23,
+        89
+      ],
+      "accounts": [
+        {
+          "name": "split_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  108,
+                  105,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "split_config"
+              },
+              {
+                "kind": "account",
+                "path": "split_config"
+              },
+              {
+                "kind": "account",
+                "path": "split_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "executor"
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_protocol",
+      "docs": [
+        "Initializes the protocol configuration",
+        "Can only be called once by the program's upgrade authority"
+      ],
+      "discriminator": [
+        188,
+        233,
+        252,
+        106,
+        134,
+        146,
+        202,
+        91
+      ],
+      "accounts": [
+        {
+          "name": "protocol_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "fee_wallet",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "transfer_protocol_authority",
+      "docs": [
+        "Transfers protocol authority to a new address",
+        "Only callable by current protocol authority"
+      ],
+      "discriminator": [
+        35,
+        76,
+        36,
+        77,
+        136,
+        112,
+        158,
+        222
+      ],
+      "accounts": [
+        {
+          "name": "protocol_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_protocol_config",
+      "docs": [
+        "Updates the protocol fee wallet",
+        "Only callable by current protocol authority"
+      ],
+      "discriminator": [
+        197,
+        97,
+        123,
+        54,
+        221,
+        168,
+        11,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "protocol_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_fee_wallet",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_split_config",
+      "docs": [
+        "Updates split configuration with new recipients",
+        "Only callable by authority, requires vault empty"
+      ],
+      "discriminator": [
+        47,
+        103,
+        74,
+        170,
+        55,
+        251,
+        130,
+        146
+      ],
+      "accounts": [
+        {
+          "name": "split_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  108,
+                  105,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "split_config"
+              },
+              {
+                "kind": "account",
+                "path": "split_config"
+              },
+              {
+                "kind": "account",
+                "path": "split_config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault"
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "new_recipients",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "RecipientInput"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "ProtocolConfig",
+      "discriminator": [
+        207,
+        91,
+        250,
+        28,
+        152,
+        179,
+        215,
+        209
+      ]
+    },
+    {
+      "name": "SplitConfig",
+      "discriminator": [
+        49,
+        201,
+        50,
+        228,
+        22,
+        142,
+        12,
+        222
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "ProtocolAuthorityTransferred",
+      "discriminator": [
+        161,
+        166,
+        124,
+        109,
+        213,
+        33,
+        94,
+        248
+      ]
+    },
+    {
+      "name": "ProtocolConfigCreated",
+      "discriminator": [
+        129,
+        206,
+        255,
+        0,
+        237,
+        179,
+        52,
+        224
+      ]
+    },
+    {
+      "name": "ProtocolConfigUpdated",
+      "discriminator": [
+        20,
+        99,
+        32,
+        237,
+        111,
+        86,
+        195,
+        199
+      ]
+    },
+    {
+      "name": "SplitConfigClosed",
+      "discriminator": [
+        30,
+        167,
+        169,
+        134,
+        174,
+        93,
+        98,
+        182
+      ]
+    },
+    {
+      "name": "SplitConfigCreated",
+      "discriminator": [
+        48,
+        207,
+        235,
+        42,
+        217,
+        76,
+        100,
+        46
+      ]
+    },
+    {
+      "name": "SplitConfigUpdated",
+      "discriminator": [
+        46,
+        59,
+        153,
+        50,
+        174,
+        164,
+        44,
+        202
+      ]
+    },
+    {
+      "name": "SplitExecuted",
+      "discriminator": [
+        147,
+        176,
+        193,
+        145,
+        52,
+        30,
+        166,
+        53
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidRecipientCount",
+      "msg": "Recipient count must be between 1 and 20"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidSplitTotal",
+      "msg": "Recipient percentages must sum to 9900 bps (99%)"
+    },
+    {
+      "code": 6002,
+      "name": "DuplicateRecipient",
+      "msg": "Duplicate recipient address"
+    },
+    {
+      "code": 6003,
+      "name": "ZeroAddress",
+      "msg": "Recipient address cannot be zero"
+    },
+    {
+      "code": 6004,
+      "name": "ZeroPercentage",
+      "msg": "Recipient percentage cannot be zero"
+    },
+    {
+      "code": 6005,
+      "name": "RecipientATADoesNotExist",
+      "msg": "Recipient ATA does not exist"
+    },
+    {
+      "code": 6006,
+      "name": "RecipientATAInvalid",
+      "msg": "Recipient ATA is invalid"
+    },
+    {
+      "code": 6007,
+      "name": "RecipientATAWrongOwner",
+      "msg": "Recipient ATA has wrong owner"
+    },
+    {
+      "code": 6008,
+      "name": "RecipientATAWrongMint",
+      "msg": "Recipient ATA has wrong mint"
+    },
+    {
+      "code": 6009,
+      "name": "VaultNotEmpty",
+      "msg": "Vault must be empty for this operation"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidVault",
+      "msg": "Invalid vault account"
+    },
+    {
+      "code": 6011,
+      "name": "InsufficientRemainingAccounts",
+      "msg": "Not enough accounts provided in remaining_accounts"
+    },
+    {
+      "code": 6012,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6013,
+      "name": "MathUnderflow",
+      "msg": "Math underflow"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidProtocolFeeRecipient",
+      "msg": "Invalid protocol fee recipient"
+    },
+    {
+      "code": 6015,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6016,
+      "name": "AlreadyInitialized",
+      "msg": "Protocol already initialized"
+    },
+    {
+      "code": 6017,
+      "name": "UnclaimedNotEmpty",
+      "msg": "Unclaimed amounts must be zero to close"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidTokenProgram",
+      "msg": "Invalid token program"
+    }
+  ],
+  "types": [
+    {
+      "name": "ProtocolAuthorityTransferred",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolConfig",
+      "docs": [
+        "Global protocol configuration (single instance)"
+      ],
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "Authority that can update config (initially program upgrade authority)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_wallet",
+            "docs": [
+              "Wallet that receives protocol fees"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "Bump seed for PDA derivation (stored for CU optimization)"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolConfigCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolConfigUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_fee_wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_fee_wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Recipient",
+      "docs": [
+        "Recipient in a split configuration"
+      ],
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "address",
+            "docs": [
+              "Recipient's wallet address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "percentage_bps",
+            "docs": [
+              "Percentage in basis points (1-9900, where 100 = 1%)"
+            ],
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RecipientInput",
+      "docs": [
+        "Input struct for recipients (used in instruction parameters)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "address",
+            "type": "pubkey"
+          },
+          {
+            "name": "percentage_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SplitConfig",
+      "docs": [
+        "Per-split configuration with zero-copy for optimal compute efficiency"
+      ],
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "docs": [
+              "Schema version for future upgrades"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "Authority that can update/close this config"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "docs": [
+              "Token mint for this split"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "docs": [
+              "Vault address (PDA-owned ATA) for receiving payments"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "unique_id",
+            "docs": [
+              "Unique identifier enabling multiple configs per authority/mint"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "Bump seed for PDA derivation (stored for CU optimization)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "recipient_count",
+            "docs": [
+              "Number of active recipients (1-20)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "recipients",
+            "docs": [
+              "Fixed array of recipients (use recipient_count to determine active entries)"
+            ],
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "Recipient"
+                  }
+                },
+                20
+              ]
+            }
+          },
+          {
+            "name": "unclaimed_amounts",
+            "docs": [
+              "Fixed array of unclaimed amounts (indexed by recipient position)"
+            ],
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "UnclaimedAmount"
+                  }
+                },
+                20
+              ]
+            }
+          },
+          {
+            "name": "protocol_unclaimed",
+            "docs": [
+              "Protocol fees awaiting claim (when protocol ATA missing)"
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SplitConfigClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "config",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "rent_recovered",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SplitConfigCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "config",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "unique_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "recipient_count",
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SplitConfigUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "config",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_recipient_count",
+            "type": "u8"
+          },
+          {
+            "name": "new_recipient_count",
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SplitExecuted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "config",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_amount",
+            "type": "u64"
+          },
+          {
+            "name": "recipients_distributed",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_fee",
+            "type": "u64"
+          },
+          {
+            "name": "held_as_unclaimed",
+            "type": "u64"
+          },
+          {
+            "name": "unclaimed_cleared",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_unclaimed_cleared",
+            "type": "u64"
+          },
+          {
+            "name": "executor",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UnclaimedAmount",
+      "docs": [
+        "Unclaimed amount for a recipient"
+      ],
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recipient",
+            "docs": [
+              "Recipient address (redundant but useful for indexing)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "Amount held as unclaimed"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "docs": [
+              "Timestamp when this was recorded"
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}

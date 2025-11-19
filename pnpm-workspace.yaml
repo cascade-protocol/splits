@@ -1,0 +1,7 @@
+packages:
+  - 'sdk'
+
+onlyBuiltDependencies:
+  - bigint-buffer
+  - bufferutil
+  - utf-8-validate
