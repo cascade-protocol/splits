@@ -156,3 +156,44 @@ fn test_initialize_protocol_no_upgrade_authority_fails() {
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
+
+#[test]
+fn test_initialize_protocol_already_initialized_fails() {
+    let mollusk = setup_mollusk();
+
+    // Setup accounts
+    let authority = Pubkey::new_unique();
+    let fee_wallet = Pubkey::new_unique();
+    let (protocol_config, bump) = derive_protocol_config();
+    let (program_data, _) = derive_program_data();
+
+    // Create already initialized protocol config data
+    use helpers::serialization::{serialize_protocol_config, PROTOCOL_CONFIG_SIZE};
+    let existing_data = serialize_protocol_config(authority, fee_wallet, bump);
+
+    // Build instruction
+    let instruction = build_initialize_protocol(protocol_config, authority, program_data, fee_wallet);
+
+    // Setup accounts - protocol_config already exists with data
+    let accounts = vec![
+        (
+            protocol_config,
+            Account {
+                lamports: 1_000_000,
+                data: existing_data,
+                owner: PROGRAM_ID,
+                executable: false,
+                rent_epoch: 0,
+            },
+        ),
+        (authority, system_account(10_000_000_000)),
+        (program_data, program_data_account(authority)),
+        system_program_account(),
+    ];
+
+    // Should fail because protocol is already initialized
+    // This will fail at the Anchor constraint level (init constraint)
+    let checks = vec![Check::err(ProgramError::Custom(0))]; // Anchor constraint error
+
+    mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
+}

@@ -259,3 +259,62 @@ fn test_close_split_config_wrong_authority_fails() {
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
+
+#[test]
+fn test_close_split_config_protocol_unclaimed_not_empty_fails() {
+    let mollusk = setup_mollusk_with_token();
+    let rent = get_rent(&mollusk);
+
+    // Setup accounts
+    let authority = Pubkey::new_unique();
+    let unique_id = Pubkey::new_unique();
+    let mint = Pubkey::new_unique();
+
+    // Derive PDAs
+    let (split_config, split_bump) = derive_split_config(&authority, &mint, &unique_id);
+    let vault = derive_vault(&split_config, &mint);
+
+    // Recipient
+    let recipient1 = Pubkey::new_unique();
+    let recipients = vec![RecipientData {
+        address: recipient1,
+        percentage_bps: 9900,
+    }];
+
+    // Create account data with protocol unclaimed
+    let split_config_data = serialize_split_config(
+        1,
+        authority,
+        mint,
+        vault,
+        unique_id,
+        split_bump,
+        &recipients,
+        &[],      // no recipient unclaimed
+        100_000,  // protocol unclaimed - should cause failure
+    );
+
+    // Build instruction
+    let instruction = build_close_split_config(split_config, vault, authority);
+
+    // Setup account states - vault is empty but has protocol unclaimed
+    let accounts = vec![
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                split_config_data,
+                PROGRAM_ID,
+            ),
+        ),
+        (vault, token_account(mint, split_config, 0, &rent)),
+        (authority, system_account(1_000_000)),
+        token_program_account(),
+    ];
+
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::UnclaimedNotEmpty,
+    )))];
+
+    mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
+}
