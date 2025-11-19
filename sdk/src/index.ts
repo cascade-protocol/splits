@@ -28,12 +28,12 @@ export * from "./discriminators";
 
 // String-based PDA derivation (framework-agnostic)
 export {
-  deriveProtocolConfig,
-  deriveSplitConfig,
-  deriveVault,
-  deriveAta,
-  deriveProgramData,
-  deriveCreateSplitConfigAddresses,
+	deriveProtocolConfig,
+	deriveSplitConfig,
+	deriveVault,
+	deriveAta,
+	deriveProgramData,
+	deriveCreateSplitConfigAddresses,
 } from "./pda";
 
 // IDL export

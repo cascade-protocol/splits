@@ -1,0 +1,600 @@
+import * as anchor from "@coral-xyz/anchor";
+import type { Program } from "@coral-xyz/anchor";
+import {
+	Keypair,
+	PublicKey,
+	SystemProgram,
+	Transaction,
+	sendAndConfirmTransaction,
+} from "@solana/web3.js";
+import {
+	TOKEN_PROGRAM_ID,
+	TOKEN_2022_PROGRAM_ID,
+	createMint,
+	createAssociatedTokenAccount,
+	mintTo,
+	getAccount,
+	getAssociatedTokenAddressSync,
+	createInitializeMint2Instruction,
+	getMintLen,
+} from "@solana/spl-token";
+import { describe, test, expect, beforeAll } from "vitest";
+import type { CascadeSplits } from "../target/types/cascade_splits";
+
+// =============================================================================
+// SMOKE TESTS - Essential E2E tests for real network behavior
+// =============================================================================
+
+describe("cascade-splits: basic flow", () => {
+	const provider = anchor.AnchorProvider.env();
+	anchor.setProvider(provider);
+
+	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const connection = provider.connection;
+	const payer = provider.wallet as anchor.Wallet;
+
+	// Test accounts
+	let mint: PublicKey;
+	let uniqueId: Keypair;
+	let recipient1: Keypair;
+	let recipient2: Keypair;
+	let feeWallet: PublicKey;
+
+	// Derived addresses
+	let splitConfig: PublicKey;
+	let vault: PublicKey;
+	let recipient1Ata: PublicKey;
+	let recipient2Ata: PublicKey;
+	let protocolAta: PublicKey;
+
+	beforeAll(async () => {
+		// Create test mint
+		mint = await createMint(connection, payer.payer, payer.publicKey, null, 6);
+
+		// Generate test accounts
+		uniqueId = Keypair.generate();
+		recipient1 = Keypair.generate();
+		recipient2 = Keypair.generate();
+
+		// Get or initialize protocol config
+		const [protocolConfigPda] = PublicKey.findProgramAddressSync(
+			[Buffer.from("protocol_config")],
+			program.programId,
+		);
+
+		// Check if running on localnet
+		const endpoint = connection.rpcEndpoint;
+		const isLocalnet =
+			endpoint.includes("localhost") || endpoint.includes("127.0.0.1");
+
+		// Check if protocol is initialized
+		const protocolAccount = await connection.getAccountInfo(protocolConfigPda);
+
+		if (!protocolAccount && isLocalnet) {
+			// Initialize protocol for localnet testing
+			const [programData] = PublicKey.findProgramAddressSync(
+				[program.programId.toBuffer()],
+				new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111"),
+			);
+
+			await program.methods
+				.initializeProtocol(payer.publicKey)
+				.accounts({
+					authority: payer.publicKey,
+					programData,
+				})
+				.rpc();
+
+			feeWallet = payer.publicKey;
+		} else if (!protocolAccount) {
+			throw new Error(
+				"Protocol not initialized. Run initialization script first.",
+			);
+		} else {
+			const protocolConfig =
+				await program.account.protocolConfig.fetch(protocolConfigPda);
+			feeWallet = protocolConfig.feeWallet;
+		}
+
+		// Derive split config PDA
+		[splitConfig] = PublicKey.findProgramAddressSync(
+			[
+				Buffer.from("split_config"),
+				payer.publicKey.toBuffer(),
+				mint.toBuffer(),
+				uniqueId.publicKey.toBuffer(),
+			],
+			program.programId,
+		);
+
+		// Derive vault (ATA of split config)
+		vault = getAssociatedTokenAddressSync(mint, splitConfig, true);
+
+		// Create recipient ATAs
+		recipient1Ata = await createAssociatedTokenAccount(
+			connection,
+			payer.payer,
+			mint,
+			recipient1.publicKey,
+		);
+		recipient2Ata = await createAssociatedTokenAccount(
+			connection,
+			payer.payer,
+			mint,
+			recipient2.publicKey,
+		);
+
+		// Create protocol fee ATA
+		protocolAta = await createAssociatedTokenAccount(
+			connection,
+			payer.payer,
+			mint,
+			feeWallet,
+		);
+	});
+
+	test("creates a split config", async () => {
+		const recipients = [
+			{ address: recipient1.publicKey, percentageBps: 5000 },
+			{ address: recipient2.publicKey, percentageBps: 4900 },
+		];
+
+		await program.methods
+			.createSplitConfig(mint, recipients)
+			.accounts({
+				uniqueId: uniqueId.publicKey,
+				authority: payer.publicKey,
+				mintAccount: mint,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			})
+			.remainingAccounts([
+				{ pubkey: recipient1Ata, isWritable: false, isSigner: false },
+				{ pubkey: recipient2Ata, isWritable: false, isSigner: false },
+			])
+			.rpc();
+
+		// Verify the split config was created
+		const config = await program.account.splitConfig.fetch(splitConfig);
+		expect(config.authority.toBase58()).toBe(payer.publicKey.toBase58());
+		expect(config.mint.toBase58()).toBe(mint.toBase58());
+		expect(config.recipientCount).toBe(2);
+	});
+
+	test("executes a split", async () => {
+		// Mint tokens to vault
+		const amount = 1_000_000; // 1 token with 6 decimals
+		await mintTo(connection, payer.payer, mint, vault, payer.publicKey, amount);
+
+		// Execute split
+		await program.methods
+			.executeSplit()
+			.accountsPartial({
+				splitConfig,
+				vault,
+				mint,
+				executor: payer.publicKey,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			})
+			.remainingAccounts([
+				{ pubkey: recipient1Ata, isWritable: true, isSigner: false },
+				{ pubkey: recipient2Ata, isWritable: true, isSigner: false },
+				{ pubkey: protocolAta, isWritable: true, isSigner: false },
+			])
+			.rpc();
+
+		// Verify balances
+		const recipient1Balance = await getAccount(connection, recipient1Ata);
+		const recipient2Balance = await getAccount(connection, recipient2Ata);
+		const protocolBalance = await getAccount(connection, protocolAta);
+		const vaultBalance = await getAccount(connection, vault);
+
+		// Verify vault is empty
+		expect(vaultBalance.amount.toString()).toBe("0");
+
+		// Verify recipients received their share
+		expect(recipient1Balance.amount.toString()).toBe("500000"); // 50%
+		expect(recipient2Balance.amount.toString()).toBe("490000"); // 49%
+		expect(protocolBalance.amount.toString()).toBe("10000"); // 1% fee
+	});
+
+	test("closes the split config", async () => {
+		await program.methods
+			.closeSplitConfig()
+			.accountsPartial({
+				splitConfig,
+				vault,
+				authority: payer.publicKey,
+			})
+			.rpc();
+
+		// Verify account is closed
+		const accountInfo = await connection.getAccountInfo(splitConfig);
+		expect(accountInfo).toBeNull();
+	});
+});
+
+describe("cascade-splits: multiple recipients", () => {
+	const provider = anchor.AnchorProvider.env();
+	anchor.setProvider(provider);
+
+	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const connection = provider.connection;
+	const payer = provider.wallet as anchor.Wallet;
+
+	let mint: PublicKey;
+	let uniqueId: Keypair;
+	let feeWallet: PublicKey;
+	let splitConfig: PublicKey;
+	let vault: PublicKey;
+	let protocolAta: PublicKey;
+	const recipients: { keypair: Keypair; ata: PublicKey }[] = [];
+
+	const RECIPIENT_COUNT = 10;
+
+	beforeAll(async () => {
+		mint = await createMint(connection, payer.payer, payer.publicKey, null, 6);
+		uniqueId = Keypair.generate();
+
+		const [protocolConfigPda] = PublicKey.findProgramAddressSync(
+			[Buffer.from("protocol_config")],
+			program.programId,
+		);
+		const protocolConfig =
+			await program.account.protocolConfig.fetch(protocolConfigPda);
+		feeWallet = protocolConfig.feeWallet;
+
+		[splitConfig] = PublicKey.findProgramAddressSync(
+			[
+				Buffer.from("split_config"),
+				payer.publicKey.toBuffer(),
+				mint.toBuffer(),
+				uniqueId.publicKey.toBuffer(),
+			],
+			program.programId,
+		);
+		vault = getAssociatedTokenAddressSync(mint, splitConfig, true);
+
+		// Create recipients with ATAs
+		for (let i = 0; i < RECIPIENT_COUNT; i++) {
+			const keypair = Keypair.generate();
+			const ata = await createAssociatedTokenAccount(
+				connection,
+				payer.payer,
+				mint,
+				keypair.publicKey,
+			);
+			recipients.push({ keypair, ata });
+		}
+
+		protocolAta = await createAssociatedTokenAccount(
+			connection,
+			payer.payer,
+			mint,
+			feeWallet,
+		);
+	});
+
+	test("creates and executes split with 10 recipients", async () => {
+		// Each recipient gets 990 bps (9.9%) for total of 9900 bps (99%)
+		const recipientData = recipients.map((r) => ({
+			address: r.keypair.publicKey,
+			percentageBps: 990,
+		}));
+
+		await program.methods
+			.createSplitConfig(mint, recipientData)
+			.accounts({
+				uniqueId: uniqueId.publicKey,
+				authority: payer.publicKey,
+				mintAccount: mint,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			})
+			.remainingAccounts(
+				recipients.map((r) => ({
+					pubkey: r.ata,
+					isWritable: false,
+					isSigner: false,
+				})),
+			)
+			.rpc();
+
+		// Verify config was created with correct recipient count
+		const config = await program.account.splitConfig.fetch(splitConfig);
+		expect(config.recipientCount).toBe(RECIPIENT_COUNT);
+
+		// Mint tokens and execute split
+		const amount = 10_000_000; // 10 tokens
+		await mintTo(connection, payer.payer, mint, vault, payer.publicKey, amount);
+
+		await program.methods
+			.executeSplit()
+			.accountsPartial({
+				splitConfig,
+				vault,
+				mint,
+				executor: payer.publicKey,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			})
+			.remainingAccounts([
+				...recipients.map((r) => ({
+					pubkey: r.ata,
+					isWritable: true,
+					isSigner: false,
+				})),
+				{ pubkey: protocolAta, isWritable: true, isSigner: false },
+			])
+			.rpc();
+
+		// Verify each recipient got their share: 9.9% of 10M = 990000
+		for (const recipient of recipients) {
+			const balance = await getAccount(connection, recipient.ata);
+			expect(balance.amount.toString()).toBe("990000");
+		}
+
+		// Verify protocol fee: 1% of 10M = 100000
+		const protocolBalance = await getAccount(connection, protocolAta);
+		expect(Number(protocolBalance.amount)).toBeGreaterThanOrEqual(100000);
+	});
+});
+
+describe("cascade-splits: Token-2022 support", () => {
+	const provider = anchor.AnchorProvider.env();
+	anchor.setProvider(provider);
+
+	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const connection = provider.connection;
+	const payer = provider.wallet as anchor.Wallet;
+
+	let mint2022: PublicKey;
+	let uniqueId: Keypair;
+	let recipient1: Keypair;
+	let feeWallet: PublicKey;
+	let splitConfig: PublicKey;
+	let vault: PublicKey;
+	let recipient1Ata: PublicKey;
+	let protocolAta: PublicKey;
+
+	beforeAll(async () => {
+		// Create Token-2022 mint
+		const mintKeypair = Keypair.generate();
+		mint2022 = mintKeypair.publicKey;
+
+		const mintLen = getMintLen([]);
+		const mintLamports =
+			await connection.getMinimumBalanceForRentExemption(mintLen);
+
+		const tx = new Transaction().add(
+			SystemProgram.createAccount({
+				fromPubkey: payer.publicKey,
+				newAccountPubkey: mint2022,
+				space: mintLen,
+				lamports: mintLamports,
+				programId: TOKEN_2022_PROGRAM_ID,
+			}),
+			createInitializeMint2Instruction(
+				mint2022,
+				6,
+				payer.publicKey,
+				null,
+				TOKEN_2022_PROGRAM_ID,
+			),
+		);
+
+		await sendAndConfirmTransaction(connection, tx, [payer.payer, mintKeypair]);
+
+		uniqueId = Keypair.generate();
+		recipient1 = Keypair.generate();
+
+		const [protocolConfigPda] = PublicKey.findProgramAddressSync(
+			[Buffer.from("protocol_config")],
+			program.programId,
+		);
+		const protocolConfig =
+			await program.account.protocolConfig.fetch(protocolConfigPda);
+		feeWallet = protocolConfig.feeWallet;
+
+		[splitConfig] = PublicKey.findProgramAddressSync(
+			[
+				Buffer.from("split_config"),
+				payer.publicKey.toBuffer(),
+				mint2022.toBuffer(),
+				uniqueId.publicKey.toBuffer(),
+			],
+			program.programId,
+		);
+		vault = getAssociatedTokenAddressSync(
+			mint2022,
+			splitConfig,
+			true,
+			TOKEN_2022_PROGRAM_ID,
+		);
+
+		// Create ATAs for Token-2022
+		recipient1Ata = await createAssociatedTokenAccount(
+			connection,
+			payer.payer,
+			mint2022,
+			recipient1.publicKey,
+			undefined,
+			TOKEN_2022_PROGRAM_ID,
+		);
+
+		protocolAta = await createAssociatedTokenAccount(
+			connection,
+			payer.payer,
+			mint2022,
+			feeWallet,
+			undefined,
+			TOKEN_2022_PROGRAM_ID,
+		);
+	});
+
+	test("creates and executes split with Token-2022 mint", async () => {
+		// Create split config
+		await program.methods
+			.createSplitConfig(mint2022, [
+				{ address: recipient1.publicKey, percentageBps: 9900 },
+			])
+			.accounts({
+				uniqueId: uniqueId.publicKey,
+				authority: payer.publicKey,
+				mintAccount: mint2022,
+				tokenProgram: TOKEN_2022_PROGRAM_ID,
+			})
+			.remainingAccounts([
+				{ pubkey: recipient1Ata, isWritable: false, isSigner: false },
+			])
+			.rpc();
+
+		// Mint Token-2022 tokens to vault
+		await mintTo(
+			connection,
+			payer.payer,
+			mint2022,
+			vault,
+			payer.publicKey,
+			1_000_000,
+			[],
+			undefined,
+			TOKEN_2022_PROGRAM_ID,
+		);
+
+		// Execute split
+		await program.methods
+			.executeSplit()
+			.accountsPartial({
+				splitConfig,
+				vault,
+				mint: mint2022,
+				executor: payer.publicKey,
+				tokenProgram: TOKEN_2022_PROGRAM_ID,
+			})
+			.remainingAccounts([
+				{ pubkey: recipient1Ata, isWritable: true, isSigner: false },
+				{ pubkey: protocolAta, isWritable: true, isSigner: false },
+			])
+			.rpc();
+
+		// Verify balances
+		const recipientBalance = await getAccount(
+			connection,
+			recipient1Ata,
+			undefined,
+			TOKEN_2022_PROGRAM_ID,
+		);
+		const protocolBalance = await getAccount(
+			connection,
+			protocolAta,
+			undefined,
+			TOKEN_2022_PROGRAM_ID,
+		);
+
+		expect(recipientBalance.amount.toString()).toBe("990000");
+		expect(protocolBalance.amount.toString()).toBe("10000");
+	});
+});
+
+describe("cascade-splits: permissionless execution", () => {
+	const provider = anchor.AnchorProvider.env();
+	anchor.setProvider(provider);
+
+	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const connection = provider.connection;
+	const payer = provider.wallet as anchor.Wallet;
+
+	let mint: PublicKey;
+	let feeWallet: PublicKey;
+
+	beforeAll(async () => {
+		mint = await createMint(connection, payer.payer, payer.publicKey, null, 6);
+
+		const [protocolConfigPda] = PublicKey.findProgramAddressSync(
+			[Buffer.from("protocol_config")],
+			program.programId,
+		);
+		const protocolConfig =
+			await program.account.protocolConfig.fetch(protocolConfigPda);
+		feeWallet = protocolConfig.feeWallet;
+	});
+
+	test("allows permissionless execution by any account", async () => {
+		const uniqueId = Keypair.generate();
+		const recipient = Keypair.generate();
+		const randomExecutor = Keypair.generate();
+
+		const [splitConfig] = PublicKey.findProgramAddressSync(
+			[
+				Buffer.from("split_config"),
+				payer.publicKey.toBuffer(),
+				mint.toBuffer(),
+				uniqueId.publicKey.toBuffer(),
+			],
+			program.programId,
+		);
+		const vault = getAssociatedTokenAddressSync(mint, splitConfig, true);
+
+		const recipientAta = await createAssociatedTokenAccount(
+			connection,
+			payer.payer,
+			mint,
+			recipient.publicKey,
+		);
+		const protocolAta = getAssociatedTokenAddressSync(mint, feeWallet);
+
+		// Create protocol ATA if it doesn't exist
+		try {
+			await createAssociatedTokenAccount(
+				connection,
+				payer.payer,
+				mint,
+				feeWallet,
+			);
+		} catch {
+			// Already exists
+		}
+
+		await program.methods
+			.createSplitConfig(mint, [
+				{ address: recipient.publicKey, percentageBps: 9900 },
+			])
+			.accounts({
+				uniqueId: uniqueId.publicKey,
+				authority: payer.publicKey,
+				mintAccount: mint,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			})
+			.remainingAccounts([
+				{ pubkey: recipientAta, isWritable: false, isSigner: false },
+			])
+			.rpc();
+
+		await mintTo(
+			connection,
+			payer.payer,
+			mint,
+			vault,
+			payer.publicKey,
+			1_000_000,
+		);
+
+		// Execute with a random executor address (not a signer, just recorded)
+		await program.methods
+			.executeSplit()
+			.accountsPartial({
+				splitConfig,
+				vault,
+				mint,
+				executor: randomExecutor.publicKey,
+				tokenProgram: TOKEN_PROGRAM_ID,
+			})
+			.remainingAccounts([
+				{ pubkey: recipientAta, isWritable: true, isSigner: false },
+				{ pubkey: protocolAta, isWritable: true, isSigner: false },
+			])
+			.rpc();
+
+		// Verify split was executed
+		const balance = await getAccount(connection, recipientAta);
+		expect(balance.amount.toString()).toBe("990000");
+	});
+});
