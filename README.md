@@ -2,7 +2,7 @@
 
 Non-custodial payment splitting protocol for Solana. Automatically distribute incoming payments to multiple recipients based on pre-configured percentages.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Solana](https://img.shields.io/badge/Solana-Mainnet-green.svg)](https://solana.com)
 
 **Program ID:** `SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB`
@@ -231,7 +231,7 @@ pnpm build
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file.
+Apache License 2.0 - see [LICENSE](LICENSE) file.
 
 ## Links
 
