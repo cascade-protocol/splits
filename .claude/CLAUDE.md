@@ -63,6 +63,38 @@ import { kit } from '@cascade-labs/splits';   // @solana/kit
 
 Instruction serialization is manual (not IDL-generated) - account order matters.
 
+## Verified Deployment
+
+**Critical:** ARM Mac builds ≠ Docker builds. Must use verifiable build for on-chain verification.
+
+```bash
+# 1. Verifiable build (Docker-based, deterministic)
+anchor build --verifiable
+
+# 2. Deploy (use this exact binary, don't rebuild)
+anchor deploy --provider.cluster mainnet --program-id <PROGRAM_ID>
+
+# 3. Commit to git
+git add -A && git commit -m "release: vX.Y.Z"
+
+# 4. Verify + upload PDA + submit remote job (auto-yes, correct keypair)
+yes | solana-verify verify-from-repo --remote \
+  --url https://api.mainnet-beta.solana.com \
+  --program-id <PROGRAM_ID> \
+  https://github.com/cascade-protocol/splits \
+  --library-name cascade_splits \
+  --commit-hash <COMMIT> \
+  --keypair ~/.config/solana/deployer.json
+
+# If rate limited, wait and submit job separately:
+solana-verify remote submit-job \
+  --program-id <PROGRAM_ID> \
+  --uploader <PROGRAM_AUTHORITY> \
+  --url https://api.mainnet-beta.solana.com
+```
+
+Verify at: `https://verify.osec.io/status/<PROGRAM_ID>`
+
 ## Testing
 
 | Layer | Location | Framework | Command |
