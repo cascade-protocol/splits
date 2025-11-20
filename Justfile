@@ -35,6 +35,9 @@ clean:
 deploy-devnet:
   anchor deploy --provider.cluster devnet --provider.wallet {{deployer}}
 
+deploy-mainnet:
+  anchor deploy --provider.cluster mainnet --provider.wallet {{deployer}}
+
 init-devnet:
   pnpm tsx scripts/initialize-protocol.ts devnet {{deployer}}
 test-devnet:

@@ -19,7 +19,7 @@ solana_security_txt::security_txt! {
     contacts: "email:hello@cascade-protocol.xyz,link:https://github.com/cascade-protocol/splits/security",
     policy: "https://github.com/cascade-protocol/splits/blob/main/SECURITY.md",
     source_code: "https://github.com/cascade-protocol/splits",
-    source_release: "v0.1.0"
+    source_release: "v0.2.0"
 }
 
 #[program]

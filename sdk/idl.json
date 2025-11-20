@@ -2,7 +2,7 @@
   "address": "SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB",
   "metadata": {
     "name": "cascade_splits",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "spec": "0.1.0",
     "description": "Non-custodial payment splitter for Solana - distribute incoming payments to multiple recipients automatically",
     "repository": "https://github.com/cascade-protocol/splits"
