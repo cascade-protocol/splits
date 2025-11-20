@@ -30,15 +30,22 @@ async function main() {
 		process.exit(1);
 	}
 
-	// Decode: 8 bytes discriminator + 32 bytes authority + 32 bytes feeWallet
+	// Decode: 8 bytes discriminator + 32 bytes authority + 32 bytes pending_authority + 32 bytes feeWallet + 1 byte bump
 	const data = accountInfo.data;
 	const authority = new PublicKey(data.slice(8, 40));
-	const feeWallet = new PublicKey(data.slice(40, 72));
+	const pendingAuthority = new PublicKey(data.slice(40, 72));
+	const feeWallet = new PublicKey(data.slice(72, 104));
 
 	console.log("Cluster:", cluster);
 	console.log("Protocol Config:", protocolConfigAddress);
 	console.log("Authority:", authority.toBase58());
 	console.log("Fee Wallet:", feeWallet.toBase58());
+
+	// Show pending authority if there's an active transfer
+	const isDefaultPubkey = pendingAuthority.equals(PublicKey.default);
+	if (!isDefaultPubkey) {
+		console.log("⚠️  Pending Authority:", pendingAuthority.toBase58());
+	}
 }
 
 main().catch(console.error);

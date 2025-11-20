@@ -74,7 +74,7 @@ pub fn handler<'info>(
 
         // Bounds check (recipients + protocol_ata)
         require!(
-            ctx.remaining_accounts.len() >= count + 1,
+            ctx.remaining_accounts.len() > count,
             ErrorCode::InsufficientRemainingAccounts
         );
 

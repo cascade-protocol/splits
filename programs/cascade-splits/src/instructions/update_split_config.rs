@@ -67,7 +67,7 @@ pub fn handler<'info>(
 
     // Validate recipient count
     require!(
-        new_recipient_count >= MIN_RECIPIENTS && new_recipient_count <= MAX_RECIPIENTS,
+        (MIN_RECIPIENTS..=MAX_RECIPIENTS).contains(&new_recipient_count),
         ErrorCode::InvalidRecipientCount
     );
 
@@ -88,9 +88,9 @@ pub fn handler<'info>(
         require!(recipient.percentage_bps > 0, ErrorCode::ZeroPercentage);
 
         // No duplicates
-        for j in (i + 1)..new_recipients.len() {
+        for other in new_recipients.iter().skip(i + 1) {
             require!(
-                recipient.address != new_recipients[j].address,
+                recipient.address != other.address,
                 ErrorCode::DuplicateRecipient
             );
         }

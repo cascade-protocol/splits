@@ -69,18 +69,37 @@ anchor test
 cargo bench -p cascade-splits
 ```
 
-## Compute Unit Benchmarks
+## Costs
+
+### Rent (Refundable)
+
+Creating a split config requires rent-exempt deposits that are **fully refundable** when closing:
+
+| Account | Size | Rent |
+|---------|------|------|
+| SplitConfig | 1,792 bytes | 0.0134 SOL |
+| Vault ATA | 165 bytes | 0.0020 SOL |
+| **Total** | | **~0.0154 SOL** |
+
+At $150/SOL ≈ $2.31 (refunded on `close_split_config`)
+
+### Compute Units
 
 | Instruction | CUs | Notes |
 |------------|-----|-------|
-| execute_split (1 recipient) | 27,774 | 2 token transfers |
-| execute_split (5 recipients) | 66,674 | 6 token transfers |
-| create_split_config | 37,957 | Includes vault ATA creation |
-| update_split_config | 7,443 | |
-| close_split_config | 4,901 | |
-| initialize_protocol | 11,986 | One-time setup |
+| execute_split (1 recipient) | 27,777 | Best case |
+| execute_split (5 recipients) | 66,677 | Typical case |
+| execute_split (20 recipients) | 205,427 | Worst case (MAX) |
+| create_split_config | 36,460 | Includes vault ATA creation |
+| update_split_config | 7,446 | |
+| close_split_config | 4,904 | |
+| initialize_protocol | 8,998 | One-time setup |
+
+Scaling: ~9K CU per recipient (6K Token CPI + 3K overhead). Even worst case uses only 15% of Solana's 1.4M CU budget.
 
 For comparison: typical DEX swaps use 100,000-400,000+ CUs.
+
+See [benchmarks/compute_units.md](benchmarks/compute_units.md) for full benchmark history and additional scenarios (unclaimed flows, protocol admin ops).
 
 ## Usage Example
 

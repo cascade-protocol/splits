@@ -51,3 +51,14 @@ update-fee-wallet-devnet new_fee_wallet:
   pnpm tsx scripts/update-fee-wallet.ts devnet {{deployer}} {{new_fee_wallet}}
 update-fee-wallet-mainnet new_fee_wallet:
   pnpm tsx scripts/update-fee-wallet.ts mainnet {{deployer}} {{new_fee_wallet}}
+
+# Two-step authority transfer
+transfer-authority-devnet new_authority:
+  pnpm tsx scripts/transfer-protocol-authority.ts devnet {{deployer}} {{new_authority}}
+transfer-authority-mainnet new_authority:
+  pnpm tsx scripts/transfer-protocol-authority.ts mainnet {{deployer}} {{new_authority}}
+
+accept-authority-devnet wallet:
+  pnpm tsx scripts/accept-protocol-authority.ts devnet {{wallet}}
+accept-authority-mainnet wallet:
+  pnpm tsx scripts/accept-protocol-authority.ts mainnet {{wallet}}

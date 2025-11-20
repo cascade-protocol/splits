@@ -32,6 +32,13 @@ Protocol ATA accessed via `.last().unwrap()` - will panic if missing or wrong po
 - All `unclaimed_amounts` must be zero
 - `protocol_unclaimed` must be zero
 
+### 6. Two-Step Authority Transfer
+Protocol authority transfer requires two transactions:
+1. `transfer_protocol_authority` - Sets `pending_authority` (current authority signs)
+2. `accept_protocol_authority` - Completes transfer (new authority signs)
+
+Can be overwritten by calling transfer again. Cancel by setting to `Pubkey::default()`.
+
 ## Architecture
 
 ```
@@ -42,7 +49,7 @@ User Payment → Vault (ATA owned by SplitConfig PDA)
 ```
 
 **PDAs:**
-- Protocol Config: `["protocol_config"]` - singleton, 73 bytes
+- Protocol Config: `["protocol_config"]` - singleton, 105 bytes
 - Split Config: `["split_config", authority, mint, unique_id]` - 1792 bytes
 - Vault: ATA with split_config as owner
 

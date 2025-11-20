@@ -45,6 +45,7 @@ pub struct SplitConfig {
 /// Recipient in a split configuration
 #[zero_copy(unsafe)]
 #[repr(C)]
+#[derive(Default)]
 pub struct Recipient {
     /// Recipient's wallet address
     pub address: Pubkey,
@@ -55,6 +56,7 @@ pub struct Recipient {
 /// Unclaimed amount for a recipient
 #[zero_copy(unsafe)]
 #[repr(C)]
+#[derive(Default)]
 pub struct UnclaimedAmount {
     /// Recipient address (redundant but useful for indexing)
     pub recipient: Pubkey,
@@ -64,25 +66,6 @@ pub struct UnclaimedAmount {
     pub timestamp: i64,
 }
 
-// Default implementations for zero_copy arrays
-impl Default for Recipient {
-    fn default() -> Self {
-        Self {
-            address: Pubkey::default(),
-            percentage_bps: 0,
-        }
-    }
-}
-
-impl Default for UnclaimedAmount {
-    fn default() -> Self {
-        Self {
-            recipient: Pubkey::default(),
-            amount: 0,
-            timestamp: 0,
-        }
-    }
-}
 
 // Compile-time size assertions to catch accidental struct changes
 // ProtocolConfig: discriminator (8) + authority (32) + pending_authority (32) + fee_wallet (32) + bump (1) = 105
