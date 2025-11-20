@@ -12,5 +12,5 @@
     "noEmit": true
   },
   "include": ["tests/**/*"],
-  "exclude": ["node_modules", "sdk"]
+  "exclude": ["node_modules", "packages"]
 }

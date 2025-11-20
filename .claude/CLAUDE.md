@@ -57,8 +57,8 @@ User Payment → Vault (ATA owned by SplitConfig PDA)
 
 Dual format with identical APIs:
 ```typescript
-import { web3 } from '@cascade-labs/splits';  // @solana/web3.js
-import { kit } from '@cascade-labs/splits';   // @solana/kit
+import { web3 } from '@cascade-fyi/splits-sdk';  // @solana/web3.js
+import { kit } from '@cascade-fyi/splits-sdk';   // @solana/kit
 ```
 
 Instruction serialization is manual (not IDL-generated) - account order matters.

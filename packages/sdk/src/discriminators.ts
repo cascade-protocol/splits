@@ -9,9 +9,7 @@ export const DISCRIMINATORS = {
 	transferProtocolAuthority: new Uint8Array([
 		35, 76, 36, 77, 136, 112, 158, 222,
 	]),
-	acceptProtocolAuthority: new Uint8Array([
-		237, 122, 6, 39, 53, 202, 141, 113,
-	]),
+	acceptProtocolAuthority: new Uint8Array([237, 122, 6, 39, 53, 202, 141, 113]),
 	createSplitConfig: new Uint8Array([128, 42, 60, 106, 4, 233, 18, 190]),
 	executeSplit: new Uint8Array([6, 45, 171, 40, 49, 129, 23, 89]),
 	updateSplitConfig: new Uint8Array([47, 103, 74, 170, 55, 251, 130, 146]),

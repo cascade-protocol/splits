@@ -871,22 +871,18 @@ describe("cascade-splits: multiple configs per authority", () => {
 	const payer = provider.wallet as anchor.Wallet;
 
 	let mint: PublicKey;
-	let feeWallet: PublicKey;
 
 	beforeAll(async () => {
 		mint = await createMint(connection, payer.payer, payer.publicKey, null, 6);
-
-		const [protocolConfigPda] = PublicKey.findProgramAddressSync(
-			[Buffer.from("protocol_config")],
-			program.programId,
-		);
-		const protocolConfig =
-			await program.account.protocolConfig.fetch(protocolConfigPda);
-		feeWallet = protocolConfig.feeWallet;
 	});
 
 	test("creates multiple configs with different unique IDs", async () => {
-		const configs: { uniqueId: Keypair; splitConfig: PublicKey; vault: PublicKey; recipientAta: PublicKey }[] = [];
+		const configs: {
+			uniqueId: Keypair;
+			splitConfig: PublicKey;
+			vault: PublicKey;
+			recipientAta: PublicKey;
+		}[] = [];
 
 		// Create 3 different configs with same authority and mint
 		for (let i = 0; i < 3; i++) {
@@ -931,7 +927,9 @@ describe("cascade-splits: multiple configs per authority", () => {
 		// Verify all configs exist and have different vault addresses
 		const vaultAddresses = new Set<string>();
 		for (const config of configs) {
-			const splitConfig = await program.account.splitConfig.fetch(config.splitConfig);
+			const splitConfig = await program.account.splitConfig.fetch(
+				config.splitConfig,
+			);
 			expect(splitConfig.authority.toBase58()).toBe(payer.publicKey.toBase58());
 			expect(splitConfig.mint.toBase58()).toBe(mint.toBase58());
 
@@ -1020,14 +1018,7 @@ describe("cascade-splits: exact distribution math", () => {
 		// Test with amount that causes rounding: 999
 		// 999 * 9900 / 10000 = 989.01 -> floor to 989
 		// Protocol gets 999 - 989 = 10 (1% + dust)
-		await mintTo(
-			connection,
-			payer.payer,
-			mint,
-			vault,
-			payer.publicKey,
-			999,
-		);
+		await mintTo(connection, payer.payer, mint, vault, payer.publicKey, 999);
 
 		// Get protocol balance before
 		const protocolBefore = await getAccount(connection, protocolAta);
@@ -1055,7 +1046,8 @@ describe("cascade-splits: exact distribution math", () => {
 		expect(recipientBalance.amount.toString()).toBe("989");
 
 		// Protocol: 999 - 989 = 10
-		const protocolReceived = Number(protocolAfter.amount) - Number(protocolBefore.amount);
+		const protocolReceived =
+			Number(protocolAfter.amount) - Number(protocolBefore.amount);
 		expect(protocolReceived).toBe(10);
 	});
 });

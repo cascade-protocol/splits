@@ -106,7 +106,7 @@ See [benchmarks/compute_units.md](benchmarks/compute_units.md) for full benchmar
 ### Create Split Config
 
 ```typescript
-import { createSplitConfig } from '@cascade-labs/splits';
+import { createSplitConfig } from '@cascade-fyi/splits-sdk';
 
 const uniqueId = Keypair.generate().publicKey;
 
@@ -126,7 +126,7 @@ const { splitConfigPDA, vault } = await createSplitConfig({
 ### Execute Split
 
 ```typescript
-import { executeSplit } from '@cascade-labs/splits';
+import { executeSplit } from '@cascade-fyi/splits-sdk';
 
 // Anyone can call this - permissionless
 await executeSplit({
@@ -255,7 +255,7 @@ Apache License 2.0 - see [LICENSE](LICENSE) file.
 ## Links
 
 - **GitHub:** https://github.com/cascade-protocol/splits
-- **SDK:** `@cascade-labs/splits`
+- **SDK:** `@cascade-fyi/splits-sdk`
 - **Contact:** hello@cascade-protocol.xyz
 
 ---

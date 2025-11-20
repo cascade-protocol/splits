@@ -46,7 +46,7 @@ importers:
         specifier: ^4.0.10
         version: 4.0.10(@types/node@20.19.25)
 
-  sdk:
+  packages/sdk:
     dependencies:
       '@coral-xyz/anchor':
         specifier: ^0.32.1

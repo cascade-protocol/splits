@@ -1,7 +1,7 @@
 //! Compute unit benchmarks for Cascade Splits instructions
 //!
 //! Run with: cargo bench
-//! Results written to: benchmarks/cascade_splits.md
+//! Results written to: docs/benchmarks/cascade_splits.md
 //!
 //! Benchmark cases cover:
 //! - Best case (1 recipient)
@@ -961,7 +961,7 @@ fn main() {
         .unwrap()
         .parent() // workspace root
         .unwrap()
-        .join("benchmarks");
+        .join("docs/benchmarks");
 
     // Run all benchmarks
     MolluskComputeUnitBencher::new(mollusk)

@@ -22,7 +22,9 @@ if (!cluster || !walletPath || !newAuthorityArg) {
 	console.error("  new-authority: public key of new authority");
 	console.error("");
 	console.error("NOTE: This initiates a two-step transfer. The new authority");
-	console.error("must call accept-protocol-authority.ts to complete the transfer.");
+	console.error(
+		"must call accept-protocol-authority.ts to complete the transfer.",
+	);
 	process.exit(1);
 }
 
@@ -77,7 +79,9 @@ async function main() {
 	console.log("Pending Authority:", newAuthority.toBase58());
 	console.log("");
 	console.log("⚠️  Transfer is NOT complete. The new authority must run:");
-	console.log(`   tsx scripts/accept-protocol-authority.ts ${cluster} <new-authority-wallet>`);
+	console.log(
+		`   tsx scripts/accept-protocol-authority.ts ${cluster} <new-authority-wallet>`,
+	);
 	console.log("");
 	console.log("Signature:", signature);
 	console.log(

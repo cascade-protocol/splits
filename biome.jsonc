@@ -7,7 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["tests/**/*.ts", "scripts/**/*.ts", "sdk/src/**/*.ts"]
+		"includes": ["tests/**/*.ts", "scripts/**/*.ts", "packages/*/src/**/*.ts"]
 	},
 	"formatter": {
 		"enabled": true,

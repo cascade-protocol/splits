@@ -1,5 +1,5 @@
 {
-  "name": "@cascade-labs/splits",
+  "name": "@cascade-fyi/splits-sdk",
   "version": "0.2.0",
   "type": "module",
   "description": "TypeScript SDK for Cascade Splits payment splitting protocol",
@@ -46,7 +46,7 @@
     "anchor",
     "spl-token"
   ],
-  "author": "Cascade Labs <hello@cascade-protocol.xyz>",
+  "author": "Cascade <hello@cascade.fyi>",
   "license": "Apache-2.0",
   "publishConfig": {
     "access": "public"

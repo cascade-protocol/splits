@@ -34,7 +34,7 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 ### In Scope
 
 - Cascade Splits on-chain program (`SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB`)
-- SDK package (`@cascade-labs/splits`)
+- SDK package (`@cascade-fyi/splits-sdk`)
 - Smart contract logic vulnerabilities
 - Token handling and distribution bugs
 - Access control issues

@@ -31,7 +31,7 @@ import {
   deriveAta,
 } from "../src/index";
 
-const PROGRAM_PATH = "../target/deploy/cascade_splits.so";
+const PROGRAM_PATH = "../../target/deploy/cascade_splits.so";
 
 describe("Cascade Splits Integration", () => {
   let svm: LiteSVM;

@@ -19,7 +19,9 @@ if (!cluster || !walletPath) {
 	console.error("  wallet: path to new authority keypair JSON");
 	console.error("");
 	console.error("NOTE: This completes a two-step transfer initiated by");
-	console.error("transfer-protocol-authority.ts. You must be the pending authority.");
+	console.error(
+		"transfer-protocol-authority.ts. You must be the pending authority.",
+	);
 	process.exit(1);
 }
 

@@ -6,15 +6,15 @@
  * @example
  * ```typescript
  * // For @solana/web3.js / @coral-xyz/anchor users
- * import { web3 } from '@cascade-labs/splits';
+ * import { web3 } from '@cascade-fyi/splits-sdk';
  * const ix = web3.buildExecuteSplitInstruction(splitConfig, vault, ...);
  *
  * // For @solana/kit users
- * import { kit } from '@cascade-labs/splits';
+ * import { kit } from '@cascade-fyi/splits-sdk';
  * const ix = kit.buildExecuteSplitInstruction(splitConfig, vault, ...);
  *
  * // Shared types and utilities
- * import { PROGRAM_ID, RecipientInput, deriveSplitConfig } from '@cascade-labs/splits';
+ * import { PROGRAM_ID, RecipientInput, deriveSplitConfig } from '@cascade-fyi/splits-sdk';
  * ```
  */
 

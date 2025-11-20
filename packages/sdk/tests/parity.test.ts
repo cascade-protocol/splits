@@ -160,12 +160,14 @@ describe("Instruction Parity", () => {
     const web3Ix = web3.buildCloseSplitConfigInstruction(
       splitConfig,
       vault,
+      authority.publicKey,
       authority.publicKey
     );
 
     const kitIx = kit.buildCloseSplitConfigInstruction(
       address(splitConfig.toBase58()),
       address(vault.toBase58()),
+      address(authority.publicKey.toBase58()),
       address(authority.publicKey.toBase58())
     );
 

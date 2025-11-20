@@ -7,10 +7,10 @@
     "lint:fix": "biome check --write",
     "lint": "biome check",
     "type-check": "tsc --noEmit",
-    "type-check:all": "tsc --noEmit && pnpm --filter @cascade-labs/splits type-check",
+    "type-check:all": "tsc --noEmit && pnpm --filter @cascade-fyi/splits-sdk type-check",
     "test": "anchor test",
     "test:rust": "cargo test --package cascade-splits",
-    "test:sdk": "pnpm --filter @cascade-labs/splits test",
+    "test:sdk": "pnpm --filter @cascade-fyi/splits-sdk test",
     "test:all": "pnpm test:rust && pnpm test:sdk && pnpm test",
     "check": "pnpm type-check:all && biome check --write"
   },
