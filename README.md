@@ -77,25 +77,25 @@ Creating a split config requires rent-exempt deposits that are **fully refundabl
 
 | Account | Size | Rent |
 |---------|------|------|
-| SplitConfig | 1,792 bytes | 0.0134 SOL |
+| SplitConfig | 1,832 bytes | 0.0136 SOL |
 | Vault ATA | 165 bytes | 0.0020 SOL |
-| **Total** | | **~0.0154 SOL** |
+| **Total** | | **~0.0157 SOL** |
 
-At $150/SOL ≈ $2.31 (refunded on `close_split_config`)
+At $150/SOL ≈ $2.35 (refunded on `close_split_config`)
 
 ### Compute Units
 
 | Instruction | CUs | Notes |
 |------------|-----|-------|
-| execute_split (1 recipient) | 27,777 | Best case |
-| execute_split (5 recipients) | 66,677 | Typical case |
-| execute_split (20 recipients) | 205,427 | Worst case (MAX) |
-| create_split_config | 36,460 | Includes vault ATA creation |
-| update_split_config | 7,446 | |
-| close_split_config | 4,904 | |
-| initialize_protocol | 8,998 | One-time setup |
+| execute_split (2 recipients) | 29,007 | Minimal case |
+| execute_split (5 recipients) | 69,371 | Typical case |
+| execute_split (10 recipients) | 109,579 | High activity |
+| create_split_config | 37,375 - 41,164 | Includes vault ATA creation |
+| update_split_config | 7,810 - 15,622 | Varies by recipient count |
+| close_split_config | 5,067 | |
+| initialize_protocol | 9,214 | One-time setup |
 
-Scaling: ~9K CU per recipient (6K Token CPI + 3K overhead). Even worst case uses only 15% of Solana's 1.4M CU budget.
+Scaling: ~8K CU per recipient (6K Token CPI + 2K overhead). Even 10-recipient splits use only 8% of Solana's 1.4M CU budget.
 
 For comparison: typical DEX swaps use 100,000-400,000+ CUs.
 
