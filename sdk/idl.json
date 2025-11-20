@@ -119,8 +119,11 @@
         },
         {
           "name": "authority",
-          "writable": true,
           "signer": true
+        },
+        {
+          "name": "rent_destination",
+          "writable": true
         }
       ],
       "args": []
@@ -184,6 +187,16 @@
         },
         {
           "name": "authority",
+          "docs": [
+            "Authority that will control this split config"
+          ],
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Account paying rent for split_config and vault (can be same as authority or different)"
+          ],
           "writable": true,
           "signer": true
         },
@@ -869,6 +882,11 @@
       "code": 6019,
       "name": "NoPendingTransfer",
       "msg": "No pending authority transfer"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidRentDestination",
+      "msg": "Rent destination must match rent payer"
     }
   ],
   "types": [
@@ -1146,6 +1164,20 @@
               "Protocol fees awaiting claim (when protocol ATA missing)"
             ],
             "type": "u64"
+          },
+          {
+            "name": "last_activity",
+            "docs": [
+              "Unix timestamp of last execute_split call"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "rent_payer",
+            "docs": [
+              "Account that paid rent (receives refund on close)"
+            ],
+            "type": "pubkey"
           }
         ]
       }

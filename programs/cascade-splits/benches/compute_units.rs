@@ -324,6 +324,8 @@ fn main() {
             &recipients,
             &[], // no unclaimed
             0,   // no protocol unclaimed
+            0,   // no last_activity
+            authority, // rent_payer
         );
 
         let instruction = build_close_split_config(split_config, vault, authority);
@@ -336,13 +338,7 @@ fn main() {
             )),
             (vault, token_account(mint, split_config, 0, &rent)),
             (authority, system_account(1_000_000)),
-            (spl_token::id(), Account {
-                lamports: 1,
-                data: vec![],
-                owner: solana_sdk::native_loader::id(),
-                executable: true,
-                rent_epoch: 0,
-            }),
+            (authority, system_account(0)), // rent_destination
         ];
 
         (instruction, accounts)

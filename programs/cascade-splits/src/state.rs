@@ -40,6 +40,10 @@ pub struct SplitConfig {
     pub unclaimed_amounts: [UnclaimedAmount; MAX_RECIPIENTS],
     /// Protocol fees awaiting claim (when protocol ATA missing)
     pub protocol_unclaimed: u64,
+    /// Unix timestamp of last execute_split call
+    pub last_activity: i64,
+    /// Account that paid rent (receives refund on close)
+    pub rent_payer: Pubkey,
 }
 
 /// Recipient in a split configuration
@@ -71,5 +75,5 @@ pub struct UnclaimedAmount {
 // ProtocolConfig: discriminator (8) + authority (32) + pending_authority (32) + fee_wallet (32) + bump (1) = 105
 const _: () = assert!(std::mem::size_of::<ProtocolConfig>() == 97); // 105 - 8 (discriminator added by Anchor)
 
-// SplitConfig: See constants.rs for full breakdown = 1792
-const _: () = assert!(std::mem::size_of::<SplitConfig>() == 1784); // 1792 - 8 (discriminator added by Anchor)
+// SplitConfig: See constants.rs for full breakdown = 1832
+const _: () = assert!(std::mem::size_of::<SplitConfig>() == 1824); // 1832 - 8 (discriminator added by Anchor)

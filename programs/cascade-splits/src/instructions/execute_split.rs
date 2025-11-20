@@ -328,6 +328,7 @@ pub fn handler<'info>(
             config.unclaimed_amounts[i] = *unclaimed;
         }
         config.protocol_unclaimed = protocol_unclaimed;
+        config.last_activity = Clock::get()?.unix_timestamp;
     } // ← Borrow DROPPED here
 
     emit!(SplitExecuted {

@@ -99,6 +99,10 @@ export interface SplitConfig {
 	unclaimedAmounts: UnclaimedAmount[];
 	/** Protocol fees awaiting claim */
 	protocolUnclaimed: bigint;
+	/** Unix timestamp of last execute_split call */
+	lastActivity: bigint;
+	/** Account that paid rent (receives refund on close) */
+	rentPayer: string;
 }
 
 /**
@@ -107,6 +111,8 @@ export interface SplitConfig {
 export interface CreateSplitConfigParams {
 	/** Authority wallet address */
 	authority: string;
+	/** Payer wallet address (defaults to authority if not provided) */
+	payer?: string;
 	/** Token mint address */
 	mint: string;
 	/** Unique identifier for this split */
@@ -169,8 +175,8 @@ export interface CloseSplitConfigParams {
 	vault: string;
 	/** Authority wallet address */
 	authority: string;
-	/** Token program ID */
-	tokenProgram?: string;
+	/** Rent destination wallet address (must match stored rent_payer) */
+	rentDestination: string;
 }
 
 /**
@@ -240,6 +246,8 @@ export enum CascadeSplitsError {
 	AlreadyInitialized = 6016,
 	UnclaimedNotEmpty = 6017,
 	InvalidTokenProgram = 6018,
+	NoPendingTransfer = 6019,
+	InvalidRentDestination = 6020,
 }
 
 /**
@@ -270,4 +278,7 @@ export const ERROR_MESSAGES: Record<CascadeSplitsError, string> = {
 	[CascadeSplitsError.UnclaimedNotEmpty]:
 		"Unclaimed amounts must be zero to close",
 	[CascadeSplitsError.InvalidTokenProgram]: "Invalid token program",
+	[CascadeSplitsError.NoPendingTransfer]: "No pending authority transfer",
+	[CascadeSplitsError.InvalidRentDestination]:
+		"Rent destination must match rent payer",
 };

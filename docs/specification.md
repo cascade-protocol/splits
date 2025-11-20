@@ -124,15 +124,22 @@ Global protocol configuration (single instance).
 ```rust
 #[account(zero_copy)]
 pub struct ProtocolConfig {
-    pub authority: Pubkey,       // Can update config
-    pub fee_wallet: Pubkey,      // Receives protocol fees
-    pub bump: u8,                // Stored for CU optimization
+    pub authority: Pubkey,         // Can update config
+    pub pending_authority: Pubkey, // Pending authority for two-step transfer
+    pub fee_wallet: Pubkey,        // Receives protocol fees
+    pub bump: u8,                  // Stored for CU optimization
 }
 ```
 
 **Seeds:** `[b"protocol_config"]`
 
 **Usage:** Constraints use `bump = protocol_config.bump` to avoid on-chain PDA derivation.
+
+**Two-Step Authority Transfer:** To prevent accidental irreversible transfers, authority changes require:
+1. Current authority calls `transfer_protocol_authority` → sets `pending_authority`
+2. New authority calls `accept_protocol_authority` → completes transfer
+
+The pending transfer can be cancelled by calling `transfer_protocol_authority` with `Pubkey::default()`.
 
 ### SplitConfig (PDA)
 
@@ -152,6 +159,8 @@ pub struct SplitConfig {
     pub recipients: [Recipient; 20],              // Fixed array, use recipient_count
     pub unclaimed_amounts: [UnclaimedAmount; 20], // Fixed array
     pub protocol_unclaimed: u64,                  // Protocol fees awaiting claim
+    pub last_activity: i64,                       // Timestamp of last execution
+    pub rent_payer: Pubkey,                       // Who paid rent (for refund on close)
 }
 
 #[repr(C)]
@@ -170,7 +179,18 @@ pub struct UnclaimedAmount {
 
 **Seeds:** `[b"split_config", authority, mint, unique_id]`
 
-**Space Allocation:** Fixed size for all configs (~1,800 bytes). Zero-copy provides ~50% serialization CU savings, critical for high-throughput micropayments. The fixed rent (~0.015 SOL) is negligible compared to cumulative compute savings.
+**Space Allocation:** Fixed size for all configs (1,832 bytes). Zero-copy provides ~50% serialization CU savings, critical for high-throughput micropayments. The fixed rent (~0.015 SOL) is negligible compared to cumulative compute savings.
+
+**Payer Separation:** The `rent_payer` field tracks who paid rent for the account, enabling:
+- **Sponsored rent:** Protocol or third party pays rent on behalf of user
+- **Proper refunds:** On close, rent returns to original payer, not authority
+
+The `authority` controls the config (update, close), while `rent_payer` receives the rent refund. These can be the same address (user pays own rent) or different (sponsored).
+
+**Activity Tracking:** The `last_activity` timestamp is updated on every `execute_split`. This enables future capability for:
+- Stale account cleanup (recover rent from abandoned accounts after inactivity period)
+
+Currently, only the authority can close accounts. The activity tracking reserves the option to add permissionless cleanup of inactive accounts in a future version without breaking changes.
 
 ---
 
@@ -194,11 +214,38 @@ Updates protocol fee wallet.
 **Parameters:**
 - `new_fee_wallet`: New address for protocol fees
 
+### transfer_protocol_authority
+
+Proposes transfer of protocol authority to a new address.
+
+**Authorization:** Protocol authority
+
+**Parameters:**
+- `new_authority`: Address to receive authority (or `Pubkey::default()` to cancel)
+
+**Note:** This only sets `pending_authority`. The new authority must call `accept_protocol_authority` to complete the transfer.
+
+### accept_protocol_authority
+
+Accepts a pending protocol authority transfer.
+
+**Authorization:** Pending authority (must match `pending_authority` in config)
+
+**Parameters:** None
+
+**Note:** Completes the two-step transfer and clears `pending_authority`.
+
 ### create_split_config
 
 Creates a new payment split configuration.
 
 **Authorization:** Anyone (becomes authority)
+
+**Accounts:**
+- `payer` - Pays rent for account creation (recorded as `rent_payer`)
+- `authority` - Controls the config (update, close)
+
+The payer and authority can be the same address (user pays own rent) or different (sponsored rent).
 
 **Validation:**
 - 1-20 recipients
@@ -296,8 +343,14 @@ Closes config and reclaims rent.
 
 **Authorization:** Config authority
 
+**Accounts:**
+- `authority` - Must match config authority (authorizes close)
+- `rent_destination` - Must match config `rent_payer` (receives rent refund)
+
 **Requirements:**
 - Vault must be empty (all splits executed successfully, no unclaimed amounts remaining)
+
+**Rent Routing:** Rent is refunded to the original `rent_payer`, not necessarily the authority. This enables sponsored rent where a third party pays rent but the user controls the config.
 
 ---
 
@@ -371,6 +424,8 @@ All operations emit events for indexing:
 |-------|-------------|
 | `ProtocolConfigCreated` | Protocol initialized |
 | `ProtocolConfigUpdated` | Fee wallet changed |
+| `ProtocolAuthorityTransferProposed` | Authority transfer proposed |
+| `ProtocolAuthorityTransferAccepted` | Authority transfer completed |
 | `SplitConfigCreated` | New split config created |
 | `SplitExecuted` | Payment distributed |
 | `RecipientPaymentHeld` | Payment held as unclaimed |
@@ -417,6 +472,8 @@ pub struct SplitExecuted {
 | `MathUnderflow` | Arithmetic underflow |
 | `InvalidProtocolFeeRecipient` | Protocol ATA validation failed |
 | `Unauthorized` | Signer not authorized |
+| `NoPendingTransfer` | No pending authority transfer to accept |
+| `InvalidRentDestination` | Rent destination doesn't match original payer |
 
 ---
 
@@ -459,6 +516,9 @@ pub struct SplitExecuted {
 | **No native SOL** | Adds complexity. Use wrapped SOL instead. |
 | **No built-in multi-sig** | Use Squads/Realms as authority. Works with current design without added complexity. |
 | **Pre-existing ATAs required** | Protects facilitators from being drained by forced ATA creation (0.002 SOL each). Config creators responsible for recipient readiness. |
+| **Two-step authority transfer** | Prevents accidental irreversible authority transfers. Current authority proposes, new authority accepts. Can be cancelled before acceptance. |
+| **Payer separation** | Separates rent payer from authority. Enables sponsored rent (protocol/third party pays) while user retains control. Rent refunds go to original payer, not authority. |
+| **Activity timestamp tracking** | Enables future stale account cleanup without breaking changes. Updated on every execution. |
 
 ---
 
@@ -530,8 +590,19 @@ pub const SPLIT_CONFIG_SIZE: usize =
     1 +                     // recipient_count
     (34 * 20) +             // recipients [Recipient; 20]
     (48 * 20) +             // unclaimed_amounts [UnclaimedAmount; 20]
-    8;                      // protocol_unclaimed
-    // Total: ~1,787 bytes
+    8 +                     // protocol_unclaimed
+    8 +                     // last_activity
+    32;                     // rent_payer
+    // Total: 1,832 bytes
+
+// ProtocolConfig size
+pub const PROTOCOL_CONFIG_SIZE: usize =
+    8 +                     // discriminator
+    32 +                    // authority
+    32 +                    // pending_authority
+    32 +                    // fee_wallet
+    1;                      // bump
+    // Total: 105 bytes
 ```
 
 **Compute Budget:**
@@ -563,4 +634,4 @@ msg!("Debug: {}", value);
 
 ---
 
-**Last Updated:** 2025-11-18
+**Last Updated:** 2025-11-20

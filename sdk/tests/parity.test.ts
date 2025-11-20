@@ -66,6 +66,19 @@ describe("Instruction Parity", () => {
     expect(kitIx.accounts!.length).toEqual(web3Ix.keys.length);
   });
 
+  it("buildAcceptProtocolAuthorityInstruction produces identical data", () => {
+    const web3Ix = web3.buildAcceptProtocolAuthorityInstruction(
+      newAuthority.publicKey
+    );
+
+    const kitIx = kit.buildAcceptProtocolAuthorityInstruction(
+      address(newAuthority.publicKey.toBase58())
+    );
+
+    expect(Buffer.from(kitIx.data!)).toEqual(web3Ix.data);
+    expect(kitIx.accounts!.length).toEqual(web3Ix.keys.length);
+  });
+
   it("buildCreateSplitConfigInstruction produces identical data", () => {
     const web3Ix = web3.buildCreateSplitConfigInstruction(
       authority.publicKey,

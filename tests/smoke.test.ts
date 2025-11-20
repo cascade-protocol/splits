@@ -195,6 +195,10 @@ describe("cascade-splits: basic flow", () => {
 		expect(recipient1Balance.amount.toString()).toBe("500000"); // 50%
 		expect(recipient2Balance.amount.toString()).toBe("490000"); // 49%
 		expect(protocolBalance.amount.toString()).toBe("10000"); // 1% fee
+
+		// Verify last_activity was updated
+		const config = await program.account.splitConfig.fetch(splitConfig);
+		expect(config.lastActivity.gt(new anchor.BN(0))).toBe(true);
 	});
 
 	test("closes the split config", async () => {
@@ -204,6 +208,7 @@ describe("cascade-splits: basic flow", () => {
 				splitConfig,
 				vault,
 				authority: payer.publicKey,
+				rentDestination: payer.publicKey,
 			})
 			.rpc();
 

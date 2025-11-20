@@ -1,3 +1,26 @@
+#### 2025-11-20 01:40:51.971186 UTC
+
+Solana CLI Version: solana-cli 3.1.1 (src:7096e605; feat:3652419286, client:Agave)
+
+| Name | CUs | Delta |
+|------|------|-------|
+| initialize_protocol | 8998 | -- |
+| update_protocol_config | 3456 | -- |
+| transfer_protocol_authority | 3403 | -- |
+| accept_protocol_authority | 3356 | -- |
+| create_split_config_1_recipient | 36590 | +130 |
+| create_split_config_5_recipients | 40024 | +116 |
+| update_split_config_to_2 | 7424 | -22 |
+| update_split_config_to_10 | 14032 | -102 |
+| close_split_config | 4839 | -65 |
+| execute_split_1_recipient | 27950 | +173 |
+| execute_split_5_recipients | 66854 | +177 |
+| execute_split_20_recipients | 205619 | +192 |
+| execute_split_unclaimed_1_of_2 | 30235 | +173 |
+| execute_split_unclaimed_1_of_5 | 59788 | +176 |
+| execute_split_unclaimed_4_of_5 | 31090 | +173 |
+| execute_split_unclaimed_5_of_5 | 24024 | +172 |
+
 #### 2025-11-20 00:01:23.804173 UTC
 
 Solana CLI Version: solana-cli 3.1.1 (src:7096e605; feat:3652419286, client:Agave)

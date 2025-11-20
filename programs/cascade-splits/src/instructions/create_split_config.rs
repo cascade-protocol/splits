@@ -17,7 +17,7 @@ use crate::{
 pub struct CreateSplitConfig<'info> {
     #[account(
         init,
-        payer = authority,
+        payer = payer,
         space = SPLIT_CONFIG_SIZE,
         seeds = [
             b"split_config",
@@ -32,8 +32,12 @@ pub struct CreateSplitConfig<'info> {
     /// CHECK: Used only as PDA seed for uniqueness
     pub unique_id: AccountInfo<'info>,
 
-    #[account(mut)]
+    /// Authority that will control this split config
     pub authority: Signer<'info>,
+
+    /// Account paying rent for split_config and vault (can be same as authority or different)
+    #[account(mut)]
+    pub payer: Signer<'info>,
 
     #[account(
         constraint = mint_account.key() == mint @ ErrorCode::RecipientATAWrongMint
@@ -42,7 +46,7 @@ pub struct CreateSplitConfig<'info> {
 
     #[account(
         init,
-        payer = authority,
+        payer = payer,
         associated_token::mint = mint_account,
         associated_token::authority = split_config,
         associated_token::token_program = token_program,
@@ -122,6 +126,8 @@ pub fn handler<'info>(
     split_config.bump = ctx.bumps.split_config;
     split_config.recipient_count = recipient_count as u8;
     split_config.protocol_unclaimed = 0;
+    split_config.last_activity = 0;
+    split_config.rent_payer = ctx.accounts.payer.key();
 
     // Copy recipients to fixed array
     for (i, recipient) in recipients.iter().enumerate() {

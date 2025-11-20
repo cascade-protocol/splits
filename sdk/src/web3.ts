@@ -146,8 +146,12 @@ export function buildCreateSplitConfigInstruction(
 	uniqueId: PublicKey,
 	recipients: RecipientInput[],
 	tokenProgram: PublicKey = new PublicKey(TOKEN_PROGRAM_ID),
+	payer?: PublicKey,
 ): TransactionInstruction {
 	validateRecipients(recipients);
+
+	// If no payer provided, default to authority
+	const actualPayer = payer ?? authority;
 
 	const { address: splitConfig } = deriveSplitConfig(
 		authority.toBase58(),
@@ -187,7 +191,8 @@ export function buildCreateSplitConfigInstruction(
 	const keys = [
 		{ pubkey: new PublicKey(splitConfig), isSigner: false, isWritable: true },
 		{ pubkey: uniqueId, isSigner: false, isWritable: false },
-		{ pubkey: authority, isSigner: true, isWritable: true },
+		{ pubkey: authority, isSigner: true, isWritable: false },
+		{ pubkey: actualPayer, isSigner: true, isWritable: true },
 		{ pubkey: mint, isSigner: false, isWritable: false },
 		{ pubkey: new PublicKey(vault), isSigner: false, isWritable: true },
 		{ pubkey: tokenProgram, isSigner: false, isWritable: false },
@@ -292,15 +297,15 @@ export function buildCloseSplitConfigInstruction(
 	splitConfig: PublicKey,
 	vault: PublicKey,
 	authority: PublicKey,
-	tokenProgram: PublicKey = new PublicKey(TOKEN_PROGRAM_ID),
+	rentDestination: PublicKey,
 ): TransactionInstruction {
 	return new TransactionInstruction({
 		programId,
 		keys: [
 			{ pubkey: splitConfig, isSigner: false, isWritable: true },
-			{ pubkey: vault, isSigner: false, isWritable: true },
-			{ pubkey: authority, isSigner: true, isWritable: true },
-			{ pubkey: tokenProgram, isSigner: false, isWritable: false },
+			{ pubkey: vault, isSigner: false, isWritable: false },
+			{ pubkey: authority, isSigner: true, isWritable: false },
+			{ pubkey: rentDestination, isSigner: false, isWritable: true },
 		],
 		data: Buffer.from(DISCRIMINATORS.closeSplitConfig),
 	});

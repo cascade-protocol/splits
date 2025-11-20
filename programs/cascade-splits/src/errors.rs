@@ -61,4 +61,7 @@ pub enum ErrorCode {
 
     #[msg("No pending authority transfer")]
     NoPendingTransfer,
+
+    #[msg("Rent destination must match rent payer")]
+    InvalidRentDestination,
 }

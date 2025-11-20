@@ -11,7 +11,8 @@ pub const MAX_RECIPIENTS: usize = 20;
 pub const PROTOCOL_CONFIG_SIZE: usize = 8 + 32 + 32 + 32 + 1; // 105 bytes
 // SplitConfig actual size with #[repr(C)] alignment padding:
 // After recipients array (offset 819), 5 bytes padding for 8-byte alignment of unclaimed_amounts
-pub const SPLIT_CONFIG_SIZE: usize = 1792;
+// Includes last_activity (8) and rent_payer (32)
+pub const SPLIT_CONFIG_SIZE: usize = 1832;
 
 // Anchor discriminators (from IDL)
 pub const PROTOCOL_CONFIG_DISCRIMINATOR: [u8; 8] = [0xcf, 0x5b, 0xfa, 0x1c, 0x98, 0xb3, 0xd7, 0xd1];
@@ -108,6 +109,8 @@ pub fn serialize_protocol_config_with_pending(
 /// - 680 bytes: recipients [Recipient; 20] = (32 + 2) * 20
 /// - 960 bytes: unclaimed_amounts [UnclaimedAmount; 20] = (32 + 8 + 8) * 20
 /// - 8 bytes: protocol_unclaimed
+/// - 8 bytes: last_activity
+/// - 32 bytes: rent_payer
 pub fn serialize_split_config(
     version: u8,
     authority: Pubkey,
@@ -118,6 +121,8 @@ pub fn serialize_split_config(
     recipients: &[RecipientData],
     unclaimed_amounts: &[UnclaimedAmountData],
     protocol_unclaimed: u64,
+    last_activity: i64,
+    rent_payer: Pubkey,
 ) -> Vec<u8> {
     let mut data = vec![0u8; SPLIT_CONFIG_SIZE];
     let mut offset = 0;
@@ -202,6 +207,14 @@ pub fn serialize_split_config(
 
     // Protocol unclaimed (8 bytes, little-endian)
     data[offset..offset + 8].copy_from_slice(&protocol_unclaimed.to_le_bytes());
+    offset += 8;
+
+    // Last activity (8 bytes, little-endian)
+    data[offset..offset + 8].copy_from_slice(&last_activity.to_le_bytes());
+    offset += 8;
+
+    // Rent payer (32 bytes)
+    data[offset..offset + 32].copy_from_slice(&rent_payer.to_bytes());
 
     data
 }
@@ -225,5 +238,32 @@ pub fn serialize_split_config_simple(
         recipients,
         &[], // no unclaimed
         0,   // no protocol unclaimed
+        0,   // no last_activity
+        authority, // rent_payer defaults to authority
+    )
+}
+
+/// Helper to create a simple split config with custom rent payer
+pub fn serialize_split_config_with_payer(
+    authority: Pubkey,
+    mint: Pubkey,
+    vault: Pubkey,
+    unique_id: Pubkey,
+    bump: u8,
+    recipients: &[RecipientData],
+    rent_payer: Pubkey,
+) -> Vec<u8> {
+    serialize_split_config(
+        1, // version
+        authority,
+        mint,
+        vault,
+        unique_id,
+        bump,
+        recipients,
+        &[], // no unclaimed
+        0,   // no protocol unclaimed
+        0,   // no last_activity
+        rent_payer,
     )
 }

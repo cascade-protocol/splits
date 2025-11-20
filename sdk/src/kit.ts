@@ -136,8 +136,12 @@ export function buildCreateSplitConfigInstruction(
 	uniqueId: Address,
 	recipients: RecipientInput[],
 	tokenProgram: Address = address(TOKEN_PROGRAM_ID),
+	payer?: Address,
 ): Instruction {
 	validateRecipients(recipients);
+
+	// If no payer provided, default to authority
+	const actualPayer = payer ?? authority;
 
 	const authorityStr = authority as string;
 	const mintStr = mint as string;
@@ -179,7 +183,8 @@ export function buildCreateSplitConfigInstruction(
 	const accounts: AccountMeta[] = [
 		{ address: address(splitConfig), role: AccountRole.WRITABLE },
 		{ address: uniqueId, role: AccountRole.READONLY },
-		{ address: authority, role: AccountRole.WRITABLE_SIGNER },
+		{ address: authority, role: AccountRole.READONLY_SIGNER },
+		{ address: actualPayer, role: AccountRole.WRITABLE_SIGNER },
 		{ address: mint, role: AccountRole.READONLY },
 		{ address: address(vault), role: AccountRole.WRITABLE },
 		{ address: tokenProgram, role: AccountRole.READONLY },
@@ -277,15 +282,15 @@ export function buildCloseSplitConfigInstruction(
 	splitConfig: Address,
 	vault: Address,
 	authority: Address,
-	tokenProgram: Address = address(TOKEN_PROGRAM_ID),
+	rentDestination: Address,
 ): Instruction {
 	return {
 		programAddress,
 		accounts: [
 			{ address: splitConfig, role: AccountRole.WRITABLE },
-			{ address: vault, role: AccountRole.WRITABLE },
-			{ address: authority, role: AccountRole.WRITABLE_SIGNER },
-			{ address: tokenProgram, role: AccountRole.READONLY },
+			{ address: vault, role: AccountRole.READONLY },
+			{ address: authority, role: AccountRole.READONLY_SIGNER },
+			{ address: rentDestination, role: AccountRole.WRITABLE },
 		],
 		data: DISCRIMINATORS.closeSplitConfig,
 	};

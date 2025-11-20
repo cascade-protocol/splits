@@ -13,8 +13,8 @@ use {
         },
         error_code, ErrorCode,
         instructions::{
-            build_create_split_config, derive_split_config, derive_vault, RecipientInput,
-            PROGRAM_ID,
+            build_create_split_config, build_create_split_config_with_payer, derive_split_config,
+            derive_vault, RecipientInput, PROGRAM_ID,
         },
         serialization::SPLIT_CONFIG_SIZE,
         setup_mollusk_with_token,
@@ -877,6 +877,85 @@ fn test_create_split_config_total_over_99_percent_fails() {
     // Should fail with InvalidSplitTotal
     let checks = vec![
         Check::err(ProgramError::Custom(error_code(ErrorCode::InvalidSplitTotal))),
+    ];
+
+    mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
+}
+
+#[test]
+fn test_create_split_config_separate_payer_success() {
+    let mollusk = setup_mollusk_with_token();
+    let rent = get_rent(&mollusk);
+
+    // Setup accounts - authority and payer are different
+    let authority = Pubkey::new_unique();
+    let payer = Pubkey::new_unique(); // Different from authority
+    let unique_id = Pubkey::new_unique();
+    let mint = Pubkey::new_unique();
+
+    // Derive PDAs
+    let (split_config, _split_bump) = derive_split_config(&authority, &mint, &unique_id);
+    let vault = derive_vault(&split_config, &mint);
+
+    // Recipient with 99% (9900 bps)
+    let recipient1 = Pubkey::new_unique();
+    let recipient1_ata = derive_ata(&recipient1, &mint);
+
+    let recipients = vec![RecipientInput {
+        address: recipient1,
+        percentage_bps: 9900,
+    }];
+
+    // Build instruction with separate payer
+    let instruction = build_create_split_config_with_payer(
+        split_config,
+        vault,
+        authority,
+        payer, // Separate payer
+        unique_id,
+        mint,
+        &recipients,
+        &[recipient1_ata],
+    );
+
+    // Setup account states - payer has lamports, authority doesn't need any
+    let accounts = vec![
+        // 0. split_config - uninitialized (will be init)
+        (split_config, uninitialized_account()),
+        // 1. unique_id
+        (unique_id, system_account(0)),
+        // 2. authority - no lamports needed (not paying rent)
+        (authority, system_account(0)),
+        // 3. payer - needs lamports for rent
+        (payer, system_account(10_000_000_000)),
+        // 4. mint_account
+        (mint, mint_account(Some(authority), 6, 0, &rent)),
+        // 5. vault - uninitialized (will be init as ATA)
+        (vault, uninitialized_account()),
+        // 6. token_program
+        token::keyed_account(),
+        // 7. associated_token_program
+        associated_token::keyed_account(),
+        // 8. system_program
+        (system_program::id(), Account {
+            lamports: 1,
+            data: vec![],
+            owner: solana_sdk::native_loader::id(),
+            executable: true,
+            rent_epoch: 0,
+        }),
+        // remaining_accounts: recipient ATAs
+        (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
+    ];
+
+    // Validate
+    let checks = vec![
+        Check::success(),
+        // Check split_config was created
+        Check::account(&split_config)
+            .owner(&PROGRAM_ID)
+            .space(SPLIT_CONFIG_SIZE)
+            .build(),
     ];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);

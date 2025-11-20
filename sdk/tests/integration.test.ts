@@ -155,8 +155,8 @@ describe("Cascade Splits Integration", () => {
 
       // Verify instruction structure
       expect(ix.programId.toBase58()).toBe(PROGRAM_ID);
-      // 8 base accounts + 2 recipient ATAs
-      expect(ix.keys.length).toBe(10);
+      // 9 base accounts + 2 recipient ATAs
+      expect(ix.keys.length).toBe(11);
 
       // Verify derived addresses match
       const { address: splitConfigAddr } = deriveSplitConfig(
@@ -165,6 +165,38 @@ describe("Cascade Splits Integration", () => {
         uniqueId.publicKey.toBase58()
       );
       expect(ix.keys[0].pubkey.toBase58()).toBe(splitConfigAddr);
+    });
+
+    it("builds createSplitConfig instruction with separate payer", () => {
+      const uniqueId = Keypair.generate();
+      const payer = Keypair.generate(); // Different from authority
+      const recipients = [
+        { address: recipient1.publicKey.toBase58(), percentageBps: 9900 },
+      ];
+
+      const ix = web3.buildCreateSplitConfigInstruction(
+        authority.publicKey,
+        mint.publicKey,
+        uniqueId.publicKey,
+        recipients,
+        undefined, // default token program
+        payer.publicKey // separate payer
+      );
+
+      // Verify instruction structure
+      expect(ix.programId.toBase58()).toBe(PROGRAM_ID);
+      // 9 base accounts + 1 recipient ATA
+      expect(ix.keys.length).toBe(10);
+
+      // Verify authority is at index 2 (readonly signer)
+      expect(ix.keys[2].pubkey.toBase58()).toBe(authority.publicKey.toBase58());
+      expect(ix.keys[2].isSigner).toBe(true);
+      expect(ix.keys[2].isWritable).toBe(false);
+
+      // Verify payer is at index 3 (writable signer)
+      expect(ix.keys[3].pubkey.toBase58()).toBe(payer.publicKey.toBase58());
+      expect(ix.keys[3].isSigner).toBe(true);
+      expect(ix.keys[3].isWritable).toBe(true);
     });
 
     it("builds executeSplit instruction with correct accounts", () => {
@@ -222,16 +254,22 @@ describe("Cascade Splits Integration", () => {
     it("builds closeSplitConfig instruction", () => {
       const splitConfig = Keypair.generate().publicKey;
       const vault = Keypair.generate().publicKey;
+      const rentDestination = Keypair.generate().publicKey;
 
       const ix = web3.buildCloseSplitConfigInstruction(
         splitConfig,
         vault,
-        authority.publicKey
+        authority.publicKey,
+        rentDestination
       );
 
       expect(ix.programId.toBase58()).toBe(PROGRAM_ID);
       expect(ix.keys.length).toBe(4);
       expect(ix.data.length).toBe(8); // Just discriminator
+
+      // Verify rent_destination is writable at index 3
+      expect(ix.keys[3].pubkey.toBase58()).toBe(rentDestination.toBase58());
+      expect(ix.keys[3].isWritable).toBe(true);
     });
   });
 

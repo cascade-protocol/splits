@@ -32,6 +32,9 @@ clean:
 	anchor clean
 	cd sdk && pnpm clean
 
+deploy-devnet:
+  anchor deploy --provider.cluster devnet --provider.wallet {{deployer}}
+
 init-devnet:
   pnpm tsx scripts/initialize-protocol.ts devnet {{deployer}}
 test-devnet:

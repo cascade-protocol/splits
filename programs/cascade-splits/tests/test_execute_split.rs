@@ -629,6 +629,8 @@ fn test_execute_split_unclaimed_protected() {
         &recipients,
         &unclaimed,
         0,
+        0,
+        authority,
     );
 
     // Build instruction

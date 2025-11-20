@@ -24,6 +24,8 @@ pub const PROTOCOL_CONFIG_SIZE: usize = 8 + 32 + 32 + 32 + 1;  // 105 bytes
 // - padding for 8-byte alignment: 4
 // - unclaimed_amounts: [UnclaimedAmount; 20] = (32 + 8 + 8) * 20 = 960
 // - protocol_unclaimed: 8
-// Total: 8 + 1 + 32 + 32 + 32 + 32 + 1 + 1 + 1 + 680 + 4 + 960 + 8 = 1792
+// - last_activity: 8
+// - rent_payer: 32
+// Total: 8 + 1 + 32 + 32 + 32 + 32 + 1 + 1 + 1 + 680 + 4 + 960 + 8 + 8 + 32 = 1832
 // NOTE: #[repr(C)] requires alignment padding for struct fields
-pub const SPLIT_CONFIG_SIZE: usize = 1792;
+pub const SPLIT_CONFIG_SIZE: usize = 1832;

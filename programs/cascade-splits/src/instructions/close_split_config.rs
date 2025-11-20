@@ -19,7 +19,7 @@ pub struct CloseSplitConfig<'info> {
         ],
         bump = split_config.load()?.bump,
         constraint = split_config.load()?.authority == authority.key() @ ErrorCode::Unauthorized,
-        close = authority
+        close = rent_destination
     )]
     pub split_config: AccountLoader<'info, SplitConfig>,
 
@@ -29,14 +29,23 @@ pub struct CloseSplitConfig<'info> {
     )]
     pub vault: InterfaceAccount<'info, TokenAccount>,
 
-    #[account(mut)]
     pub authority: Signer<'info>,
+
+    /// CHECK: Validated against stored rent_payer in handler
+    #[account(mut)]
+    pub rent_destination: AccountInfo<'info>,
 }
 
 /// Closes split config and recovers rent
 /// Requires vault to be empty and all unclaimed cleared
 pub fn handler(ctx: Context<CloseSplitConfig>) -> Result<()> {
     let split_config = ctx.accounts.split_config.load()?;
+
+    // Validate rent destination matches stored rent_payer
+    require!(
+        ctx.accounts.rent_destination.key() == split_config.rent_payer,
+        ErrorCode::InvalidRentDestination
+    );
 
     // Check that all unclaimed amounts are zero
     for i in 0..split_config.recipient_count as usize {

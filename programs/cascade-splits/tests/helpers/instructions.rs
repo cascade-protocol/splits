@@ -180,17 +180,42 @@ pub fn build_accept_protocol_authority(
 /// Accounts (matching CreateSplitConfig context order):
 /// 0. split_config (writable) - init
 /// 1. unique_id (readonly)
-/// 2. authority (writable, signer)
-/// 3. mint_account (readonly)
-/// 4. vault (writable) - init
-/// 5. token_program (readonly)
-/// 6. associated_token_program (readonly)
-/// 7. system_program (readonly)
+/// 2. authority (signer)
+/// 3. payer (writable, signer) - pays rent
+/// 4. mint_account (readonly)
+/// 5. vault (writable) - init
+/// 6. token_program (readonly)
+/// 7. associated_token_program (readonly)
+/// 8. system_program (readonly)
 /// remaining_accounts: recipient ATAs for validation
 pub fn build_create_split_config(
     split_config: Pubkey,
     vault: Pubkey,
     authority: Pubkey,
+    unique_id: Pubkey,
+    mint: Pubkey,
+    recipients: &[RecipientInput],
+    recipient_atas: &[Pubkey],
+) -> Instruction {
+    // Default: authority is also payer
+    build_create_split_config_with_payer(
+        split_config,
+        vault,
+        authority,
+        authority, // payer = authority
+        unique_id,
+        mint,
+        recipients,
+        recipient_atas,
+    )
+}
+
+/// Build create_split_config instruction with separate payer
+pub fn build_create_split_config_with_payer(
+    split_config: Pubkey,
+    vault: Pubkey,
+    authority: Pubkey,
+    payer: Pubkey,
     unique_id: Pubkey,
     mint: Pubkey,
     recipients: &[RecipientInput],
@@ -216,7 +241,8 @@ pub fn build_create_split_config(
     let mut accounts = vec![
         AccountMeta::new(split_config, false),
         AccountMeta::new_readonly(unique_id, false),
-        AccountMeta::new(authority, true),
+        AccountMeta::new_readonly(authority, true),
+        AccountMeta::new(payer, true),
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(vault, false),
         AccountMeta::new_readonly(spl_token::id(), false),
@@ -336,13 +362,24 @@ pub fn build_update_split_config(
 ///
 /// Accounts:
 /// 0. split_config (writable)
-/// 1. vault (writable)
-/// 2. authority (writable, signer)
-/// 3. token_program
+/// 1. vault (readonly)
+/// 2. authority (signer)
+/// 3. rent_destination (writable)
 pub fn build_close_split_config(
     split_config: Pubkey,
     vault: Pubkey,
     authority: Pubkey,
+) -> Instruction {
+    // Default: rent_destination is authority (for backwards compatibility when rent_payer = authority)
+    build_close_split_config_with_destination(split_config, vault, authority, authority)
+}
+
+/// Build close_split_config instruction with explicit rent destination
+pub fn build_close_split_config_with_destination(
+    split_config: Pubkey,
+    vault: Pubkey,
+    authority: Pubkey,
+    rent_destination: Pubkey,
 ) -> Instruction {
     let discriminator = DISCRIMINATOR_CLOSE_SPLIT_CONFIG;
 
@@ -350,9 +387,9 @@ pub fn build_close_split_config(
         program_id: PROGRAM_ID,
         accounts: vec![
             AccountMeta::new(split_config, false),
-            AccountMeta::new(vault, false),
-            AccountMeta::new(authority, true),
-            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(vault, false),
+            AccountMeta::new_readonly(authority, true),
+            AccountMeta::new(rent_destination, false),
         ],
         data: discriminator.to_vec(),
     }
