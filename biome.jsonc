@@ -10,7 +10,7 @@
 		"includes": [
 			"tests/**/*.ts",
 			"scripts/**/*.ts",
-			"packages/*/src/**/*.ts",
+			"packages/**/*.ts",
 			"packages/*/src/**/*.tsx",
 			"packages/**/*.json",
 			"!**/idl.json"
@@ -40,7 +40,7 @@
 		}
 	},
 	"assist": {
-		"enabled": false,
+		"enabled": true,
 		"actions": {
 			"source": {
 				"organizeImports": "off"

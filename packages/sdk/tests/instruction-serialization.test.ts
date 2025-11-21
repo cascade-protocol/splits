@@ -18,7 +18,12 @@ import {
 	SYSTEM_PROGRAM_ID,
 } from "../src/core/constants.js";
 import { DISCRIMINATORS } from "../src/discriminators.js";
-import { deriveSplitConfig, deriveVault, deriveAta, deriveProtocolConfig } from "../src/pda.js";
+import {
+	deriveSplitConfig,
+	deriveVault,
+	deriveAta,
+	deriveProtocolConfig,
+} from "../src/pda.js";
 
 describe("Instruction Serialization", () => {
 	const programId = new PublicKey(PROGRAM_ID);
@@ -110,8 +115,17 @@ describe("Instruction Serialization", () => {
 				mint.toBase58(),
 				uniqueId.toBase58(),
 			);
-			const vault = deriveVault(splitConfig, mint.toBase58(), tokenProgram.toBase58());
-			const recipientAta = deriveAta(recipients[0]!.address, mint.toBase58(), tokenProgram.toBase58());
+			const vault = deriveVault(
+				splitConfig,
+				mint.toBase58(),
+				tokenProgram.toBase58(),
+			);
+			const recipientAta = deriveAta(
+				// biome-ignore lint/style/noNonNullAssertion: test code
+				recipients[0]!.address,
+				mint.toBase58(),
+				tokenProgram.toBase58(),
+			);
 
 			// Verify account order
 			expect(ix.keys.length).toBe(10); // 9 base + 1 recipient ATA
@@ -262,7 +276,12 @@ describe("Instruction Serialization", () => {
 				tokenProgram,
 			);
 
-			const recipientAta = deriveAta(newRecipients[0]!.address, mint.toBase58(), tokenProgram.toBase58());
+			const recipientAta = deriveAta(
+				// biome-ignore lint/style/noNonNullAssertion: test code
+				newRecipients[0]!.address,
+				mint.toBase58(),
+				tokenProgram.toBase58(),
+			);
 
 			// Verify account order
 			expect(ix.keys.length).toBe(6); // 5 base + 1 recipient ATA

@@ -48,9 +48,7 @@ describe("basisPointsToShares", () => {
 	});
 
 	it("rejects non-integer basis points", () => {
-		expect(() => basisPointsToShares(5940.5)).toThrow(
-			"must be an integer",
-		);
+		expect(() => basisPointsToShares(5940.5)).toThrow("must be an integer");
 	});
 });
 
@@ -105,9 +103,7 @@ describe("validateAndTransformUpdate", () => {
 			],
 		});
 
-		expect(result.vault).toBe(
-			"9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
-		);
+		expect(result.vault).toBe("9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin");
 		expect(result.recipients).toHaveLength(2);
 		expect(result.recipients[0]?.percentageBps).toBe(6930);
 		expect(result.recipients[1]?.percentageBps).toBe(2970);
@@ -216,9 +212,7 @@ describe("previewDistribution", () => {
 	});
 
 	it("calculates zero balance preview", () => {
-		const preview = previewDistribution(0n, [
-			{ address: "alice", share: 100 },
-		]);
+		const preview = previewDistribution(0n, [{ address: "alice", share: 100 }]);
 
 		expect(preview.protocolFee).toBe(0n);
 		expect(preview.total).toBe(0n);
