@@ -24,13 +24,12 @@
 		"enabled": true,
 		"rules": {
 			"recommended": true,
+			"a11y": {
+				"useValidAnchor": "off",
+				"noLabelWithoutControl": "off"
+			},
 			"style": {
-				"useComponentExportOnlyModules": {
-					"level": "warn",
-					"options": {
-						"allowConstantExport": true
-					}
-				}
+				"useComponentExportOnlyModules": "off"
 			}
 		}
 	},

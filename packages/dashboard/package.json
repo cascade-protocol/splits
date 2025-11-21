@@ -7,9 +7,12 @@
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"lint": "eslint .",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"check": "tsc --noEmit && biome check --write"
 	},
 	"dependencies": {
+		"@radix-ui/react-progress": "^1.1.8",
+		"@radix-ui/react-slot": "^1.2.4",
 		"@tailwindcss/vite": "^4.1.17",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
