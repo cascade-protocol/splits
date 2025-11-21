@@ -5,4 +5,5 @@ onlyBuiltDependencies:
   - bigint-buffer
   - bufferutil
   - esbuild
+  - msw
   - utf-8-validate

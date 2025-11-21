@@ -10,8 +10,7 @@ import {
 	SPLIT_CONFIG_SEED,
 	ASSOCIATED_TOKEN_PROGRAM_ID,
 	TOKEN_PROGRAM_ID,
-	type CreateSplitConfigResult,
-} from "./types";
+} from "./core/constants.js";
 
 // Cached PublicKey instances
 const programPubkey = new PublicKey(PROGRAM_ID);
@@ -100,6 +99,14 @@ export function deriveProgramData(): { address: string; bump: number } {
 		bpfLoaderPubkey,
 	);
 	return { address: pda.toBase58(), bump };
+}
+
+/**
+ * Result of deriveCreateSplitConfigAddresses
+ */
+export interface CreateSplitConfigResult {
+	splitConfig: string;
+	vault: string;
 }
 
 /**

@@ -1,42 +1,85 @@
 /**
  * Cascade Splits SDK
  *
- * Dual-export library supporting both @solana/web3.js and @solana/kit
+ * Modern TypeScript SDK with 100-share mental model (hides 1% protocol fee)
+ * Supports both @solana/web3.js and @solana/kit
  *
  * @example
  * ```typescript
- * // For @solana/web3.js / @coral-xyz/anchor users
- * import { web3 } from '@cascade-fyi/splits-sdk';
- * const ix = web3.buildExecuteSplitInstruction(splitConfig, vault, ...);
+ * // For @solana/web3.js users
+ * import { CascadeSplits } from '@cascade-fyi/splits-sdk/web3';
+ *
+ * const sdk = CascadeSplits.mainnet();
+ * const result = await sdk.buildCreateSplit(authority, {
+ *   recipients: [
+ *     { address: "alice...", share: 60 },
+ *     { address: "bob...", share: 40 }
+ *   ]
+ * });
  *
  * // For @solana/kit users
- * import { kit } from '@cascade-fyi/splits-sdk';
- * const ix = kit.buildExecuteSplitInstruction(splitConfig, vault, ...);
+ * import { CascadeSplits } from '@cascade-fyi/splits-sdk/kit';
+ * // (Kit adapter coming soon)
  *
- * // Shared types and utilities
- * import { PROGRAM_ID, RecipientInput, deriveSplitConfig } from '@cascade-fyi/splits-sdk';
+ * // Shared utilities and types
+ * import { PROGRAM_ID, deriveSplitConfig } from '@cascade-fyi/splits-sdk';
+ * import type { ShareRecipient } from '@cascade-fyi/splits-sdk';
  * ```
  */
 
 // Dual exports for framework-specific implementations
-export * as web3 from "./web3";
-export * as kit from "./kit";
+export * as web3 from "./web3/index.js";
+export * as kit from "./kit/index.js";
 
-// Shared exports
-export * from "./types";
-export * from "./discriminators";
+// Core exports (schemas, business logic, constants)
+export * from "./core/constants.js";
+export * from "./core/schemas.js";
+export type {
+	ProtocolRecipient,
+	ProcessedCreateSplit,
+	ProcessedUpdateSplit,
+	RecipientDistribution,
+} from "./core/business-logic.js";
+export {
+	sharesToBasisPoints,
+	basisPointsToShares,
+	validateAndTransformCreate,
+	validateAndTransformUpdate,
+	calculateDistribution,
+	previewDistribution,
+} from "./core/business-logic.js";
 
-// String-based PDA derivation (framework-agnostic)
+// Shared types (internal representations)
+export type {
+	Recipient,
+	UnclaimedAmount,
+	ProtocolConfig,
+	SplitConfig,
+	DistributionPreview,
+} from "./core/types.js";
+
+// Discriminators
+export * from "./discriminators.js";
+
+// PDA derivation (framework-agnostic, string-based)
 export {
 	deriveProtocolConfig,
 	deriveSplitConfig,
 	deriveVault,
 	deriveAta,
 	deriveProgramData,
-	deriveCreateSplitConfigAddresses,
-} from "./pda";
+} from "./pda.js";
+
+// Encoding utilities (base58)
+export { encodeAddress, decodeAddress } from "./core/encoding.js";
+
+// Deserialization utilities
+export {
+	deserializeSplitConfig,
+	deserializeProtocolConfig,
+} from "./core/deserialization.js";
 
 // IDL export
-import IDL_JSON from "../idl.json";
+import IDL_JSON from "../idl.json" with { type: "json" };
 export const IDL = IDL_JSON;
 export type CascadeSplitsIDL = typeof IDL_JSON;
