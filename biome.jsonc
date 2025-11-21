@@ -7,7 +7,14 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["tests/**/*.ts", "scripts/**/*.ts", "packages/*/src/**/*.ts"]
+		"includes": [
+			"tests/**/*.ts",
+			"scripts/**/*.ts",
+			"packages/*/src/**/*.ts",
+			"packages/*/src/**/*.tsx",
+			"packages/**/*.json",
+			"!**/idl.json"
+		]
 	},
 	"formatter": {
 		"enabled": true,
@@ -16,7 +23,15 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"style": {
+				"useComponentExportOnlyModules": {
+					"level": "warn",
+					"options": {
+						"allowConstantExport": true
+					}
+				}
+			}
 		}
 	},
 	"javascript": {
