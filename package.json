@@ -1,32 +1,32 @@
 {
-  "name": "cascade-splits",
-  "private": true,
-  "license": "MIT",
-  "type": "module",
-  "scripts": {
-    "lint:fix": "biome check --write",
-    "lint": "biome check",
-    "type-check": "tsc --noEmit",
-    "type-check:all": "tsc --noEmit && pnpm --filter @cascade-fyi/splits-sdk type-check",
-    "test": "anchor test",
-    "test:rust": "cargo test --package cascade-splits",
-    "test:sdk": "pnpm --filter @cascade-fyi/splits-sdk test",
-    "test:all": "pnpm test:rust && pnpm test:sdk && pnpm test",
-    "check": "pnpm type-check:all && biome check --write"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.3.6",
-    "@coral-xyz/anchor": "^0.32.1",
-    "@solana-program/system": "^0.10.0",
-    "@solana-program/token": "^0.8.0",
-    "@solana/kit": "^5.0.0",
-    "@solana/spl-token": "^0.4.14",
-    "@solana/web3.js": "^1.98.4",
-    "@types/bn.js": "^5.2.0",
-    "@types/node": "^24.10.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.12"
-  },
-  "packageManager": "pnpm@10.23.0"
+	"name": "cascade-splits",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"scripts": {
+		"lint:fix": "biome check --write",
+		"lint": "biome check",
+		"type-check": "tsc --noEmit",
+		"type-check:all": "tsc --noEmit && pnpm --filter @cascade-fyi/splits-sdk type-check",
+		"test": "anchor test",
+		"test:rust": "cargo test --package cascade-splits",
+		"test:sdk": "pnpm --filter @cascade-fyi/splits-sdk test",
+		"test:all": "pnpm test:rust && pnpm test:sdk && pnpm test",
+		"check": "pnpm type-check:all && biome check --write"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.3.7",
+		"@coral-xyz/anchor": "^0.32.1",
+		"@solana-program/system": "^0.10.0",
+		"@solana-program/token": "^0.8.0",
+		"@solana/kit": "^5.0.0",
+		"@solana/spl-token": "^0.4.14",
+		"@solana/web3.js": "^1.98.4",
+		"@types/bn.js": "^5.2.0",
+		"@types/node": "^24.10.1",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.12"
+	},
+	"packageManager": "pnpm@10.23.0"
 }

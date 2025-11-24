@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.3.6/schema.json",
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -11,8 +11,9 @@
 			"tests/**/*.ts",
 			"scripts/**/*.ts",
 			"packages/**/*.ts",
-			"packages/*/src/**/*.tsx",
-			"packages/**/*.json",
+			"packages/**/*.tsx",
+			"**/*.json",
+			"!!**/dist",
 			"!**/idl.json"
 		]
 	},
@@ -42,7 +43,8 @@
 		"enabled": true,
 		"actions": {
 			"source": {
-				"organizeImports": "off"
+				"organizeImports": "off",
+				"recommended": true
 			}
 		}
 	}
