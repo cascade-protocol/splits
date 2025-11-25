@@ -10,14 +10,18 @@ import {
 } from "../core/business-logic.js";
 import type {
 	SplitConfig,
+	SplitWithBalance,
 	DistributionPreview,
 	ProtocolConfig,
 } from "../core/types.js";
 import {
 	deserializeSplitConfig,
 	deserializeProtocolConfig,
+	SPLIT_CONFIG_SIZE,
 } from "../core/deserialization.js";
 import { deriveProtocolConfig } from "../pda.js";
+import { PROGRAM_ID, LAYOUT_OFFSETS } from "../core/constants.js";
+import { ACCOUNT_DISCRIMINATORS } from "../discriminators.js";
 import {
 	VaultNotFoundError,
 	SplitNotFoundError,
@@ -124,4 +128,59 @@ export async function previewExecution(
 		protocolFee: preview.protocolFee,
 		ready: balance > 0n,
 	};
+}
+
+/**
+ * Fetch all splits owned by an authority
+ */
+export async function getSplitsByAuthority(
+	connection: Connection,
+	authority: string,
+): Promise<SplitWithBalance[]> {
+	const authorityPubkey = new PublicKey(authority);
+	const programId = new PublicKey(PROGRAM_ID);
+
+	const accounts = await connection.getProgramAccounts(programId, {
+		filters: [
+			{ dataSize: SPLIT_CONFIG_SIZE },
+			{
+				memcmp: {
+					offset: 0,
+					bytes: Buffer.from(ACCOUNT_DISCRIMINATORS.splitConfig).toString(
+						"base64",
+					),
+					encoding: "base64",
+				},
+			},
+			{
+				memcmp: {
+					offset: LAYOUT_OFFSETS.AUTHORITY,
+					bytes: authorityPubkey.toBase58(),
+				},
+			},
+		],
+	});
+
+	return Promise.all(
+		accounts.map(async ({ account }) => {
+			const raw = deserializeSplitConfig(account.data);
+
+			// Transform to user-facing format
+			const split: SplitConfig = {
+				...raw,
+				recipients: raw.recipients.map((r) => ({
+					address: r.address,
+					share: basisPointsToShares(r.percentageBps),
+				})),
+			};
+
+			// Fetch vault balance
+			const vaultBalance = await getVaultBalance(
+				connection,
+				new PublicKey(split.vault),
+			);
+
+			return { ...split, vaultBalance };
+		}),
+	);
 }

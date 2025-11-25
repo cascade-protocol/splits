@@ -1,8 +1,7 @@
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod/v4";
 import { zodResolver } from "@/lib/zod-resolver";
-import { Check, Minus, Plus, Wallet } from "lucide-react";
-import { toast } from "sonner";
+import { Check, Loader2, Minus, Plus, Wallet } from "lucide-react";
 import type { ShareRecipient } from "@cascade-fyi/splits-sdk";
 
 import { Button } from "@/components/ui/button";
@@ -66,9 +65,10 @@ type CreateSplitFormData = z.infer<typeof createSplitSchema>;
 
 interface CreateSplitFormProps {
 	onSubmit?: (data: ShareRecipient[]) => void;
+	isPending?: boolean;
 }
 
-export function CreateSplitForm({ onSubmit }: CreateSplitFormProps) {
+export function CreateSplitForm({ onSubmit, isPending }: CreateSplitFormProps) {
 	const form = useForm<CreateSplitFormData>({
 		resolver: zodResolver(createSplitSchema),
 		defaultValues: {
@@ -98,9 +98,6 @@ export function CreateSplitForm({ onSubmit }: CreateSplitFormProps) {
 			share: r.share,
 		}));
 
-		toast.success("Split configuration ready!", {
-			description: "Connect your wallet to create the split on-chain.",
-		});
 		onSubmit?.(recipients);
 	};
 
@@ -211,11 +208,15 @@ export function CreateSplitForm({ onSubmit }: CreateSplitFormProps) {
 				<Button
 					type="submit"
 					size="lg"
-					disabled={!isComplete || !form.formState.isValid}
+					disabled={!isComplete || !form.formState.isValid || isPending}
 					className="w-full mt-6"
 				>
-					<Wallet className="h-4 w-4 mr-2" />
-					Create Split
+					{isPending ? (
+						<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+					) : (
+						<Wallet className="h-4 w-4 mr-2" />
+					)}
+					{isPending ? "Creating Split..." : "Create Split"}
 				</Button>
 			</form>
 		</div>

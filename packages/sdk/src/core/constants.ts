@@ -32,3 +32,20 @@ export const SYSTEM_PROGRAM_ID = "11111111111111111111111111111111";
 
 // Default token mint (USDC)
 export const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+
+/**
+ * Layout offsets for SplitConfig account data.
+ * Useful for building getProgramAccounts memcmp filters.
+ *
+ * Layout: discriminator(8) + version(1) + authority(32) + mint(32) + vault(32) + unique_id(32)
+ */
+export const LAYOUT_OFFSETS = {
+	/** Authority pubkey offset: discriminator(8) + version(1) = 9 */
+	AUTHORITY: 9,
+	/** Mint pubkey offset: + authority(32) = 41 */
+	MINT: 41,
+	/** Vault pubkey offset: + mint(32) = 73 */
+	VAULT: 73,
+	/** Unique ID pubkey offset: + vault(32) = 105 */
+	UNIQUE_ID: 105,
+} as const;

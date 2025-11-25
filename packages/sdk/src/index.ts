@@ -71,6 +71,7 @@ export type {
 	UnclaimedAmount,
 	ProtocolConfig,
 	SplitConfig,
+	SplitWithBalance,
 	DistributionPreview,
 } from "./core/types.js";
 
@@ -96,6 +97,22 @@ export { encodeAddress, decodeAddress } from "./core/encoding.js";
 
 // Deserialization utilities (use getSplit() for split config with shares)
 export { deserializeProtocolConfig } from "./core/deserialization.js";
+
+// Account sizes (for memcmp filters)
+export {
+	SPLIT_CONFIG_SIZE,
+	PROTOCOL_CONFIG_SIZE,
+} from "./core/deserialization.js";
+
+// Layout offsets (for getProgramAccounts filters)
+export { LAYOUT_OFFSETS } from "./core/constants.js";
+
+// State inspection helpers
+export {
+	hasUnclaimedAmounts,
+	getTotalUnclaimed,
+	canUpdateOrClose,
+} from "./core/helpers.js";
 
 // IDL export
 import IDL_JSON from "../idl.json" with { type: "json" };

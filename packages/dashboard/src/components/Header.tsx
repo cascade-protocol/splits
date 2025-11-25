@@ -1,25 +1,9 @@
-import { Wallet } from "lucide-react";
-import { Button } from "@/components/ui/button";
-
-interface HeaderProps {
-	isAuthenticated?: boolean;
-	walletAddress?: string;
-	onToggleAuth?: () => void;
-}
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
 /**
- * Truncates a Solana address for display: "8xQe...VFin"
+ * Header with logo, social links, and wallet connection.
  */
-function truncateAddress(address: string): string {
-	if (address.length <= 12) return address;
-	return `${address.slice(0, 4)}...${address.slice(-4)}`;
-}
-
-export function Header({
-	isAuthenticated = false,
-	walletAddress = "",
-	onToggleAuth,
-}: HeaderProps) {
+export function Header() {
 	return (
 		<header className="border-b">
 			<div className="container mx-auto px-4 py-4 md:px-6 md:py-6">
@@ -71,23 +55,8 @@ export function Header({
 							<span className="sr-only">X</span>
 						</a>
 
-						{/* Wallet button */}
-						{isAuthenticated && walletAddress ? (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={onToggleAuth}
-								className="font-mono"
-							>
-								<Wallet className="mr-2 h-4 w-4" />
-								{truncateAddress(walletAddress)}
-							</Button>
-						) : (
-							<Button variant="default" size="sm" onClick={onToggleAuth}>
-								<Wallet className="mr-2 h-4 w-4" />
-								Connect Wallet
-							</Button>
-						)}
+						{/* Wallet button - uses wallet adapter */}
+						<WalletMultiButton />
 					</div>
 				</div>
 			</div>

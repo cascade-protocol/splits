@@ -3,7 +3,11 @@ packages:
 
 onlyBuiltDependencies:
   - bigint-buffer
+  - blake-hash
   - bufferutil
   - esbuild
   - msw
+  - protobufjs
+  - tiny-secp256k1
+  - usb
   - utf-8-validate

@@ -2,7 +2,8 @@
 	"compilerOptions": {
 		"target": "ES2023",
 		"module": "node20",
-		"lib": ["ES2023"],
+		"lib": ["ES2023", "DOM"],
+		"jsx": "react-jsx",
 		"moduleDetection": "force",
 		"verbatimModuleSyntax": true,
 		"isolatedModules": true,

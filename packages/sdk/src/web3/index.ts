@@ -16,7 +16,11 @@ import {
 	validateAndTransformUpdate,
 } from "../core/business-logic.js";
 import type { CreateSplitInput, UpdateSplitInput } from "../core/schemas.js";
-import type { DistributionPreview, SplitConfig } from "../core/types.js";
+import type {
+	DistributionPreview,
+	SplitConfig,
+	SplitWithBalance,
+} from "../core/types.js";
 import {
 	PROGRAM_ID,
 	TOKEN_PROGRAM_ID,
@@ -47,12 +51,23 @@ export interface TransactionOptions {
 }
 
 /**
+ * Base result for all transaction builders.
+ * Includes blockhash info needed for proper confirmation.
+ */
+export interface TransactionResult {
+	transaction: VersionedTransaction;
+	/** Blockhash used in the transaction - use for confirmation */
+	blockhash: string;
+	/** Block height after which the transaction expires */
+	lastValidBlockHeight: number;
+}
+
+/**
  * Result of creating a split
  */
-export interface CreateSplitResult {
+export interface CreateSplitResult extends TransactionResult {
 	splitConfig: string;
 	vault: string;
-	transaction: VersionedTransaction;
 }
 
 /**
@@ -61,13 +76,17 @@ export interface CreateSplitResult {
 export class CascadeSplits {
 	private readonly programId: PublicKey;
 	private readonly ataProgramId: PublicKey;
+	private readonly _connection: Connection;
 
-	constructor(
-		private readonly connection: Connection,
-		programId?: string,
-	) {
+	constructor(connection: Connection, programId?: string) {
+		this._connection = connection;
 		this.programId = new PublicKey(programId ?? PROGRAM_ID);
 		this.ataProgramId = new PublicKey(ASSOCIATED_TOKEN_PROGRAM_ID);
+	}
+
+	/** Get the connection instance */
+	get connection(): Connection {
+		return this._connection;
 	}
 
 	/**
@@ -177,7 +196,8 @@ export class CascadeSplits {
 		);
 
 		// Build V0 transaction
-		const { blockhash } = await this.connection.getLatestBlockhash();
+		const { blockhash, lastValidBlockHeight } =
+			await this.connection.getLatestBlockhash();
 
 		const message = new TransactionMessage({
 			payerKey: authority,
@@ -191,6 +211,8 @@ export class CascadeSplits {
 			splitConfig,
 			vault,
 			transaction,
+			blockhash,
+			lastValidBlockHeight,
 		};
 	}
 
@@ -214,7 +236,7 @@ export class CascadeSplits {
 		vault: string,
 		executor: PublicKey,
 		options?: TransactionOptions,
-	): Promise<VersionedTransaction> {
+	): Promise<TransactionResult> {
 		// 1. Parse vault string and fetch split config
 		const vaultPubkey = new PublicKey(vault);
 		const split = await read.getSplit(this.connection, vaultPubkey);
@@ -272,14 +294,17 @@ export class CascadeSplits {
 		instructions.push(executeInstruction);
 
 		// 8. Build V0 transaction
-		const { blockhash } = await this.connection.getLatestBlockhash();
+		const { blockhash, lastValidBlockHeight } =
+			await this.connection.getLatestBlockhash();
 		const message = new TransactionMessage({
 			payerKey: executor,
 			recentBlockhash: blockhash,
 			instructions,
 		}).compileToV0Message();
 
-		return new VersionedTransaction(message);
+		const transaction = new VersionedTransaction(message);
+
+		return { transaction, blockhash, lastValidBlockHeight };
 	}
 
 	/**
@@ -295,7 +320,7 @@ export class CascadeSplits {
 		authority: PublicKey,
 		params: UpdateSplitInput,
 		options?: TransactionOptions,
-	): Promise<VersionedTransaction> {
+	): Promise<TransactionResult> {
 		// 1. Validate and transform to protocol format
 		const processed = validateAndTransformUpdate(params);
 
@@ -356,14 +381,17 @@ export class CascadeSplits {
 		instructions.push(updateInstruction);
 
 		// 8. Build V0 transaction
-		const { blockhash } = await this.connection.getLatestBlockhash();
+		const { blockhash, lastValidBlockHeight } =
+			await this.connection.getLatestBlockhash();
 		const message = new TransactionMessage({
 			payerKey: authority,
 			recentBlockhash: blockhash,
 			instructions,
 		}).compileToV0Message();
 
-		return new VersionedTransaction(message);
+		const transaction = new VersionedTransaction(message);
+
+		return { transaction, blockhash, lastValidBlockHeight };
 	}
 
 	/**
@@ -381,7 +409,7 @@ export class CascadeSplits {
 		authority: PublicKey,
 		rentReceiver?: PublicKey,
 		options?: TransactionOptions,
-	): Promise<VersionedTransaction> {
+	): Promise<TransactionResult> {
 		// 1. Parse vault and fetch split config
 		const vaultPubkey = new PublicKey(vault);
 		const split = await read.getSplit(this.connection, vaultPubkey);
@@ -440,14 +468,17 @@ export class CascadeSplits {
 		instructions.push(closeInstruction);
 
 		// 8. Build V0 transaction
-		const { blockhash } = await this.connection.getLatestBlockhash();
+		const { blockhash, lastValidBlockHeight } =
+			await this.connection.getLatestBlockhash();
 		const message = new TransactionMessage({
 			payerKey: authority,
 			recentBlockhash: blockhash,
 			instructions,
 		}).compileToV0Message();
 
-		return new VersionedTransaction(message);
+		const transaction = new VersionedTransaction(message);
+
+		return { transaction, blockhash, lastValidBlockHeight };
 	}
 
 	/**
@@ -496,6 +527,17 @@ export class CascadeSplits {
 		const vaultPubkey = new PublicKey(vault);
 		return read.previewExecution(this.connection, vaultPubkey);
 	}
+
+	/**
+	 * Fetch all splits owned by an authority.
+	 * Returns splits with vault balances included.
+	 *
+	 * @param authority - Authority address
+	 * @returns Array of splits with vault balances
+	 */
+	async getSplitsByAuthority(authority: string): Promise<SplitWithBalance[]> {
+		return read.getSplitsByAuthority(this.connection, authority);
+	}
 }
 
 // Re-export types for convenience
@@ -504,4 +546,8 @@ export type {
 	CreateSplitInput,
 	UpdateSplitInput,
 } from "../core/schemas.js";
-export type { DistributionPreview, SplitConfig } from "../core/types.js";
+export type {
+	DistributionPreview,
+	SplitConfig,
+	SplitWithBalance,
+} from "../core/types.js";

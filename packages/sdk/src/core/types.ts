@@ -88,3 +88,10 @@ export interface DistributionPreview {
 	protocolFee: bigint;
 	ready: boolean;
 }
+
+/**
+ * Split configuration with vault balance (for list queries)
+ */
+export interface SplitWithBalance extends SplitConfig {
+	vaultBalance: bigint;
+}
