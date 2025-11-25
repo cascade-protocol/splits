@@ -1,30 +1,12 @@
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod/v4";
 import { zodResolver } from "@/lib/zod-resolver";
-import { Plus, Trash2, Wallet } from "lucide-react";
+import { Check, Minus, Plus, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import type { ShareRecipient } from "@cascade-fyi/splits-sdk";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import {
-	Field,
-	FieldDescription,
-	FieldError,
-	FieldGroup,
-	FieldLegend,
-	FieldSet,
-} from "@/components/ui/field";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 
 // Constants
 const MAX_RECIPIENTS = 20;
@@ -37,7 +19,7 @@ function isValidSolanaAddress(address: string): boolean {
 	return base58Regex.test(address);
 }
 
-// Zod schema for split creation (uses 100% share model)
+// Zod schema for split creation
 const recipientSchema = z.object({
 	address: z
 		.string()
@@ -91,8 +73,8 @@ export function CreateSplitForm({ onSubmit }: CreateSplitFormProps) {
 		resolver: zodResolver(createSplitSchema),
 		defaultValues: {
 			recipients: [
-				{ address: "", share: 50 },
-				{ address: "", share: 50 },
+				{ address: "", share: 10 },
+				{ address: "", share: 90 },
 			],
 		},
 		mode: "onChange",
@@ -103,16 +85,14 @@ export function CreateSplitForm({ onSubmit }: CreateSplitFormProps) {
 		name: "recipients",
 	});
 
-	// Calculate remaining percentage (out of 100%)
 	const watchedRecipients = form.watch("recipients");
 	const totalShare = watchedRecipients.reduce(
 		(sum, r) => sum + (r.share || 0),
 		0,
 	);
-	const remainingShare = 100 - totalShare;
+	const isComplete = totalShare === 100;
 
 	const handleFormSubmit = (data: CreateSplitFormData) => {
-		// Convert form data to SDK format (ShareRecipient[])
 		const recipients: ShareRecipient[] = data.recipients.map((r) => ({
 			address: r.address,
 			share: r.share,
@@ -124,160 +104,120 @@ export function CreateSplitForm({ onSubmit }: CreateSplitFormProps) {
 		onSubmit?.(recipients);
 	};
 
-	const handleAddRecipient = () => {
-		if (fields.length >= MAX_RECIPIENTS) return;
-
-		// Default new recipient to remaining share or 1%
-		const defaultShare = Math.max(1, Math.min(remainingShare, 99));
-		append({ address: "", share: defaultShare });
-	};
-
 	return (
-		<Card className="w-full max-w-2xl mx-auto">
-			<CardHeader>
-				<CardTitle>Create a Split</CardTitle>
-				<CardDescription>
-					Distribute USDC payments automatically to multiple recipients.
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<form
-					id="create-split-form"
-					onSubmit={form.handleSubmit(handleFormSubmit)}
-				>
-					<FieldSet>
-						<FieldLegend variant="label">Recipients</FieldLegend>
-						<FieldDescription>
-							Add wallet addresses and their share percentage. Total must equal
-							100%.
-						</FieldDescription>
+		<div className="w-full max-w-xl mx-auto">
+			<h2 className="text-xl font-semibold mb-1">Recipients</h2>
+			<p className="text-muted-foreground text-sm mb-6">
+				Enter wallet addresses and their share percentage.
+			</p>
 
-						<FieldGroup className="gap-4">
-							{fields.map((field, index) => (
-								<div
-									key={field.id}
-									className="flex flex-col gap-2 sm:flex-row sm:items-start"
-								>
-									{/* Address Input */}
-									<Controller
-										name={`recipients.${index}.address`}
-										control={form.control}
-										render={({ field: controllerField, fieldState }) => (
-											<Field
-												className="flex-1"
-												data-invalid={fieldState.invalid}
-											>
-												<Input
-													{...controllerField}
-													placeholder="Solana wallet address"
-													aria-invalid={fieldState.invalid}
-													className="font-mono text-sm"
-												/>
-												{fieldState.invalid && (
-													<FieldError errors={[fieldState.error]} />
-												)}
-											</Field>
-										)}
+			<form
+				onSubmit={form.handleSubmit(handleFormSubmit)}
+				className="space-y-3"
+			>
+				{fields.map((field, index) => (
+					<div key={field.id} className="flex items-center gap-2">
+						{/* Address input */}
+						<Controller
+							name={`recipients.${index}.address`}
+							control={form.control}
+							render={({ field: controllerField, fieldState }) => (
+								<Input
+									{...controllerField}
+									placeholder="Enter address..."
+									aria-invalid={fieldState.invalid}
+									className="flex-1 font-mono text-sm"
+								/>
+							)}
+						/>
+
+						{/* Share input */}
+						<Controller
+							name={`recipients.${index}.share`}
+							control={form.control}
+							render={({ field: controllerField, fieldState }) => (
+								<div className="relative w-20 shrink-0">
+									<Input
+										type="number"
+										min={1}
+										max={100}
+										value={controllerField.value}
+										onChange={(e) =>
+											controllerField.onChange(
+												Number.parseInt(e.target.value, 10) || 0,
+											)
+										}
+										aria-invalid={fieldState.invalid}
+										className="pr-6 text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 									/>
-
-									{/* Share Input + Remove Button row */}
-									<div className="flex gap-2 items-start">
-										<Controller
-											name={`recipients.${index}.share`}
-											control={form.control}
-											render={({ field: controllerField, fieldState }) => (
-												<Field
-													className="w-24 shrink-0"
-													data-invalid={fieldState.invalid}
-												>
-													<div className="relative">
-														<Input
-															type="number"
-															min={1}
-															max={100}
-															value={controllerField.value}
-															onChange={(e) =>
-																controllerField.onChange(
-																	Number.parseInt(e.target.value, 10) || 0,
-																)
-															}
-															aria-invalid={fieldState.invalid}
-															className="pr-7 text-right"
-														/>
-														<span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-															%
-														</span>
-													</div>
-													{fieldState.invalid && (
-														<FieldError errors={[fieldState.error]} />
-													)}
-												</Field>
-											)}
-										/>
-
-										{/* Remove Button */}
-										{fields.length > 1 && (
-											<Button
-												type="button"
-												variant="ghost"
-												size="icon"
-												onClick={() => remove(index)}
-												className="shrink-0 text-muted-foreground hover:text-destructive"
-												aria-label={`Remove recipient ${index + 1}`}
-											>
-												<Trash2 className="h-4 w-4" />
-											</Button>
-										)}
-									</div>
+									<span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+										%
+									</span>
 								</div>
-							))}
-						</FieldGroup>
+							)}
+						/>
 
-						{/* Add Recipient Button */}
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={handleAddRecipient}
-							disabled={fields.length >= MAX_RECIPIENTS}
-							className="w-fit"
-						>
-							<Plus className="h-4 w-4 mr-1" />
-							Add Recipient
-						</Button>
-
-						{/* Form-level errors */}
-						{form.formState.errors.recipients?.root && (
-							<FieldError
-								errors={[form.formState.errors.recipients.root]}
-								className="mt-2"
-							/>
+						{/* Remove button */}
+						{fields.length > 1 && (
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								onClick={() => remove(index)}
+								className="shrink-0 h-9 w-9 rounded-full text-muted-foreground hover:text-destructive"
+								aria-label={`Remove recipient ${index + 1}`}
+							>
+								<Minus className="h-4 w-4" />
+							</Button>
 						)}
-					</FieldSet>
-				</form>
-			</CardContent>
+					</div>
+				))}
 
-			<Separator />
+				{/* Add recipient */}
+				<button
+					type="button"
+					onClick={() => append({ address: "", share: 0 })}
+					disabled={fields.length >= MAX_RECIPIENTS}
+					className="text-primary text-sm font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					<Plus className="h-4 w-4 inline mr-1" />
+					Add recipient
+				</button>
 
-			<CardFooter className="flex justify-between items-center pt-6">
-				{/* Remaining Share Indicator */}
-				<div className="flex items-center gap-2">
-					<span className="text-sm text-muted-foreground">Remaining:</span>
-					<Badge variant={remainingShare === 0 ? "secondary" : "destructive"}>
-						{remainingShare}%
-					</Badge>
+				{/* Total indicator */}
+				<div className="flex items-center gap-4 pt-2">
+					<div className="flex items-center gap-2">
+						{isComplete ? (
+							<Check className="h-4 w-4 text-green-500" />
+						) : (
+							<span className="h-4 w-4 rounded-full border-2 border-muted-foreground/50" />
+						)}
+						<span
+							className={`text-sm font-medium ${isComplete ? "text-green-500" : "text-muted-foreground"}`}
+						>
+							{totalShare}%
+						</span>
+					</div>
 				</div>
 
-				{/* Submit Button */}
+				{/* Error message */}
+				{form.formState.errors.recipients?.root && (
+					<p className="text-destructive text-sm">
+						{form.formState.errors.recipients.root.message}
+					</p>
+				)}
+
+				{/* Submit */}
 				<Button
 					type="submit"
-					form="create-split-form"
-					disabled={remainingShare !== 0 || !form.formState.isValid}
+					size="lg"
+					disabled={!isComplete || !form.formState.isValid}
+					className="w-full mt-6"
 				>
 					<Wallet className="h-4 w-4 mr-2" />
 					Create Split
 				</Button>
-			</CardFooter>
-		</Card>
+			</form>
+		</div>
 	);
 }
