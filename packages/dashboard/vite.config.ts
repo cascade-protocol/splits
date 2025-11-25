@@ -13,7 +13,10 @@ export default defineConfig({
 			},
 		}),
 		tailwindcss(),
-		nodePolyfills({ include: ["buffer"] }),
+		nodePolyfills({
+			include: ["buffer"],
+			globals: { Buffer: true },
+		}),
 	],
 	resolve: {
 		alias: {
