@@ -66,10 +66,34 @@ const createIx = buildCreateSplitInstruction(
 
 ### 100-Share Model
 
-User-facing API uses shares that sum to **100**. SDK converts to basis points internally:
-- `share: 60` → 5940 bps (59.4%)
-- `share: 40` → 3960 bps (39.6%)
-- Protocol keeps 1% fee
+Specify shares that sum to **100**. The SDK handles everything else.
+- `share: 60` means 60% for that recipient
+- `share: 40` means 40% for that recipient
+
+A 1% protocol fee is deducted during distribution (see `previewDistribution` for details).
+
+### Address Prediction
+
+Derive split addresses **before creation** using deterministic PDAs:
+
+```typescript
+import { deriveCreateSplitConfigAddresses } from "@cascade-fyi/splits-sdk";
+import { Keypair } from "@solana/web3.js";
+
+// Generate a unique ID for this split
+const uniqueId = Keypair.generate().publicKey.toBase58();
+
+// Derive all addresses at once
+const { splitConfig, vault } = deriveCreateSplitConfigAddresses(
+  authority,     // Your wallet address
+  mint,          // Token mint (USDC, etc.)
+  uniqueId,
+);
+
+console.log("Split config will be:", splitConfig);
+console.log("Send payments to vault:", vault);
+// The vault address is stable - share it before the split exists!
+```
 
 ### Unclaimed Amounts
 
@@ -92,6 +116,35 @@ import { deriveVault, deriveSplitConfig } from "@cascade-fyi/splits-sdk";
 
 const { address: splitConfig } = deriveSplitConfig(authority, mint, uniqueId);
 const vault = deriveVault(splitConfig, mint, tokenProgram);
+```
+
+### Parsing Transactions & Accounts
+
+The SDK exports discriminators for identifying instructions and accounts in on-chain data:
+
+```typescript
+import {
+  DISCRIMINATORS,
+  ACCOUNT_DISCRIMINATORS,
+  matchesDiscriminator
+} from "@cascade-fyi/splits-sdk";
+
+// Identify instruction type from transaction data
+if (matchesDiscriminator(instructionData, DISCRIMINATORS.executeSplit)) {
+  console.log("This is an execute split instruction");
+}
+
+// Identify account type from account data
+if (matchesDiscriminator(accountData, ACCOUNT_DISCRIMINATORS.splitConfig)) {
+  console.log("This is a split config account");
+}
+
+// Available instruction discriminators:
+// - createSplitConfig, executeSplit, updateSplitConfig, closeSplitConfig
+// - initializeProtocol, updateProtocolConfig, transferProtocolAuthority, acceptProtocolAuthority
+
+// Available account discriminators:
+// - splitConfig, protocolConfig
 ```
 
 ## API Reference
@@ -246,6 +299,26 @@ import type {
   UpdateSplitInput,
   ShareRecipient
 } from "@cascade-fyi/splits-sdk";
+```
+
+## Advanced
+
+### Basis Point Conversion
+
+For indexers, analytics, or custom instruction building, you can convert between the 100-share model and raw basis points:
+
+```typescript
+import { sharesToBasisPoints, basisPointsToShares } from "@cascade-fyi/splits-sdk";
+
+// Convert shares to on-chain basis points
+sharesToBasisPoints(50);  // 4950 bps
+sharesToBasisPoints(100); // 9900 bps (single recipient)
+
+// Convert on-chain basis points back to shares
+basisPointsToShares(4950); // 50
+basisPointsToShares(3267); // 33
+
+// Formula: share * 99 = bps (protocol reserves 1% fee)
 ```
 
 ## License

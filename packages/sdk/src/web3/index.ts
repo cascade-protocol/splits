@@ -1,6 +1,6 @@
 /**
  * High-level @solana/web3.js adapter for Cascade Splits
- * Uses 100-share mental model (hides protocol fee internally)
+ * Uses 100-share mental model — SDK handles basis point conversion
  */
 
 import {
@@ -30,6 +30,11 @@ import {
 	buildCloseSplitConfigInstruction,
 } from "./instructions.js";
 import * as read from "./read.js";
+import {
+	NonEmptyVaultError,
+	UnclaimedAmountsError,
+	ProtocolUnclaimedError,
+} from "../errors.js";
 
 /**
  * Options for transaction building
@@ -298,18 +303,30 @@ export class CascadeSplits {
 		const vaultPubkey = new PublicKey(processed.vault);
 		const split = await read.getSplit(this.connection, vaultPubkey);
 
-		// 3. Derive splitConfig address
+		// 3. Validate vault is empty and no unclaimed amounts
+		const balance = await read.getVaultBalance(this.connection, vaultPubkey);
+		if (balance > 0n) {
+			throw new NonEmptyVaultError(balance);
+		}
+		if (split.unclaimedAmounts.length > 0) {
+			throw new UnclaimedAmountsError(split.unclaimedAmounts.length);
+		}
+		if (split.protocolUnclaimed > 0n) {
+			throw new ProtocolUnclaimedError(split.protocolUnclaimed);
+		}
+
+		// 4. Derive splitConfig address
 		const { address: splitConfig } = deriveSplitConfig(
 			split.authority,
 			split.mint,
 			split.uniqueId,
 		);
 
-		// 4. Get mint and token program
+		// 5. Get mint and token program
 		const mint = new PublicKey(split.mint);
 		const tokenProgram = new PublicKey(TOKEN_PROGRAM_ID);
 
-		// 5. Build instruction with processed.recipients (already in protocol format)
+		// 6. Build instruction with processed.recipients (already in protocol format)
 		const updateInstruction = buildUpdateSplitConfigInstruction(
 			this.programId,
 			new PublicKey(splitConfig),
@@ -320,7 +337,7 @@ export class CascadeSplits {
 			tokenProgram,
 		);
 
-		// 6. Add compute budget instructions if provided
+		// 7. Add compute budget instructions if provided
 		const instructions = [];
 		if (options?.priorityFee) {
 			instructions.push(
@@ -338,7 +355,7 @@ export class CascadeSplits {
 		}
 		instructions.push(updateInstruction);
 
-		// 7. Build V0 transaction
+		// 8. Build V0 transaction
 		const { blockhash } = await this.connection.getLatestBlockhash();
 		const message = new TransactionMessage({
 			payerKey: authority,
@@ -369,20 +386,32 @@ export class CascadeSplits {
 		const vaultPubkey = new PublicKey(vault);
 		const split = await read.getSplit(this.connection, vaultPubkey);
 
-		// 2. Derive splitConfig address
+		// 2. Validate vault is empty and no unclaimed amounts
+		const balance = await read.getVaultBalance(this.connection, vaultPubkey);
+		if (balance > 0n) {
+			throw new NonEmptyVaultError(balance);
+		}
+		if (split.unclaimedAmounts.length > 0) {
+			throw new UnclaimedAmountsError(split.unclaimedAmounts.length);
+		}
+		if (split.protocolUnclaimed > 0n) {
+			throw new ProtocolUnclaimedError(split.protocolUnclaimed);
+		}
+
+		// 3. Derive splitConfig address
 		const { address: splitConfig } = deriveSplitConfig(
 			split.authority,
 			split.mint,
 			split.uniqueId,
 		);
 
-		// 3. Get token program
+		// 4. Get token program
 		const tokenProgram = new PublicKey(TOKEN_PROGRAM_ID);
 
-		// 4. Default rent receiver to authority if not provided
+		// 5. Default rent receiver to authority if not provided
 		const actualRentReceiver = rentReceiver ?? authority;
 
-		// 5. Build instruction
+		// 6. Build instruction
 		const closeInstruction = buildCloseSplitConfigInstruction(
 			this.programId,
 			new PublicKey(splitConfig),
@@ -392,7 +421,7 @@ export class CascadeSplits {
 			tokenProgram,
 		);
 
-		// 6. Add compute budget instructions if provided
+		// 7. Add compute budget instructions if provided
 		const instructions = [];
 		if (options?.priorityFee) {
 			instructions.push(
@@ -410,7 +439,7 @@ export class CascadeSplits {
 		}
 		instructions.push(closeInstruction);
 
-		// 7. Build V0 transaction
+		// 8. Build V0 transaction
 		const { blockhash } = await this.connection.getLatestBlockhash();
 		const message = new TransactionMessage({
 			payerKey: authority,

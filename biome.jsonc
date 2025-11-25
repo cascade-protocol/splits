@@ -14,7 +14,8 @@
 			"packages/**/*.tsx",
 			"**/*.json",
 			"!!**/dist",
-			"!**/idl.json"
+			"!**/idl.json",
+			"!packages/dashboard/src/components/ui"
 		]
 	},
 	"formatter": {

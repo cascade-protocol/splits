@@ -4,7 +4,11 @@
  */
 
 import { encodeAddress } from "./encoding.js";
-import type { SplitConfig, ProtocolConfig, UnclaimedAmount } from "./types.js";
+import type {
+	RawSplitConfig,
+	ProtocolConfig,
+	UnclaimedAmount,
+} from "./types.js";
 
 // Account sizes (from Rust constants.rs)
 export const PROTOCOL_CONFIG_SIZE = 105;
@@ -71,7 +75,7 @@ export function deserializeProtocolConfig(data: Buffer): ProtocolConfig {
  * - last_activity: 8 bytes (i64)
  * - rent_payer: 32 bytes (Pubkey)
  */
-export function deserializeSplitConfig(data: Buffer): SplitConfig {
+export function deserializeSplitConfig(data: Buffer): RawSplitConfig {
 	if (data.length !== SPLIT_CONFIG_SIZE) {
 		throw new Error(
 			`Invalid SplitConfig size: expected ${SPLIT_CONFIG_SIZE}, got ${data.length}`,

@@ -7,11 +7,11 @@
 import * as z from "zod/mini";
 
 /**
- * Share: integer 1-99
+ * Share: integer 1-100 (single recipient can have 100%)
  */
 const Share = z.number().check(
 	z.gte(1),
-	z.lte(99),
+	z.lte(100),
 	z.refine((n) => Number.isInteger(n)),
 );
 

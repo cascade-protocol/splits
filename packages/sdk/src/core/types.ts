@@ -4,11 +4,19 @@
  */
 
 /**
- * On-chain recipient data (internal representation)
+ * Raw on-chain recipient data (internal, used by deserialization)
+ */
+export interface RawRecipient {
+	address: string;
+	percentageBps: number;
+}
+
+/**
+ * User-facing recipient with share (1-100)
  */
 export interface Recipient {
 	address: string;
-	percentageBps: number;
+	share: number;
 }
 
 /**
@@ -31,7 +39,25 @@ export interface ProtocolConfig {
 }
 
 /**
- * Split configuration account (deserialized)
+ * Raw split configuration (internal, from deserialization)
+ */
+export interface RawSplitConfig {
+	version: number;
+	authority: string;
+	mint: string;
+	vault: string;
+	uniqueId: string;
+	bump: number;
+	recipientCount: number;
+	recipients: RawRecipient[];
+	unclaimedAmounts: UnclaimedAmount[];
+	protocolUnclaimed: bigint;
+	lastActivity: bigint;
+	rentPayer: string;
+}
+
+/**
+ * User-facing split configuration with shares (1-100)
  */
 export interface SplitConfig {
 	version: number;

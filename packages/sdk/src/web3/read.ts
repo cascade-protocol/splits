@@ -18,6 +18,12 @@ import {
 	deserializeProtocolConfig,
 } from "../core/deserialization.js";
 import { deriveProtocolConfig } from "../pda.js";
+import {
+	VaultNotFoundError,
+	SplitNotFoundError,
+	ProtocolNotInitializedError,
+	InvalidTokenAccountError,
+} from "../errors.js";
 
 /**
  * Fetch and deserialize a split configuration account by vault address.
@@ -32,12 +38,12 @@ export async function getSplit(
 	const vaultInfo = await connection.getAccountInfo(vault);
 
 	if (!vaultInfo) {
-		throw new Error(`Vault not found: ${vault.toBase58()}`);
+		throw new VaultNotFoundError(vault.toBase58());
 	}
 
 	// Parse owner from token account (offset 32)
 	if (vaultInfo.data.length < 165) {
-		throw new Error("Invalid token account");
+		throw new InvalidTokenAccountError(vault.toBase58());
 	}
 	const splitConfigPubkey = new PublicKey(vaultInfo.data.subarray(32, 64));
 
@@ -45,10 +51,19 @@ export async function getSplit(
 	const splitConfigInfo = await connection.getAccountInfo(splitConfigPubkey);
 
 	if (!splitConfigInfo) {
-		throw new Error(`Split config not found: ${splitConfigPubkey.toBase58()}`);
+		throw new SplitNotFoundError(splitConfigPubkey.toBase58());
 	}
 
-	return deserializeSplitConfig(splitConfigInfo.data);
+	const raw = deserializeSplitConfig(splitConfigInfo.data);
+
+	// Transform to user-facing format with shares (1-100)
+	return {
+		...raw,
+		recipients: raw.recipients.map((r) => ({
+			address: r.address,
+			share: basisPointsToShares(r.percentageBps),
+		})),
+	};
 }
 
 /**
@@ -65,7 +80,7 @@ export async function getVaultBalance(
 	}
 
 	if (accountInfo.data.length < 72) {
-		throw new Error("Invalid token account");
+		throw new InvalidTokenAccountError(vault.toBase58());
 	}
 
 	return accountInfo.data.readBigUInt64LE(64);
@@ -83,7 +98,7 @@ export async function getProtocolConfig(
 	);
 
 	if (!accountInfo) {
-		throw new Error("Protocol config not found");
+		throw new ProtocolNotInitializedError();
 	}
 
 	return deserializeProtocolConfig(accountInfo.data);
@@ -99,13 +114,8 @@ export async function previewExecution(
 	const split = await getSplit(connection, vault);
 	const balance = await getVaultBalance(connection, vault);
 
-	// Convert back to shares for preview
-	const recipients = split.recipients.map((r) => ({
-		address: r.address,
-		share: basisPointsToShares(r.percentageBps),
-	}));
-
-	const preview = calculatePreview(balance, recipients);
+	// getSplit() returns shares, use directly
+	const preview = calculatePreview(balance, split.recipients);
 
 	return {
 		vault: split.vault,

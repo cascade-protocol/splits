@@ -26,11 +26,15 @@ describe("sharesToBasisPoints", () => {
 	});
 
 	it("rejects share < 1", () => {
-		expect(() => sharesToBasisPoints(0)).toThrow("must be between 1-99");
+		expect(() => sharesToBasisPoints(0)).toThrow("must be between 1-100");
 	});
 
-	it("rejects share > 99", () => {
-		expect(() => sharesToBasisPoints(100)).toThrow("must be between 1-99");
+	it("rejects share > 100", () => {
+		expect(() => sharesToBasisPoints(101)).toThrow("must be between 1-100");
+	});
+
+	it("accepts share = 100 (single recipient case)", () => {
+		expect(sharesToBasisPoints(100)).toBe(9900); // 100 * 99 = 9900
 	});
 });
 

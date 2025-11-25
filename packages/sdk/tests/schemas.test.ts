@@ -35,12 +35,20 @@ describe("ShareRecipientSchema", () => {
 		expect(result.success).toBe(false);
 	});
 
-	it("rejects share > 99", () => {
+	it("rejects share > 100", () => {
+		const result = ShareRecipientSchema.safeParse({
+			address: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+			share: 101,
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("accepts share = 100 (single recipient case)", () => {
 		const result = ShareRecipientSchema.safeParse({
 			address: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
 			share: 100,
 		});
-		expect(result.success).toBe(false);
+		expect(result.success).toBe(true);
 	});
 });
 

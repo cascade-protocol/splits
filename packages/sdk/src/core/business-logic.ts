@@ -9,21 +9,14 @@ import {
 	type ShareRecipient,
 	formatZodError,
 } from "./schemas.js";
+import type { RawRecipient } from "./types.js";
 import { ZodError } from "zod";
-
-/**
- * Internal recipient format used by the protocol
- */
-export interface ProtocolRecipient {
-	address: string;
-	percentageBps: number;
-}
 
 /**
  * Processed create split input ready for the protocol
  */
 export interface ProcessedCreateSplit {
-	recipients: ProtocolRecipient[];
+	recipients: RawRecipient[];
 	token: string;
 }
 
@@ -32,7 +25,7 @@ export interface ProcessedCreateSplit {
  */
 export interface ProcessedUpdateSplit {
 	vault: string;
-	recipients: ProtocolRecipient[];
+	recipients: RawRecipient[];
 }
 
 /**
@@ -44,28 +37,18 @@ export interface RecipientDistribution {
 	share: number;
 }
 
-/**
- * Convert user-facing share (1-100) to protocol basis points.
- * Formula: share * 99 = bps
- * Examples:
- *   60 -> 5940 bps (59.40%)
- *   40 -> 3960 bps (39.60%)
- *   Total: 9900 bps (99%)
- */
+/** Convert user-facing share (1-100) to protocol basis points. */
 export function sharesToBasisPoints(share: number): number {
 	if (!Number.isInteger(share)) {
 		throw new Error(`Share must be an integer, got ${share}`);
 	}
-	if (share < 1 || share > 99) {
-		throw new Error(`Share must be between 1-99, got ${share}`);
+	if (share < 1 || share > 100) {
+		throw new Error(`Share must be between 1-100, got ${share}`);
 	}
 	return share * 99;
 }
 
-/**
- * Convert protocol basis points back to user-facing share.
- * Formula: Math.round(bps / 99) = share
- */
+/** Convert protocol basis points to user-facing share (1-100). */
 export function basisPointsToShares(bps: number): number {
 	if (!Number.isInteger(bps)) {
 		throw new Error(`Basis points must be an integer, got ${bps}`);

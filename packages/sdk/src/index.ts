@@ -1,7 +1,7 @@
 /**
  * Cascade Splits SDK
  *
- * Modern TypeScript SDK with 100-share mental model (hides 1% protocol fee)
+ * Modern TypeScript SDK with 100-share mental model
  * Supports both @solana/web3.js and @solana/kit
  *
  * @example
@@ -32,21 +32,37 @@ export * as web3 from "./web3/index.js";
 export * as kit from "./kit/index.js";
 
 // Core exports (schemas, business logic, constants)
-export * from "./core/constants.js";
+export {
+	PROGRAM_ID,
+	MAX_RECIPIENTS,
+	PROTOCOL_FEE_BPS,
+	ADDRESS_SIZE,
+	U16_SIZE,
+	U32_SIZE,
+	U64_SIZE,
+	DISCRIMINATOR_SIZE,
+	RECIPIENT_SIZE,
+	PROTOCOL_CONFIG_SEED,
+	SPLIT_CONFIG_SEED,
+	TOKEN_PROGRAM_ID,
+	TOKEN_2022_PROGRAM_ID,
+	ASSOCIATED_TOKEN_PROGRAM_ID,
+	SYSTEM_PROGRAM_ID,
+	USDC_MINT,
+} from "./core/constants.js";
 export * from "./core/schemas.js";
 export type {
-	ProtocolRecipient,
 	ProcessedCreateSplit,
 	ProcessedUpdateSplit,
 	RecipientDistribution,
 } from "./core/business-logic.js";
 export {
-	sharesToBasisPoints,
-	basisPointsToShares,
 	validateAndTransformCreate,
 	validateAndTransformUpdate,
 	calculateDistribution,
 	previewDistribution,
+	sharesToBasisPoints,
+	basisPointsToShares,
 } from "./core/business-logic.js";
 
 // Shared types (internal representations)
@@ -61,6 +77,9 @@ export type {
 // Discriminators
 export * from "./discriminators.js";
 
+// Errors
+export * from "./errors.js";
+
 // PDA derivation (framework-agnostic, string-based)
 export {
 	deriveProtocolConfig,
@@ -68,16 +87,15 @@ export {
 	deriveVault,
 	deriveAta,
 	deriveProgramData,
+	deriveCreateSplitConfigAddresses,
 } from "./pda.js";
+export type { CreateSplitConfigResult } from "./pda.js";
 
 // Encoding utilities (base58)
 export { encodeAddress, decodeAddress } from "./core/encoding.js";
 
-// Deserialization utilities
-export {
-	deserializeSplitConfig,
-	deserializeProtocolConfig,
-} from "./core/deserialization.js";
+// Deserialization utilities (use getSplit() for split config with shares)
+export { deserializeProtocolConfig } from "./core/deserialization.js";
 
 // IDL export
 import IDL_JSON from "../idl.json" with { type: "json" };

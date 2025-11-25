@@ -7,17 +7,17 @@ import * as z from "zod";
 import { USDC_MINT } from "./constants.js";
 
 /**
- * Share represents a percentage (1-99) that a recipient receives.
- * Internally converted to basis points (share * 99).
+ * Share represents a percentage (1-100) that a recipient receives.
+ * Single recipient can have 100%; multiple must sum to 100.
  */
 const Share = z
 	.number({ message: "Share must be a number" })
 	.int({ message: "Share must be a whole number (no decimals)" })
 	.min(1, "Minimum share is 1")
-	.max(99, "Maximum share is 99")
+	.max(100, "Maximum share is 100")
 	.meta({
-		description: "Integer percentage (1-99) this recipient receives",
-		examples: [60, 40, 25, 75, 50],
+		description: "Integer percentage (1-100) this recipient receives",
+		examples: [60, 40, 25, 75, 50, 100],
 	});
 
 /**

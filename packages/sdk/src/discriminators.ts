@@ -23,3 +23,25 @@ export const ACCOUNT_DISCRIMINATORS = {
 	protocolConfig: new Uint8Array([207, 91, 250, 28, 152, 179, 215, 209]),
 	splitConfig: new Uint8Array([49, 201, 50, 228, 22, 142, 12, 222]),
 } as const;
+
+/**
+ * Check if data starts with a specific discriminator.
+ * Useful for identifying instruction or account types.
+ *
+ * @example
+ * ```typescript
+ * if (matchesDiscriminator(ixData, DISCRIMINATORS.executeSplit)) {
+ *   console.log("Execute split instruction");
+ * }
+ * ```
+ */
+export function matchesDiscriminator(
+	data: Uint8Array | Buffer,
+	discriminator: Uint8Array,
+): boolean {
+	if (data.length < 8) return false;
+	for (let i = 0; i < 8; i++) {
+		if (data[i] !== discriminator[i]) return false;
+	}
+	return true;
+}

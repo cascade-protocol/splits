@@ -17,7 +17,7 @@ import {
 	RECIPIENT_SIZE,
 } from "../core/constants.js";
 import { DISCRIMINATORS } from "../discriminators.js";
-import type { ProtocolRecipient } from "../core/business-logic.js";
+import type { RawRecipient } from "../core/types.js";
 import {
 	deriveProtocolConfig,
 	deriveSplitConfig,
@@ -34,7 +34,7 @@ export function buildCreateSplitConfigInstruction(
 	authority: PublicKey,
 	mint: PublicKey,
 	uniqueId: PublicKey,
-	recipients: ProtocolRecipient[],
+	recipients: RawRecipient[],
 	tokenProgram: PublicKey,
 	payer: PublicKey,
 ): TransactionInstruction {
@@ -155,7 +155,7 @@ export function buildUpdateSplitConfigInstruction(
 	vault: PublicKey,
 	mint: PublicKey,
 	authority: PublicKey,
-	newRecipients: ProtocolRecipient[],
+	newRecipients: RawRecipient[],
 	tokenProgram: PublicKey,
 ): TransactionInstruction {
 	const dataSize =

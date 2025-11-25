@@ -1,6 +1,6 @@
 /**
  * Functional @solana/kit v5 adapter for Cascade Splits
- * Uses 100-share mental model (hides protocol fee internally)
+ * Uses 100-share mental model — SDK handles basis point conversion
  */
 
 export type { Address, Rpc } from "@solana/kit";
@@ -19,7 +19,6 @@ export {
 	getVaultBalance,
 	getProtocolConfig,
 	previewExecution,
-	deserializeSplitConfig,
 	deserializeProtocolConfig,
 } from "./read.js";
 
