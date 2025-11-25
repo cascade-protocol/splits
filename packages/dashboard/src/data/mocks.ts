@@ -35,7 +35,7 @@ export const mockSplits: SplitConfig[] = [
 		recipients: [
 			{
 				address: "MockRecipient11111111111111111111111111",
-				percentageBps: 9900, // 100% of user share (protocol gets 1%)
+				share: 100,
 			},
 		],
 		unclaimedAmounts: [],
@@ -55,7 +55,7 @@ export const mockSplits: SplitConfig[] = [
 		recipientCount: 20,
 		recipients: Array.from({ length: 20 }, (_, i) => ({
 			address: `MockRecipient${String(i + 1).padStart(2, "0")}11111111111111111`,
-			percentageBps: 495, // 5% each → 5 * 99 = 495 bps
+			share: 5,
 		})),
 		unclaimedAmounts: [],
 		protocolUnclaimed: 0n,
@@ -75,23 +75,23 @@ export const mockSplits: SplitConfig[] = [
 		recipients: [
 			{
 				address: "MockRecipientA1111111111111111111111111",
-				percentageBps: 3960, // 40%
+				share: 40,
 			},
 			{
 				address: "MockRecipientB1111111111111111111111111",
-				percentageBps: 2970, // 30%
+				share: 30,
 			},
 			{
 				address: "MockRecipientC1111111111111111111111111",
-				percentageBps: 1485, // 15%
+				share: 15,
 			},
 			{
 				address: "MockRecipientD1111111111111111111111111",
-				percentageBps: 990, // 10%
+				share: 10,
 			},
 			{
 				address: "MockRecipientE1111111111111111111111111",
-				percentageBps: 495, // 5%
+				share: 5,
 			},
 		],
 		unclaimedAmounts: [
@@ -123,15 +123,15 @@ export const mockSplits: SplitConfig[] = [
 		recipients: [
 			{
 				address: "MockRecipientX1111111111111111111111111",
-				percentageBps: 3267, // 33%
+				share: 33,
 			},
 			{
 				address: "MockRecipientY1111111111111111111111111",
-				percentageBps: 3267, // 33%
+				share: 33,
 			},
 			{
 				address: "MockRecipientZ1111111111111111111111111",
-				percentageBps: 3366, // 34% (makes up for rounding)
+				share: 34,
 			},
 		],
 		unclaimedAmounts: [],
@@ -152,35 +152,35 @@ export const mockSplits: SplitConfig[] = [
 		recipients: [
 			{
 				address: "MockRecipient1A111111111111111111111111",
-				percentageBps: 2475, // 25%
+				share: 25,
 			},
 			{
 				address: "MockRecipient2A111111111111111111111111",
-				percentageBps: 1980, // 20%
+				share: 20,
 			},
 			{
 				address: "MockRecipient3A111111111111111111111111",
-				percentageBps: 1485, // 15%
+				share: 15,
 			},
 			{
 				address: "MockRecipient4A111111111111111111111111",
-				percentageBps: 1188, // 12%
+				share: 12,
 			},
 			{
 				address: "MockRecipient5A111111111111111111111111",
-				percentageBps: 990, // 10%
+				share: 10,
 			},
 			{
 				address: "MockRecipient6A111111111111111111111111",
-				percentageBps: 792, // 8%
+				share: 8,
 			},
 			{
 				address: "MockRecipient7A111111111111111111111111",
-				percentageBps: 594, // 6%
+				share: 6,
 			},
 			{
 				address: "MockRecipient8A111111111111111111111111",
-				percentageBps: 396, // 4%
+				share: 4,
 			},
 		],
 		unclaimedAmounts: [
@@ -217,11 +217,11 @@ export const mockSplits: SplitConfig[] = [
 		recipients: [
 			{
 				address: "MockRecipientAlpha111111111111111111111",
-				percentageBps: 5940, // 60%
+				share: 60,
 			},
 			{
 				address: "MockRecipientBeta1111111111111111111111",
-				percentageBps: 3960, // 40%
+				share: 40,
 			},
 		],
 		unclaimedAmounts: [
