@@ -1,3 +1,7 @@
+// Buffer polyfill - MUST be first, before any Solana imports
+import { Buffer } from "buffer";
+globalThis.Buffer = Buffer;
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
