@@ -50,9 +50,9 @@ Payment → Vault (PDA-owned) → execute_split() → Recipients (99%) + Protoco
 3. Funds distributed
 
 **With x402 Facilitator (e.g., PayAI):**
-1. Payment + execute bundled in single transaction
-2. Instant atomic distribution
-3. User sees automatic split
+1. Facilitator sends payment to vault address
+2. Anyone can call `execute_split` to distribute funds
+3. Recipients receive their shares
 
 ### 3. Idempotent Execution
 
@@ -385,17 +385,6 @@ async function detectSplitVault(destination: PublicKey): Promise<SplitConfig | n
 }
 ```
 
-### Atomic Execution
-
-When split vault detected, facilitator bundles:
-```typescript
-const tx = new Transaction()
-  .add(transferInstruction(vault, amount))
-  .add(executeSplitInstruction(splitConfigPDA));
-```
-
-User signs once → payment + split happen atomically.
-
 ### Facilitator Benefits
 
 - **Single interface:** Only `execute_split` needed (self-healing handles unclaimed)
@@ -516,7 +505,7 @@ pub struct SplitExecuted {
 | **Stored bumps** | All PDAs store their bump. Constraints use stored bump instead of deriving, saving ~1,300 CU per account validation. |
 | **remaining_accounts pattern** | Recipient count is variable (1-20). Anchor requires dynamic account lists via remaining_accounts. Accounts in config order with protocol ATA last. |
 | **Minimal logging** | Production builds avoid `msg!` statements. Each costs ~100-200 CU. Debug logging via feature flag. |
-| **No streaming/partial splits** | Different product category (see Streamflow, Zebec). Cascade Splits is for instant atomic splits. |
+| **No streaming/partial splits** | Different product category (see Streamflow, Zebec). Cascade Splits is for instant one-time splits. |
 | **No native SOL** | Adds complexity. Use wrapped SOL instead. |
 | **No built-in multi-sig** | Use Squads/Realms as authority. Works with current design without added complexity. |
 | **Pre-existing ATAs required** | Protects facilitators from being drained by forced ATA creation (0.002 SOL each). Config creators responsible for recipient readiness. |

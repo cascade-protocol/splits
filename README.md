@@ -183,15 +183,9 @@ No separate claim instruction needed - single interface for all operations.
 
 ## x402 Integration
 
-Payment facilitators can detect split vaults and bundle payment + execution atomically:
+Use the vault address as your `payTo` destination. Facilitators send payments directly to the vault, and anyone can call `execute_split` to distribute funds to recipients.
 
-```typescript
-const tx = new Transaction()
-  .add(transferInstruction(vault, amount))
-  .add(executeSplitInstruction(splitConfigPDA));
-```
-
-See [specification](docs/specification.md) for detection logic.
+See [specification](docs/specification.md) for vault detection logic.
 
 ## Development
 

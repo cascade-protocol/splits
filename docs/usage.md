@@ -58,13 +58,7 @@ await sendAndConfirm(transaction);
 
 ## x402 Integration
 
-Use the vault address as your `payTo` destination. x402 facilitators can bundle payment + execute in a single atomic transaction:
-
-```typescript
-const tx = new Transaction()
-  .add(transferInstruction(vault, amount))
-  .add(await sdk.buildExecuteSplit(vault));
-```
+Use the vault address as your `payTo` destination. Facilitators send payments directly to the vault, and anyone can call `execute_split` to distribute funds to recipients.
 
 ## Costs
 
