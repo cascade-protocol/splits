@@ -20,7 +20,7 @@ execute_split: [recipient_ata_0, ..., recipient_ata_N, protocol_ata_LAST]
 Protocol ATA accessed via `.last().unwrap()` - will panic if missing or wrong position.
 
 ### 3. Zero-Copy Struct Size
-`SplitConfig` is 1792 bytes with `#[repr(C)]` padding. Changing fields **breaks deserialization**.
+`SplitConfig` is 1,832 bytes with `#[repr(C)]` padding. Changing fields **breaks deserialization**.
 
 ### 4. Percentage Math
 - Recipients must sum to **9900 bps** (99%)
@@ -50,7 +50,7 @@ User Payment → Vault (ATA owned by SplitConfig PDA)
 
 **PDAs:**
 - Protocol Config: `["protocol_config"]` - singleton, 105 bytes
-- Split Config: `["split_config", authority, mint, unique_id]` - 1792 bytes
+- Split Config: `["split_config", authority, mint, unique_id]` - 1,832 bytes
 - Vault: ATA with split_config as owner
 
 ## SDK

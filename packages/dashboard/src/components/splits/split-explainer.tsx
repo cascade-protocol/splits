@@ -180,6 +180,15 @@ export function SplitExplainer() {
 					<span>NPM</span>
 					<ExternalLink className="h-3.5 w-3.5" />
 				</a>
+				<a
+					href="https://github.com/cascade-protocol/splits/blob/main/docs/usage.md"
+					target="_blank"
+					rel="noopener noreferrer"
+					className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+				>
+					<span>Docs</span>
+					<ExternalLink className="h-3.5 w-3.5" />
+				</a>
 			</div>
 
 			{/* Trust Line */}

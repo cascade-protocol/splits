@@ -326,6 +326,8 @@ Authority updates recipient list while preserving the vault address.
 
 **Requirements:**
 - Vault must be empty (execute pending splits first)
+- All `unclaimed_amounts` must be zero
+- `protocol_unclaimed` must be zero
 - 1-20 recipients
 - Total exactly 9900 bps (99%)
 - No duplicate recipients
@@ -427,8 +429,7 @@ All operations emit events for indexing:
 | `ProtocolAuthorityTransferProposed` | Authority transfer proposed |
 | `ProtocolAuthorityTransferAccepted` | Authority transfer completed |
 | `SplitConfigCreated` | New split config created |
-| `SplitExecuted` | Payment distributed |
-| `RecipientPaymentHeld` | Payment held as unclaimed |
+| `SplitExecuted` | Payment distributed (includes `held_as_unclaimed` field) |
 | `SplitConfigUpdated` | Config recipients modified |
 | `SplitConfigClosed` | Config deleted, rent reclaimed |
 
@@ -472,6 +473,9 @@ pub struct SplitExecuted {
 | `MathUnderflow` | Arithmetic underflow |
 | `InvalidProtocolFeeRecipient` | Protocol ATA validation failed |
 | `Unauthorized` | Signer not authorized |
+| `AlreadyInitialized` | Protocol already initialized |
+| `UnclaimedNotEmpty` | Unclaimed amounts must be cleared first |
+| `InvalidTokenProgram` | Token account owned by wrong program |
 | `NoPendingTransfer` | No pending authority transfer to accept |
 | `InvalidRentDestination` | Rent destination doesn't match original payer |
 
@@ -488,7 +492,7 @@ pub struct SplitExecuted {
 - ✅ Bounded account size (max 20 recipients)
 - ✅ Protocol fee enforcement (cannot be bypassed)
 - ✅ Configurable protocol wallet
-- ✅ Dynamic space allocation
+- ✅ Fixed space allocation (zero-copy)
 
 ### Known Limitations
 
@@ -622,16 +626,17 @@ Production builds use minimal logging to save compute. Debug logging available v
 msg!("Debug: {}", value);
 ```
 
-**Program ID:** `[To be updated after deployment]`
+**Program ID:** `SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB`
 
 ---
 
 ## Resources
 
-- **GitHub:** https://github.com/cascade-protocol/splits *(coming soon)*
-- **SDK:** `@cascade-fyi/splits-sdk` *(coming soon)*
+- **GitHub:** https://github.com/cascade-protocol/splits
+- **SDK:** `@cascade-fyi/splits-sdk`
+- **Usage Guide:** [docs/usage.md](./usage.md)
 - **Contact:** hello@cascade-protocol.xyz
 
 ---
 
-**Last Updated:** 2025-11-20
+**Last Updated:** 2025-11-25
