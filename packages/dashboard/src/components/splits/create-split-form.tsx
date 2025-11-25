@@ -124,6 +124,8 @@ export function CreateSplitForm({ onSubmit, isPending }: CreateSplitFormProps) {
 									placeholder="Enter address..."
 									aria-invalid={fieldState.invalid}
 									className="flex-1 font-mono text-sm"
+									autoComplete="off"
+									data-1p-ignore
 								/>
 							)}
 						/>

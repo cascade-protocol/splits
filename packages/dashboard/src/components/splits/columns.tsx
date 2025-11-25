@@ -1,5 +1,7 @@
+/* @refresh reset */
 import type { ColumnDef } from "@tanstack/react-table";
 import {
+	AlertTriangle,
 	Check,
 	Copy,
 	MoreHorizontal,
@@ -11,15 +13,16 @@ import {
 	Trash2,
 } from "lucide-react";
 import {
-	hasUnclaimedAmounts,
 	canUpdateOrClose,
+	hasUnclaimedAmounts,
+	getTotalUnclaimed,
 	previewDistribution,
 	type SplitWithBalance,
 } from "@cascade-fyi/splits-sdk";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import { openExternal } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -56,9 +59,9 @@ const USDC_DECIMALS = 6;
  */
 function formatBalance(amount: bigint): string {
 	const value = Number(amount) / 10 ** USDC_DECIMALS;
-	if (value === 0) return "$0.00";
-	if (value < 0.01) return "< $0.01";
-	return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+	if (value === 0) return "0.00 USDC";
+	if (value < 0.01) return "< 0.01 USDC";
+	return `${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`;
 }
 
 /**
@@ -94,10 +97,19 @@ function CopyButton({ text }: { text: string }) {
 }
 
 /**
- * Creates column definitions with execute callback
+ * Action callbacks for split operations
+ */
+export interface SplitActions {
+	onExecute: (vault: string) => void;
+	onUpdate: (split: SplitWithBalance) => void;
+	onClose: (split: SplitWithBalance) => void;
+}
+
+/**
+ * Creates column definitions with action callbacks
  */
 export function createColumns(
-	onExecute: (vault: string) => void,
+	actions: SplitActions,
 	executingVault: string | null,
 ): ColumnDef<SplitWithBalance>[] {
 	return [
@@ -141,12 +153,54 @@ export function createColumns(
 			accessorKey: "recipientCount",
 			header: "Recipients",
 			cell: ({ row }) => {
-				const count = row.getValue("recipientCount") as number;
+				const split = row.original;
+				const hasUnclaimed = hasUnclaimedAmounts(split);
+				const unclaimedTotal = hasUnclaimed ? getTotalUnclaimed(split) : 0n;
+
 				return (
-					<div className="flex items-center gap-1.5">
-						<Users className="h-4 w-4 text-muted-foreground" />
-						<span>{count}</span>
-					</div>
+					<TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<div className="flex items-center gap-1.5 cursor-help">
+									<Users className="h-4 w-4 text-muted-foreground" />
+									<span>{split.recipientCount}</span>
+									{hasUnclaimed && (
+										<AlertTriangle className="h-4 w-4 text-amber-500" />
+									)}
+								</div>
+							</TooltipTrigger>
+							<TooltipContent side="right" className="max-w-xs">
+								<div className="space-y-2 text-xs">
+									{/* Recipient breakdown */}
+									<div className="space-y-1">
+										{split.recipients.map((r) => (
+											<div
+												key={r.address}
+												className="flex justify-between gap-4"
+											>
+												<span className="font-mono text-muted-foreground">
+													{r.address.slice(0, 4)}...{r.address.slice(-4)}
+												</span>
+												<span className="font-medium">{r.share}%</span>
+											</div>
+										))}
+									</div>
+
+									{/* Unclaimed warning */}
+									{hasUnclaimed && (
+										<div className="border-t pt-2 text-amber-500">
+											<div className="font-medium">
+												{formatBalance(unclaimedTotal)} unclaimed
+											</div>
+											<div className="text-muted-foreground">
+												Some recipients need to create token accounts
+											</div>
+										</div>
+									)}
+								</div>
+							</TooltipContent>
+						</Tooltip>
+					</TooltipProvider>
 				);
 			},
 		},
@@ -163,23 +217,17 @@ export function createColumns(
 			},
 		},
 		{
-			id: "status",
-			header: "Status",
+			accessorKey: "createdAt",
+			header: "Created",
 			cell: ({ row }) => {
-				const split = row.original;
-				const hasUnclaimed = hasUnclaimedAmounts(split);
-
-				if (hasUnclaimed) {
-					return (
-						<Badge variant="destructive" className="text-xs">
-							Unclaimed
-						</Badge>
-					);
+				const timestamp = row.getValue("createdAt") as bigint | null;
+				if (!timestamp) {
+					return <span className="text-muted-foreground">—</span>;
 				}
 				return (
-					<Badge variant="secondary" className="text-xs">
-						Active
-					</Badge>
+					<span className="text-muted-foreground">
+						{formatRelativeTime(timestamp)}
+					</span>
 				);
 			},
 		},
@@ -204,7 +252,7 @@ export function createColumns(
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={() => onExecute(split.vault)}
+											onClick={() => actions.onExecute(split.vault)}
 											disabled={isExecuting}
 											aria-label={
 												isExecuting ? "Executing split" : "Execute split"
@@ -253,7 +301,7 @@ export function createColumns(
 						)}
 
 						{/* More actions dropdown */}
-						<ActionsDropdown split={split} />
+						<ActionsDropdown split={split} actions={actions} />
 					</div>
 				);
 			},
@@ -261,12 +309,32 @@ export function createColumns(
 	];
 }
 
+interface ActionsDropdownProps {
+	split: SplitWithBalance;
+	actions: SplitActions;
+}
+
+/**
+ * Get specific reason why update/close is blocked
+ */
+function getBlockedReason(split: SplitWithBalance): string | null {
+	if (split.vaultBalance > 0n) {
+		return "Execute to distribute vault balance first";
+	}
+	if (hasUnclaimedAmounts(split)) {
+		const unclaimed = getTotalUnclaimed(split);
+		return `${formatBalance(unclaimed)} unclaimed - recipients need token accounts`;
+	}
+	return null;
+}
+
 /**
  * Actions dropdown component
  */
-function ActionsDropdown({ split }: { split: SplitWithBalance }) {
+function ActionsDropdown({ split, actions }: ActionsDropdownProps) {
 	const { copied, copy } = useCopyToClipboard();
 	const canModify = canUpdateOrClose(split, split.vaultBalance);
+	const blockedReason = canModify ? null : getBlockedReason(split);
 
 	return (
 		<DropdownMenu>
@@ -289,20 +357,22 @@ function ActionsDropdown({ split }: { split: SplitWithBalance }) {
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					disabled={!canModify}
+					onClick={() => canModify && actions.onUpdate(split)}
 					className={!canModify ? "opacity-50 cursor-not-allowed" : ""}
-					title={!canModify ? "Distribute funds first" : undefined}
+					title={blockedReason ?? undefined}
 				>
 					<Settings className="mr-2 h-4 w-4" />
 					Update Recipients
 				</DropdownMenuItem>
 				<DropdownMenuItem
 					disabled={!canModify}
+					onClick={() => canModify && actions.onClose(split)}
 					className={
 						!canModify
 							? "opacity-50 cursor-not-allowed"
 							: "text-destructive focus:text-destructive"
 					}
-					title={!canModify ? "Distribute funds first" : undefined}
+					title={blockedReason ?? undefined}
 				>
 					<Trash2 className="mr-2 h-4 w-4" />
 					Close Split
@@ -310,7 +380,7 @@ function ActionsDropdown({ split }: { split: SplitWithBalance }) {
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					onClick={() => {
-						window.open(`https://solscan.io/account/${split.vault}`, "_blank");
+						openExternal(`https://solscan.io/account/${split.vault}`);
 					}}
 				>
 					<ExternalLink className="mr-2 h-4 w-4" />
@@ -321,7 +391,7 @@ function ActionsDropdown({ split }: { split: SplitWithBalance }) {
 	);
 }
 
-// Mobile-optimized columns (hide some on small screens)
+// Columns hidden by default (use CSS classes in cells for responsive hiding)
 export const mobileHiddenColumns = {
-	lastActivity: false, // Hidden by default on mobile
+	lastActivity: false, // Hidden by default
 };

@@ -93,5 +93,7 @@ export interface DistributionPreview {
  * Split configuration with vault balance (for list queries)
  */
 export interface SplitWithBalance extends SplitConfig {
+	/** SplitConfig PDA address */
+	address: string;
 	vaultBalance: bigint;
 }

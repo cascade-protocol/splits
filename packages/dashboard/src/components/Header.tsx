@@ -1,21 +1,62 @@
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { WalletButton } from "./ui/wallet-button";
+
+interface HeaderProps {
+	/** Whether the About view is currently shown */
+	showAbout?: boolean;
+	/** Callback to navigate between views */
+	onNavigate?: (showAbout: boolean) => void;
+	/** Whether to show navigation links (only when connected) */
+	showNav?: boolean;
+}
 
 /**
- * Header with logo, social links, and wallet connection.
+ * Header with logo, navigation, social links, and wallet connection.
  */
-export function Header() {
+export function Header({ showAbout, onNavigate, showNav }: HeaderProps) {
 	return (
 		<header className="border-b">
 			<div className="container mx-auto px-4 py-4 md:px-6 md:py-6">
 				<div className="flex items-center justify-between">
-					{/* Left group: Logo + Title */}
-					<div className="flex items-center gap-2 md:gap-3">
-						<img
-							src="/water-wave-cascade.svg"
-							alt="Cascade Splits logo"
-							className="h-8 w-8 md:h-10 md:w-10"
-						/>
-						<h1 className="text-lg font-semibold md:text-xl">Cascade Splits</h1>
+					{/* Left group: Logo + Title + Nav */}
+					<div className="flex items-center gap-4 md:gap-6">
+						<div className="flex items-center gap-2 md:gap-3">
+							<img
+								src="/water-wave-cascade.svg"
+								alt="Cascade Splits logo"
+								className="h-8 w-8 md:h-10 md:w-10"
+							/>
+							<h1 className="text-lg font-semibold md:text-xl">
+								Cascade Splits
+							</h1>
+						</div>
+
+						{/* Navigation - only visible when connected */}
+						{showNav && (
+							<nav className="flex items-center gap-1">
+								<button
+									type="button"
+									onClick={() => onNavigate?.(false)}
+									className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+										!showAbout
+											? "bg-accent font-medium text-accent-foreground"
+											: "text-muted-foreground hover:text-foreground"
+									}`}
+								>
+									Dashboard
+								</button>
+								<button
+									type="button"
+									onClick={() => onNavigate?.(true)}
+									className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+										showAbout
+											? "bg-accent font-medium text-accent-foreground"
+											: "text-muted-foreground hover:text-foreground"
+									}`}
+								>
+									About
+								</button>
+							</nav>
+						)}
 					</div>
 
 					{/* Right group: Social icons + Wallet button */}
@@ -55,8 +96,8 @@ export function Header() {
 							<span className="sr-only">X</span>
 						</a>
 
-						{/* Wallet button - uses wallet adapter */}
-						<WalletMultiButton />
+						{/* Wallet button - custom styled */}
+						<WalletButton />
 					</div>
 				</div>
 			</div>

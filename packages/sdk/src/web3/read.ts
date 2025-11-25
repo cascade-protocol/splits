@@ -162,7 +162,7 @@ export async function getSplitsByAuthority(
 	});
 
 	return Promise.all(
-		accounts.map(async ({ account }) => {
+		accounts.map(async ({ pubkey, account }) => {
 			const raw = deserializeSplitConfig(account.data);
 
 			// Transform to user-facing format
@@ -180,7 +180,7 @@ export async function getSplitsByAuthority(
 				new PublicKey(split.vault),
 			);
 
-			return { ...split, vaultBalance };
+			return { address: pubkey.toBase58(), ...split, vaultBalance };
 		}),
 	);
 }

@@ -4,16 +4,19 @@ import * as React from "react";
 import {
 	type ColumnDef,
 	type ColumnFiltersState,
+	type ExpandedState,
 	type SortingState,
 	type VisibilityState,
 	flexRender,
 	getCoreRowModel,
+	getExpandedRowModel,
 	getFilteredRowModel,
 	getPaginationRowModel,
 	getSortedRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import type { SplitWithBalance } from "@cascade-fyi/splits-sdk";
 
 import {
 	Table,
@@ -24,6 +27,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { SplitDetailRow } from "./split-detail-row";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
@@ -36,27 +40,33 @@ export function DataTable<TData, TValue>({
 	data,
 	initialColumnVisibility = {},
 }: DataTableProps<TData, TValue>) {
-	const [sorting, setSorting] = React.useState<SortingState>([]);
+	const [sorting, setSorting] = React.useState<SortingState>([
+		{ id: "createdAt", desc: true },
+	]);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
 		[],
 	);
 	const [columnVisibility, setColumnVisibility] =
 		React.useState<VisibilityState>(initialColumnVisibility);
+	const [expanded, setExpanded] = React.useState<ExpandedState>({});
 
 	const table = useReactTable({
 		data,
 		columns,
 		onSortingChange: setSorting,
 		onColumnFiltersChange: setColumnFilters,
+		onExpandedChange: setExpanded,
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		getFilteredRowModel: getFilteredRowModel(),
+		getExpandedRowModel: getExpandedRowModel(),
 		onColumnVisibilityChange: setColumnVisibility,
 		state: {
 			sorting,
 			columnFilters,
 			columnVisibility,
+			expanded,
 		},
 		initialState: {
 			pagination: {
@@ -72,6 +82,8 @@ export function DataTable<TData, TValue>({
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup) => (
 							<TableRow key={headerGroup.id}>
+								{/* Empty header for expand indicator */}
+								<TableHead className="w-8 px-2" />
 								{headerGroup.headers.map((header) => {
 									return (
 										<TableHead key={header.id}>
@@ -90,24 +102,58 @@ export function DataTable<TData, TValue>({
 					<TableBody>
 						{table.getRowModel().rows?.length ? (
 							table.getRowModel().rows.map((row) => (
-								<TableRow
-									key={row.id}
-									data-state={row.getIsSelected() && "selected"}
-								>
-									{row.getVisibleCells().map((cell) => (
-										<TableCell key={cell.id}>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
+								<React.Fragment key={row.id}>
+									<TableRow
+										data-state={row.getIsSelected() && "selected"}
+										className="cursor-pointer hover:bg-muted/50"
+										onClick={() => row.toggleExpanded()}
+									>
+										{/* Expand indicator */}
+										<TableCell className="w-8 px-2">
+											<ChevronDown
+												className={`h-4 w-4 text-muted-foreground transition-transform ${
+													row.getIsExpanded() ? "rotate-180" : ""
+												}`}
+											/>
 										</TableCell>
-									))}
-								</TableRow>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell
+												key={cell.id}
+												onClick={(e) => {
+													// Don't toggle expansion when clicking action buttons
+													if (
+														(e.target as HTMLElement).closest("button") ||
+														(e.target as HTMLElement).closest(
+															"[role='menuitem']",
+														)
+													) {
+														e.stopPropagation();
+													}
+												}}
+											>
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</TableCell>
+										))}
+									</TableRow>
+									{/* Expanded detail row */}
+									{row.getIsExpanded() && (
+										<TableRow>
+											<TableCell colSpan={columns.length + 1} className="p-0">
+												<SplitDetailRow
+													split={row.original as SplitWithBalance}
+												/>
+											</TableCell>
+										</TableRow>
+									)}
+								</React.Fragment>
 							))
 						) : (
 							<TableRow>
 								<TableCell
-									colSpan={columns.length}
+									colSpan={columns.length + 1}
 									className="h-24 text-center"
 								>
 									No results.

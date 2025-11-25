@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 1200px;
+      height: 630px;
+      background: linear-gradient(135deg, #0a0f1a 0%, #0d1526 50%, #111d2e 100%);
+      display: flex;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle grid pattern overlay */
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
+        linear-gradient(rgba(69, 214, 240, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(69, 214, 240, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .left-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 50px 60px 70px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .logo {
+      width: 56px;
+      height: 56px;
+    }
+
+    .brand-name {
+      font-size: 28px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    .headline {
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subheadline {
+      font-size: 22px;
+      color: #8caac8;
+      line-height: 1.5;
+      margin-bottom: 32px;
+      max-width: 480px;
+    }
+
+    .badges {
+      display: flex;
+      gap: 12px;
+    }
+
+    .badge {
+      padding: 8px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .badge-solana {
+      background: rgba(153, 69, 255, 0.12);
+      border: 1px solid rgba(153, 69, 255, 0.25);
+      color: #c4a3ff;
+    }
+
+    .badge-x402 {
+      background: rgba(69, 214, 240, 0.12);
+      border: 1px solid rgba(69, 214, 240, 0.25);
+      color: #7dd8eb;
+    }
+
+    /* Right section: Visual representation of splitting */
+    .right-section {
+      width: 440px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding-right: 40px;
+    }
+
+    .split-visual {
+      position: relative;
+      width: 380px;
+      height: 280px;
+    }
+
+    /* Input payment - centered vertically */
+    .payment-box {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(69, 214, 240, 0.15);
+      border: 2px solid rgba(69, 214, 240, 0.4);
+      border-radius: 12px;
+      padding: 16px 24px;
+      font-size: 20px;
+      font-weight: 600;
+      color: #45d6f0;
+    }
+
+    /* SVG for clean connecting lines */
+    .flow-svg {
+      position: absolute;
+      left: 95px;
+      top: 0;
+      width: 160px;
+      height: 280px;
+    }
+
+    /* Output recipients */
+    .recipient {
+      position: absolute;
+      right: 0;
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      border-radius: 10px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .recipient-1 { top: 20px; }
+    .recipient-2 { top: 115px; }
+    .recipient-3 { top: 210px; }
+
+    .recipient-label {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    .recipient-amount {
+      font-size: 16px;
+      font-weight: 600;
+      color: #22c55e;
+    }
+
+    /* Domain */
+    .domain {
+      position: absolute;
+      bottom: 30px;
+      left: 70px;
+      font-size: 16px;
+      color: #506e8c;
+    }
+  </style>
+</head>
+<body>
+  <div class="left-section">
+    <div class="logo-row">
+      <img src="water-wave-cascade.svg" alt="Cascade" class="logo">
+      <span class="brand-name">Cascade Splits</span>
+    </div>
+
+    <h1 class="headline">Instant Payment<br>Splitting</h1>
+
+    <p class="subheadline">
+      One payment. Multiple recipients. Automatic distribution.
+      Built for marketplaces, APIs, and the Agent economy.
+    </p>
+
+    <div class="badges">
+      <span class="badge badge-solana">Solana</span>
+      <span class="badge badge-x402">x402</span>
+    </div>
+  </div>
+
+  <div class="right-section">
+    <div class="split-visual">
+      <!-- Input payment -->
+      <div class="payment-box">Payment</div>
+
+      <!-- SVG flow lines - precise positioning -->
+      <svg class="flow-svg" viewBox="0 0 160 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Main line from payment box to split point -->
+        <path d="M0 140 L60 140" stroke="url(#gradient)" stroke-width="2"/>
+        <!-- Split point glow -->
+        <circle cx="60" cy="140" r="6" fill="#45d6f0" opacity="0.6"/>
+        <circle cx="60" cy="140" r="3" fill="#45d6f0"/>
+        <!-- Branch to Seller (top) -->
+        <path d="M60 140 Q90 140 120 40" stroke="url(#gradient)" stroke-width="2" fill="none"/>
+        <!-- Branch to Platform (middle) -->
+        <path d="M60 140 L160 140" stroke="url(#gradient)" stroke-width="2"/>
+        <!-- Branch to Referrer (bottom) -->
+        <path d="M60 140 Q90 140 120 240" stroke="url(#gradient)" stroke-width="2" fill="none"/>
+        <defs>
+          <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#45d6f0" stop-opacity="0.8"/>
+            <stop offset="100%" stop-color="#45d6f0" stop-opacity="0.3"/>
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <!-- Recipients -->
+      <div class="recipient recipient-1">
+        <span class="recipient-label">Seller</span>
+        <span class="recipient-amount">85%</span>
+      </div>
+      <div class="recipient recipient-2">
+        <span class="recipient-label">Platform</span>
+        <span class="recipient-amount">10%</span>
+      </div>
+      <div class="recipient recipient-3">
+        <span class="recipient-label">Referrer</span>
+        <span class="recipient-amount">5%</span>
+      </div>
+    </div>
+  </div>
+
+  <span class="domain">cascade.fyi</span>
+</body>
+</html>

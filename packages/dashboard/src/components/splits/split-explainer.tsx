@@ -1,11 +1,13 @@
 import { ArrowDown, Copy } from "lucide-react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { WalletButton } from "../ui/wallet-button";
 
 /**
  * Static explainer showing how payment splits work.
  * Emphasizes the vault address concept - it's just an address you share.
  */
 export function SplitExplainer() {
+	const { connected } = useWallet();
 	return (
 		<div className="flex w-full max-w-md flex-col items-center py-8 md:py-12">
 			{/* Headline */}
@@ -77,8 +79,8 @@ export function SplitExplainer() {
 				</p>
 			</div>
 
-			{/* CTA - uses wallet adapter button for connecting */}
-			<WalletMultiButton />
+			{/* CTA - only show when not connected (redundant if viewing from About) */}
+			{!connected && <WalletButton />}
 		</div>
 	);
 }
