@@ -151,11 +151,11 @@ anchor upgrade target/verifiable/cascade_splits.so \
 anchor test --skip-build --skip-deploy --provider.cluster mainnet
 
 # 11. Tag and push (mainnet validated, ready for production)
-git tag "v${VERSION}"
+git tag "solana-program/v${VERSION}"
 git push origin main --tags
 
 # 12. Verify build + upload PDA + submit remote job
-yes | solana-verify verify-from-repo --remote \
+solana-verify verify-from-repo --remote -y \
   --url https://api.mainnet-beta.solana.com \
   --program-id SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB \
   https://github.com/cascade-protocol/splits \
@@ -180,7 +180,7 @@ Verify at: `https://verify.osec.io/status/SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwA
 
 # 2. Create GitHub release from CHANGELOG
 python3 scripts/extract-changelog.py "$VERSION" programs/cascade-splits/CHANGELOG.md > /tmp/release-notes.md
-gh release create "v${VERSION}" --title "v${VERSION}" --notes-file /tmp/release-notes.md --verify-tag
+gh release create "solana-program/v${VERSION}" --title "Solana Program v${VERSION}" --notes-file /tmp/release-notes.md --verify-tag
 
 # 3. Publish SDK to npm (if SDK version changed)
 cd packages/sdk
