@@ -4,9 +4,9 @@ version = "0.3.0"
 description = "Non-custodial payment splitter for Solana - distribute incoming payments to multiple recipients automatically"
 edition = "2021"
 license = "Apache-2.0"
-authors = ["Cascade Labs <hello@cascade-protocol.xyz>"]
+authors = ["Cascade Labs <hello@cascade.fyi>"]
 repository = "https://github.com/cascade-protocol/splits"
-homepage = "https://cascade-protocol.xyz"
+homepage = "https://cascade.fyi"
 keywords = ["solana", "payment", "split", "escrow", "defi"]
 
 [lib]

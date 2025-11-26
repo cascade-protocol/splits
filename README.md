@@ -250,8 +250,8 @@ Apache License 2.0 - see [LICENSE](LICENSE) file.
 
 - **GitHub:** https://github.com/cascade-protocol/splits
 - **SDK:** `@cascade-fyi/splits-sdk`
-- **Contact:** hello@cascade-protocol.xyz
+- **Contact:** hello@cascade.fyi
 
 ---
 
-Built by [Cascade Labs](https://cascade-protocol.xyz)
+Built by [Cascade Labs](https://cascade.fyi)

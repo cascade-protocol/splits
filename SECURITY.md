@@ -12,7 +12,7 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 ### How to Report
 
-**Email**: hello@cascade-protocol.xyz
+**Email**: hello@cascade.fyi
 
 **Subject line**: `[SECURITY] Brief description`
 
@@ -69,5 +69,5 @@ We currently do not have a formal bug bounty program. However, we recognize and 
 
 ## Contact
 
-- **Security issues**: hello@cascade-protocol.xyz
+- **Security issues**: hello@cascade.fyi
 - **General inquiries**: https://github.com/cascade-protocol/splits/issues

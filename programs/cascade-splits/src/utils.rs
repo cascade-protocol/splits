@@ -42,7 +42,10 @@ pub fn validate_and_send_to_recipient<'info>(
     signer_seeds: &[&[&[u8]]],
 ) -> Result<()> {
     // Validate account exists and has data
-    require!(!recipient_ata_info.data_is_empty(), ErrorCode::RecipientATADoesNotExist);
+    require!(
+        !recipient_ata_info.data_is_empty(),
+        ErrorCode::RecipientATADoesNotExist
+    );
 
     // Derive and validate canonical ATA address
     let expected_ata = get_associated_token_address_with_program_id(
@@ -56,8 +59,8 @@ pub fn validate_and_send_to_recipient<'info>(
     );
 
     // Validate account is owned by token program (SPL Token or Token-2022)
-    let valid_owner = recipient_ata_info.owner == &token::ID
-        || recipient_ata_info.owner == &token_2022::ID;
+    let valid_owner =
+        recipient_ata_info.owner == &token::ID || recipient_ata_info.owner == &token_2022::ID;
     require!(valid_owner, ErrorCode::InvalidTokenProgram);
 
     // Try to deserialize as token account
@@ -65,8 +68,14 @@ pub fn validate_and_send_to_recipient<'info>(
         .map_err(|_| ErrorCode::RecipientATAInvalid)?;
 
     // Verify owner and mint match expected values
-    require!(recipient_ata.owner == recipient.address, ErrorCode::RecipientATAWrongOwner);
-    require!(recipient_ata.mint == mint.key(), ErrorCode::RecipientATAWrongMint);
+    require!(
+        recipient_ata.owner == recipient.address,
+        ErrorCode::RecipientATAWrongOwner
+    );
+    require!(
+        recipient_ata.mint == mint.key(),
+        ErrorCode::RecipientATAWrongMint
+    );
 
     // Transfer tokens
     let cpi_accounts = TransferChecked {
@@ -75,11 +84,8 @@ pub fn validate_and_send_to_recipient<'info>(
         to: recipient_ata.to_account_info(),
         authority: split_config_info.clone(),
     };
-    let cpi_ctx = CpiContext::new_with_signer(
-        token_program.to_account_info(),
-        cpi_accounts,
-        signer_seeds,
-    );
+    let cpi_ctx =
+        CpiContext::new_with_signer(token_program.to_account_info(), cpi_accounts, signer_seeds);
     token_interface::transfer_checked(cpi_ctx, amount, mint.decimals)?;
 
     Ok(())
@@ -93,7 +99,10 @@ pub fn validate_recipient_ata<'info>(
     mint: &Pubkey,
 ) -> Result<()> {
     // Must have data
-    require!(!ata_info.data_is_empty(), ErrorCode::RecipientATADoesNotExist);
+    require!(
+        !ata_info.data_is_empty(),
+        ErrorCode::RecipientATADoesNotExist
+    );
 
     // Must be owned by token program
     let valid_owner = ata_info.owner == &token::ID || ata_info.owner == &token_2022::ID;
@@ -104,10 +113,16 @@ pub fn validate_recipient_ata<'info>(
         .map_err(|_| ErrorCode::RecipientATAInvalid)?;
 
     // Verify owner matches recipient
-    require!(token_account.owner == *recipient_address, ErrorCode::RecipientATAWrongOwner);
+    require!(
+        token_account.owner == *recipient_address,
+        ErrorCode::RecipientATAWrongOwner
+    );
 
     // Verify mint matches
-    require!(token_account.mint == *mint, ErrorCode::RecipientATAWrongMint);
+    require!(
+        token_account.mint == *mint,
+        ErrorCode::RecipientATAWrongMint
+    );
 
     Ok(())
 }
@@ -162,17 +177,24 @@ mod tests {
     #[test]
     fn sum_bps_normal() {
         let recipients = [
-            Recipient { address: Pubkey::default(), percentage_bps: 5000 },
-            Recipient { address: Pubkey::default(), percentage_bps: 4900 },
+            Recipient {
+                address: Pubkey::default(),
+                percentage_bps: 5000,
+            },
+            Recipient {
+                address: Pubkey::default(),
+                percentage_bps: 4900,
+            },
         ];
         assert_eq!(sum_recipient_bps(&recipients), Some(9900));
     }
 
     #[test]
     fn sum_bps_single() {
-        let recipients = [
-            Recipient { address: Pubkey::default(), percentage_bps: 9900 },
-        ];
+        let recipients = [Recipient {
+            address: Pubkey::default(),
+            percentage_bps: 9900,
+        }];
         assert_eq!(sum_recipient_bps(&recipients), Some(9900));
     }
 
@@ -186,7 +208,10 @@ mod tests {
     fn sum_bps_max_recipients() {
         // 20 recipients at 495 bps each = 9900
         let recipients: Vec<Recipient> = (0..20)
-            .map(|_| Recipient { address: Pubkey::default(), percentage_bps: 495 })
+            .map(|_| Recipient {
+                address: Pubkey::default(),
+                percentage_bps: 495,
+            })
             .collect();
         assert_eq!(sum_recipient_bps(&recipients), Some(9900));
     }
@@ -195,7 +220,10 @@ mod tests {
     fn sum_bps_no_overflow() {
         // u16 max (65535) * 20 = 1,310,700 < u32::MAX
         let recipients: Vec<Recipient> = (0..20)
-            .map(|_| Recipient { address: Pubkey::default(), percentage_bps: u16::MAX })
+            .map(|_| Recipient {
+                address: Pubkey::default(),
+                percentage_bps: u16::MAX,
+            })
             .collect();
         assert_eq!(sum_recipient_bps(&recipients), Some(20 * u16::MAX as u32));
     }

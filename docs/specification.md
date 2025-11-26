@@ -663,7 +663,7 @@ msg!("Debug: {}", value);
 - **GitHub:** https://github.com/cascade-protocol/splits
 - **SDK:** `@cascade-fyi/splits-sdk`
 - **Usage Guide:** [docs/usage.md](./usage.md)
-- **Contact:** hello@cascade-protocol.xyz
+- **Contact:** hello@cascade.fyi
 
 ---
 

@@ -15,11 +15,11 @@ declare_id!("SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB");
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
     name: "Cascade Splits",
-    project_url: "https://cascade-protocol.xyz",
-    contacts: "email:hello@cascade-protocol.xyz,link:https://github.com/cascade-protocol/splits/security",
+    project_url: "https://cascade.fyi",
+    contacts: "email:hello@cascade.fyi,link:https://github.com/cascade-protocol/splits/security",
     policy: "https://github.com/cascade-protocol/splits/blob/main/SECURITY.md",
     source_code: "https://github.com/cascade-protocol/splits",
-    source_release: "v0.2.0"
+    source_release: "solana-program/v0.3.0"
 }
 
 #[program]

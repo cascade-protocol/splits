@@ -24,8 +24,13 @@ import type { CascadeSplits } from "../target/types/cascade_splits";
 import idl from "../packages/sdk/idl.json";
 
 // Helper to create program from SDK's IDL
-function createProgram(provider: anchor.AnchorProvider): Program<CascadeSplits> {
-	return new anchor.Program(idl as anchor.Idl, provider) as Program<CascadeSplits>;
+function createProgram(
+	provider: anchor.AnchorProvider,
+): Program<CascadeSplits> {
+	return new anchor.Program(
+		idl as anchor.Idl,
+		provider,
+	) as Program<CascadeSplits>;
 }
 
 // =============================================================================

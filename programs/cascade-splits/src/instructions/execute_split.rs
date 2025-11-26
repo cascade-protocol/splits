@@ -1,8 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::get_associated_token_address_with_program_id,
-    token,
-    token_2022,
+    token, token_2022,
     token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked},
 };
 
@@ -10,7 +9,7 @@ use crate::{
     errors::ErrorCode,
     events::SplitExecuted,
     state::{ProtocolConfig, SplitConfig},
-    utils::{validate_and_send_to_recipient, is_account_frozen},
+    utils::{is_account_frozen, validate_and_send_to_recipient},
 };
 
 #[derive(Accounts)]
@@ -54,9 +53,7 @@ pub struct ExecuteSplit<'info> {
 
 /// Executes a payment split with self-healing unclaimed recovery
 /// Permissionless - anyone can call
-pub fn handler<'info>(
-    ctx: Context<'_, '_, 'info, 'info, ExecuteSplit<'info>>,
-) -> Result<()> {
+pub fn handler<'info>(ctx: Context<'_, '_, 'info, 'info, ExecuteSplit<'info>>) -> Result<()> {
     let vault_balance = ctx.accounts.vault.amount;
     let protocol_fee_wallet = ctx.accounts.protocol_config.load()?.fee_wallet;
 
@@ -155,7 +152,11 @@ pub fn handler<'info>(
                     .ok_or(ErrorCode::MathOverflow)?;
 
                 #[cfg(feature = "verbose")]
-                msg!("Recipient {} ATA missing, holding {} as unclaimed", recipient.address, amount);
+                msg!(
+                    "Recipient {} ATA missing, holding {} as unclaimed",
+                    recipient.address,
+                    amount
+                );
             } else {
                 // Validate and transfer - no borrow held, CPI is safe
                 validate_and_send_to_recipient(
@@ -214,10 +215,14 @@ pub fn handler<'info>(
                 .ok_or(ErrorCode::MathOverflow)?;
 
             #[cfg(feature = "verbose")]
-            msg!("Protocol ATA missing, holding {} as unclaimed", protocol_fee);
+            msg!(
+                "Protocol ATA missing, holding {} as unclaimed",
+                protocol_fee
+            );
         } else {
             // Validate and transfer to protocol
-            let valid_owner = protocol_ata.owner == &token::ID || protocol_ata.owner == &token_2022::ID;
+            let valid_owner =
+                protocol_ata.owner == &token::ID || protocol_ata.owner == &token_2022::ID;
             require!(valid_owner, ErrorCode::InvalidProtocolFeeRecipient);
 
             let protocol_token_account =
@@ -294,7 +299,8 @@ pub fn handler<'info>(
             let amount = protocol_unclaimed;
 
             // Validate and transfer
-            let valid_owner = protocol_ata.owner == &token::ID || protocol_ata.owner == &token_2022::ID;
+            let valid_owner =
+                protocol_ata.owner == &token::ID || protocol_ata.owner == &token_2022::ID;
             if valid_owner {
                 if let Ok(protocol_token_account) =
                     InterfaceAccount::<'info, TokenAccount>::try_from(protocol_ata)
