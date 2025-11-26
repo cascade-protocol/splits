@@ -79,7 +79,7 @@ export function Header({ showAbout, onNavigate, showNav }: HeaderProps) {
 							<span className="sr-only">GitHub</span>
 						</a>
 						<a
-							href="https://x.com/cascadepay"
+							href="https://x.com/cascade_fyi"
 							target="_blank"
 							rel="noopener noreferrer"
 							className="text-muted-foreground transition-colors hover:text-foreground"
