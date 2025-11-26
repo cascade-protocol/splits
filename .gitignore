@@ -11,3 +11,4 @@ docker-target
 .claude/*local.json
 .vscode/settings.json
 .env
+tmp
