@@ -31,7 +31,7 @@ Payment → Vault (PDA) → execute_split() → Recipients (99%) + Protocol (1%)
 
 - **1-20 recipients** per split configuration
 - **99% to recipients**, 1% protocol fee (transparent, on-chain enforced)
-- **SPL Token & Token-2022** support
+- **SPL Token & Token-2022** support, including [sRFC-37](https://forum.solana.com/t/srfc-37-efficient-block-allow-list-token-standard/4036) frozen accounts
 - **Multiple configs** per authority/mint via unique identifiers
 - **Idempotent execution** - safe to retry
 - **Self-healing** - unclaimed funds auto-deliver when ATAs created
@@ -87,19 +87,19 @@ At $150/SOL ≈ $2.35 (refunded on `close_split_config`)
 
 | Instruction | CUs | Notes |
 |------------|-----|-------|
-| execute_split (2 recipients) | 29,007 | Minimal case |
-| execute_split (5 recipients) | 69,371 | Typical case |
-| execute_split (10 recipients) | 109,579 | High activity |
-| create_split_config | 37,375 - 41,164 | Includes vault ATA creation |
-| update_split_config | 7,810 - 15,622 | Varies by recipient count |
-| close_split_config | 5,067 | |
-| initialize_protocol | 9,214 | One-time setup |
+| execute_split (1 recipient) | ~28,505 | Minimal case |
+| execute_split (5 recipients) | ~68,573 | Typical case |
+| execute_split (10 recipients) | ~109,000 | High activity |
+| create_split_config | 36,590 - 40,024 | Includes vault ATA creation |
+| update_split_config | 7,424 - 14,032 | Varies by recipient count |
+| close_split_config | ~10,168 | Includes vault ATA closure |
+| initialize_protocol | ~8,998 | One-time setup |
 
 Scaling: ~8K CU per recipient (6K Token CPI + 2K overhead). Even 10-recipient splits use only 8% of Solana's 1.4M CU budget.
 
 For comparison: typical DEX swaps use 100,000-400,000+ CUs.
 
-See [benchmarks/compute_units.md](benchmarks/compute_units.md) for full benchmark history and additional scenarios (unclaimed flows, protocol admin ops).
+See [docs/benchmarks/compute_units.md](docs/benchmarks/compute_units.md) for full benchmark history and additional scenarios (unclaimed flows, protocol admin ops).
 
 ## Usage Example
 

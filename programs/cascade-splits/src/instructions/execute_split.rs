@@ -10,7 +10,7 @@ use crate::{
     errors::ErrorCode,
     events::SplitExecuted,
     state::{ProtocolConfig, SplitConfig},
-    utils::validate_and_send_to_recipient,
+    utils::{validate_and_send_to_recipient, is_account_frozen},
 };
 
 #[derive(Accounts)]
@@ -44,7 +44,9 @@ pub struct ExecuteSplit<'info> {
     )]
     pub protocol_config: AccountLoader<'info, ProtocolConfig>,
 
-    /// CHECK: Can be anyone (permissionless execution)
+    /// CHECK: Intentionally not a Signer - permissionless execution allows anyone to trigger
+    /// distribution (e.g., recipients, bots, facilitators). The executor field is used only
+    /// for event attribution and has no security implications.
     pub executor: AccountInfo<'info>,
 
     pub token_program: Interface<'info, TokenInterface>,
@@ -120,6 +122,10 @@ pub fn handler<'info>(
     if available_to_split > 0 {
         for i in 0..recipient_count {
             let recipient = &recipients[i];
+            // Floor division intentionally rounds down - rounding dust goes to protocol fee.
+            // For very small amounts, recipients may receive 0 tokens (skipped below).
+            // This is acceptable: dust accumulates to protocol rather than being lost,
+            // and no minimum balance check is enforced to allow idempotent no-op calls.
             let amount: u64 = (available_to_split as u128)
                 .checked_mul(recipient.percentage_bps as u128)
                 .ok_or(ErrorCode::MathOverflow)?
@@ -129,13 +135,13 @@ pub fn handler<'info>(
                 .map_err(|_| ErrorCode::MathOverflow)?;
 
             if amount == 0 {
-                continue;
+                continue; // Skip zero-amount transfers (from rounding or tiny vault balance)
             }
 
             let ata = &ctx.remaining_accounts[i];
 
-            // Pre-validate: check if ATA exists (~100 CU vs ~1000 CU for failed CPI)
-            if ata.data_is_empty() {
+            // Pre-validate: check if ATA exists or is frozen (~100 CU vs ~1000 CU for failed CPI)
+            if ata.data_is_empty() || is_account_frozen(ata) {
                 // Hold as unclaimed (update local copy)
                 unclaimed_amounts[i].recipient = recipient.address;
                 unclaimed_amounts[i].amount = unclaimed_amounts[i]
@@ -201,7 +207,7 @@ pub fn handler<'info>(
             ErrorCode::InvalidProtocolFeeRecipient
         );
 
-        if protocol_ata.data_is_empty() {
+        if protocol_ata.data_is_empty() || is_account_frozen(protocol_ata) {
             // Protocol ATA missing - add to protocol_unclaimed (update local copy)
             protocol_unclaimed = protocol_unclaimed
                 .checked_add(protocol_fee)
@@ -253,8 +259,8 @@ pub fn handler<'info>(
         if unclaimed_amount > 0 {
             let ata = &ctx.remaining_accounts[i];
 
-            if ata.data_is_empty() {
-                continue; // Still missing
+            if ata.data_is_empty() || is_account_frozen(ata) {
+                continue; // Still missing or frozen
             }
 
             // Transfer unclaimed - no borrow held, CPI is safe
@@ -284,7 +290,7 @@ pub fn handler<'info>(
     if protocol_unclaimed > 0 {
         let protocol_ata = ctx.remaining_accounts.last().unwrap();
 
-        if !protocol_ata.data_is_empty() {
+        if !protocol_ata.data_is_empty() && !is_account_frozen(protocol_ata) {
             let amount = protocol_unclaimed;
 
             // Validate and transfer

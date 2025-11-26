@@ -85,12 +85,18 @@ pub fn handler<'info>(
         .try_fold(0u32, |acc, r| acc.checked_add(r.percentage_bps as u32))
         .ok_or(ErrorCode::MathOverflow)?;
 
-    require!(total_bps == REQUIRED_SPLIT_TOTAL as u32, ErrorCode::InvalidSplitTotal);
+    require!(
+        total_bps == REQUIRED_SPLIT_TOTAL as u32,
+        ErrorCode::InvalidSplitTotal
+    );
 
     // Validate each recipient and check for duplicates
     for (i, recipient) in recipients.iter().enumerate() {
         // No zero addresses
-        require!(recipient.address != Pubkey::default(), ErrorCode::ZeroAddress);
+        require!(
+            recipient.address != Pubkey::default(),
+            ErrorCode::ZeroAddress
+        );
 
         // No zero percentages
         require!(recipient.percentage_bps > 0, ErrorCode::ZeroPercentage);

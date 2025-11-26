@@ -17,14 +17,21 @@ pub const PROGRAM_ID: Pubkey = solana_sdk::pubkey!("SPL1T3rERcu6P6dyBiG7K8LUr21C
 
 // Anchor discriminators (first 8 bytes of sha256("global:function_name"))
 // These must match the IDL/program
-pub const DISCRIMINATOR_INITIALIZE_PROTOCOL: [u8; 8] = [0xbc, 0xe9, 0xfc, 0x6a, 0x86, 0x92, 0xca, 0x5b];
-pub const DISCRIMINATOR_UPDATE_PROTOCOL_CONFIG: [u8; 8] = [0xc5, 0x61, 0x7b, 0x36, 0xdd, 0xa8, 0x0b, 0x87];
-pub const DISCRIMINATOR_TRANSFER_PROTOCOL_AUTHORITY: [u8; 8] = [0x23, 0x4c, 0x24, 0x4d, 0x88, 0x70, 0x9e, 0xde];
-pub const DISCRIMINATOR_ACCEPT_PROTOCOL_AUTHORITY: [u8; 8] = [0xed, 0x7a, 0x06, 0x27, 0x35, 0xca, 0x8d, 0x71];
-pub const DISCRIMINATOR_CREATE_SPLIT_CONFIG: [u8; 8] = [0x80, 0x2a, 0x3c, 0x6a, 0x04, 0xe9, 0x12, 0xbe];
+pub const DISCRIMINATOR_INITIALIZE_PROTOCOL: [u8; 8] =
+    [0xbc, 0xe9, 0xfc, 0x6a, 0x86, 0x92, 0xca, 0x5b];
+pub const DISCRIMINATOR_UPDATE_PROTOCOL_CONFIG: [u8; 8] =
+    [0xc5, 0x61, 0x7b, 0x36, 0xdd, 0xa8, 0x0b, 0x87];
+pub const DISCRIMINATOR_TRANSFER_PROTOCOL_AUTHORITY: [u8; 8] =
+    [0x23, 0x4c, 0x24, 0x4d, 0x88, 0x70, 0x9e, 0xde];
+pub const DISCRIMINATOR_ACCEPT_PROTOCOL_AUTHORITY: [u8; 8] =
+    [0xed, 0x7a, 0x06, 0x27, 0x35, 0xca, 0x8d, 0x71];
+pub const DISCRIMINATOR_CREATE_SPLIT_CONFIG: [u8; 8] =
+    [0x80, 0x2a, 0x3c, 0x6a, 0x04, 0xe9, 0x12, 0xbe];
 pub const DISCRIMINATOR_EXECUTE_SPLIT: [u8; 8] = [0x06, 0x2d, 0xab, 0x28, 0x31, 0x81, 0x17, 0x59];
-pub const DISCRIMINATOR_UPDATE_SPLIT_CONFIG: [u8; 8] = [0x2f, 0x67, 0x4a, 0xaa, 0x37, 0xfb, 0x82, 0x92];
-pub const DISCRIMINATOR_CLOSE_SPLIT_CONFIG: [u8; 8] = [0xaa, 0xca, 0xfc, 0x5c, 0xc4, 0xa0, 0xf7, 0xe5];
+pub const DISCRIMINATOR_UPDATE_SPLIT_CONFIG: [u8; 8] =
+    [0x2f, 0x67, 0x4a, 0xaa, 0x37, 0xfb, 0x82, 0x92];
+pub const DISCRIMINATOR_CLOSE_SPLIT_CONFIG: [u8; 8] =
+    [0xaa, 0xca, 0xfc, 0x5c, 0xc4, 0xa0, 0xf7, 0xe5];
 
 /// Recipient input for instructions
 #[derive(Clone, Debug)]
@@ -387,9 +394,10 @@ pub fn build_close_split_config_with_destination(
         program_id: PROGRAM_ID,
         accounts: vec![
             AccountMeta::new(split_config, false),
-            AccountMeta::new_readonly(vault, false),
+            AccountMeta::new(vault, false),
             AccountMeta::new_readonly(authority, true),
             AccountMeta::new(rent_destination, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data: discriminator.to_vec(),
     }

@@ -70,8 +70,9 @@ pub struct UnclaimedAmount {
     pub timestamp: i64,
 }
 
-
-// Compile-time size assertions to catch accidental struct changes
+// Compile-time size assertions to catch accidental struct changes that would break zero-copy
+// deserialization. These are compile-time only - if Anchor's zero-copy behavior changes,
+// runtime deserialization could fail. The #[repr(C)] attribute ensures deterministic layout.
 // ProtocolConfig: discriminator (8) + authority (32) + pending_authority (32) + fee_wallet (32) + bump (1) = 105
 const _: () = assert!(std::mem::size_of::<ProtocolConfig>() == 97); // 105 - 8 (discriminator added by Anchor)
 

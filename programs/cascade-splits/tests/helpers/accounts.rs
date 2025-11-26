@@ -8,11 +8,7 @@ use {
     mollusk_svm::Mollusk,
     // 0.5.1: All types from solana_sdk, not modular crates
     solana_sdk::{
-        account::Account,
-        bpf_loader_upgradeable,
-        program_pack::Pack,
-        pubkey::Pubkey,
-        rent::Rent,
+        account::Account, bpf_loader_upgradeable, program_pack::Pack, pubkey::Pubkey, rent::Rent,
         system_program,
     },
     spl_associated_token_account::get_associated_token_address,
@@ -62,7 +58,7 @@ pub fn program_data_account(upgrade_authority: Pubkey) -> Account {
     // - 32 bytes: upgrade_authority pubkey
     let mut data = vec![0u8; 45];
     data[0] = 3; // ProgramData discriminant
-    // bytes 1-11: slot (zero)
+                 // bytes 1-11: slot (zero)
     data[12] = 1; // Some(upgrade_authority)
     data[13..45].copy_from_slice(&upgrade_authority.to_bytes());
 
@@ -112,12 +108,7 @@ pub fn mint_account(
 ///
 /// NOTE (0.5.1): Must explicitly set owner to spl_token::id()
 /// This was made more automatic in 0.6.1, but 0.5.1 requires explicit setup
-pub fn token_account(
-    mint: Pubkey,
-    token_owner: Pubkey,
-    amount: u64,
-    rent: &Rent,
-) -> Account {
+pub fn token_account(mint: Pubkey, token_owner: Pubkey, amount: u64, rent: &Rent) -> Account {
     let mut data = vec![0u8; TokenAccount::LEN];
     TokenAccount::pack(
         TokenAccount {

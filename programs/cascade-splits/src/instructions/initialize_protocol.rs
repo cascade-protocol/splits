@@ -1,11 +1,8 @@
 use anchor_lang::prelude::*;
 
 use crate::{
-    constants::PROTOCOL_CONFIG_SIZE,
-    errors::ErrorCode,
-    events::ProtocolConfigCreated,
-    state::ProtocolConfig,
-    ID,
+    constants::PROTOCOL_CONFIG_SIZE, errors::ErrorCode, events::ProtocolConfigCreated,
+    state::ProtocolConfig, ID,
 };
 
 #[derive(Accounts)]
@@ -64,8 +61,7 @@ pub fn handler(ctx: Context<InitializeProtocol>, fee_wallet: Pubkey) -> Result<(
     let upgrade_authority_option = data[12];
     require!(upgrade_authority_option == 1, ErrorCode::Unauthorized); // Must have upgrade authority
 
-    let upgrade_authority = Pubkey::try_from(&data[13..45])
-        .map_err(|_| ErrorCode::Unauthorized)?;
+    let upgrade_authority = Pubkey::try_from(&data[13..45]).map_err(|_| ErrorCode::Unauthorized)?;
 
     require!(
         upgrade_authority == ctx.accounts.authority.key(),

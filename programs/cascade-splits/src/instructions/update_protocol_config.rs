@@ -1,10 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{
-    errors::ErrorCode,
-    events::ProtocolConfigUpdated,
-    state::ProtocolConfig,
-};
+use crate::{errors::ErrorCode, events::ProtocolConfigUpdated, state::ProtocolConfig};
 
 #[derive(Accounts)]
 pub struct UpdateProtocolConfig<'info> {

@@ -11,13 +11,13 @@ use {
             derive_ata, get_rent, mint_account, system_account, token_account,
             uninitialized_account,
         },
-        error_code, ErrorCode,
+        error_code,
         instructions::{
             build_create_split_config, build_create_split_config_with_payer, derive_split_config,
             derive_vault, RecipientInput, PROGRAM_ID,
         },
         serialization::SPLIT_CONFIG_SIZE,
-        setup_mollusk_with_token,
+        setup_mollusk_with_token, ErrorCode,
     },
     mollusk_svm::result::Check,
     mollusk_svm_programs_token::{associated_token, token},
@@ -75,13 +75,16 @@ fn test_create_split_config_single_recipient_success() {
         // 6. associated_token_program
         associated_token::keyed_account(),
         // 7. system_program
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
         // remaining_accounts: recipient ATAs
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
     ];
@@ -142,20 +145,23 @@ fn test_create_split_config_invalid_split_total_fails() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
     ];
 
     // Should fail with InvalidSplitTotal
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(ErrorCode::InvalidSplitTotal))),
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::InvalidSplitTotal,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -197,19 +203,22 @@ fn test_create_split_config_zero_recipients_fails() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
     ];
 
     // Should fail with InvalidRecipientCount
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(ErrorCode::InvalidRecipientCount))),
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::InvalidRecipientCount,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -263,20 +272,23 @@ fn test_create_split_config_duplicate_recipients_fails() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
     ];
 
     // Should fail with DuplicateRecipient
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(ErrorCode::DuplicateRecipient))),
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::DuplicateRecipient,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -324,20 +336,23 @@ fn test_create_split_config_zero_address_fails() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
         (zero_ata, token_account(mint, zero_address, 0, &rent)),
     ];
 
     // Should fail with ZeroAddress
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(ErrorCode::ZeroAddress))),
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::ZeroAddress,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -393,21 +408,24 @@ fn test_create_split_config_zero_percentage_fails() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
         (recipient2_ata, token_account(mint, recipient2, 0, &rent)),
     ];
 
     // Should fail with ZeroPercentage
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(ErrorCode::ZeroPercentage))),
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::ZeroPercentage,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -463,13 +481,16 @@ fn test_create_split_config_multiple_recipients_success() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
         (recipient2_ata, token_account(mint, recipient2, 0, &rent)),
     ];
@@ -514,13 +535,16 @@ fn test_create_split_config_max_recipients_success() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
     ];
 
     for _ in 0..20 {
@@ -582,13 +606,16 @@ fn test_create_split_config_too_many_recipients_fails() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
     ];
 
     for i in 0..21 {
@@ -617,9 +644,9 @@ fn test_create_split_config_too_many_recipients_fails() {
     );
 
     // Should fail with InvalidRecipientCount
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(ErrorCode::InvalidRecipientCount))),
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::InvalidRecipientCount,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &account_entries, &checks);
 }
@@ -667,21 +694,24 @@ fn test_create_split_config_recipient_ata_does_not_exist_fails() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
         // ATA doesn't exist - empty account
         (recipient1_ata, system_account(0)),
     ];
 
     // Should fail with RecipientATADoesNotExist
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(ErrorCode::RecipientATADoesNotExist))),
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::RecipientATADoesNotExist,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -730,21 +760,24 @@ fn test_create_split_config_recipient_ata_wrong_owner_fails() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
         // ATA exists but has wrong owner
         (recipient1_ata, token_account(mint, wrong_owner, 0, &rent)),
     ];
 
     // Should fail with RecipientATAWrongOwner
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(ErrorCode::RecipientATAWrongOwner))),
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::RecipientATAWrongOwner,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -793,21 +826,27 @@ fn test_create_split_config_recipient_ata_wrong_mint_fails() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
         // ATA exists but has wrong mint
-        (recipient1_ata, token_account(wrong_mint, recipient1, 0, &rent)),
+        (
+            recipient1_ata,
+            token_account(wrong_mint, recipient1, 0, &rent),
+        ),
     ];
 
     // Should fail with RecipientATAWrongMint
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(ErrorCode::RecipientATAWrongMint))),
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::RecipientATAWrongMint,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -863,21 +902,24 @@ fn test_create_split_config_total_over_99_percent_fails() {
         (vault, uninitialized_account()),
         token::keyed_account(),
         associated_token::keyed_account(),
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
         (recipient2_ata, token_account(mint, recipient2, 0, &rent)),
     ];
 
     // Should fail with InvalidSplitTotal
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(ErrorCode::InvalidSplitTotal))),
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::InvalidSplitTotal,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -937,13 +979,16 @@ fn test_create_split_config_separate_payer_success() {
         // 7. associated_token_program
         associated_token::keyed_account(),
         // 8. system_program
-        (system_program::id(), Account {
-            lamports: 1,
-            data: vec![],
-            owner: solana_sdk::native_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        }),
+        (
+            system_program::id(),
+            Account {
+                lamports: 1,
+                data: vec![],
+                owner: solana_sdk::native_loader::id(),
+                executable: true,
+                rent_epoch: 0,
+            },
+        ),
         // remaining_accounts: recipient ATAs
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
     ];

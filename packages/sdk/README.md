@@ -72,6 +72,10 @@ Specify shares that sum to **100**. The SDK handles everything else.
 
 A 1% protocol fee is deducted during distribution (see `previewDistribution` for details).
 
+### Token Compatibility
+
+Supports both SPL Token and Token-2022, including [sRFC-37](https://forum.solana.com/t/srfc-37-efficient-block-allow-list-token-standard/4036) tokens with `DefaultAccountState::Frozen`. Frozen accounts automatically hold funds as unclaimed until thawed.
+
 ### Address Prediction
 
 Derive split addresses **before creation** using deterministic PDAs:

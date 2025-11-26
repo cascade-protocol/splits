@@ -346,7 +346,7 @@ function buildCloseSplitConfigRaw(
 
 	const accounts = [
 		{ address: splitConfig, role: WRITABLE },
-		{ address: vault, role: READONLY },
+		{ address: vault, role: WRITABLE },
 		{ address: authority, role: WRITABLE_SIGNER },
 		{ address: rentReceiver, role: WRITABLE },
 		{ address: tokenProgram, role: READONLY },

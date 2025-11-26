@@ -2,7 +2,7 @@
   "address": "SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB",
   "metadata": {
     "name": "cascade_splits",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "spec": "0.1.0",
     "description": "Non-custodial payment splitter for Solana - distribute incoming payments to multiple recipients automatically",
     "repository": "https://github.com/cascade-protocol/splits"
@@ -115,7 +115,8 @@
           }
         },
         {
-          "name": "vault"
+          "name": "vault",
+          "writable": true
         },
         {
           "name": "authority",
@@ -124,6 +125,9 @@
         {
           "name": "rent_destination",
           "writable": true
+        },
+        {
+          "name": "token_program"
         }
       ],
       "args": []
@@ -378,7 +382,11 @@
           }
         },
         {
-          "name": "executor"
+          "name": "executor",
+          "docs": [
+            "distribution (e.g., recipients, bots, facilitators). The executor field is used only",
+            "for event attribution and has no security implications."
+          ]
         },
         {
           "name": "token_program"

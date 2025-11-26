@@ -9,9 +9,9 @@ use solana_sdk::pubkey::Pubkey;
 // Constants matching the program
 pub const MAX_RECIPIENTS: usize = 20;
 pub const PROTOCOL_CONFIG_SIZE: usize = 8 + 32 + 32 + 32 + 1; // 105 bytes
-// SplitConfig actual size with #[repr(C)] alignment padding:
-// After recipients array (offset 819), 5 bytes padding for 8-byte alignment of unclaimed_amounts
-// Includes last_activity (8) and rent_payer (32)
+                                                              // SplitConfig actual size with #[repr(C)] alignment padding:
+                                                              // After recipients array (offset 819), 5 bytes padding for 8-byte alignment of unclaimed_amounts
+                                                              // Includes last_activity (8) and rent_payer (32)
 pub const SPLIT_CONFIG_SIZE: usize = 1832;
 
 // Anchor discriminators (from IDL)
@@ -60,11 +60,7 @@ impl Default for UnclaimedAmountData {
 /// - 32 bytes: pending_authority
 /// - 32 bytes: fee_wallet
 /// - 1 byte: bump
-pub fn serialize_protocol_config(
-    authority: Pubkey,
-    fee_wallet: Pubkey,
-    bump: u8,
-) -> Vec<u8> {
+pub fn serialize_protocol_config(authority: Pubkey, fee_wallet: Pubkey, bump: u8) -> Vec<u8> {
     serialize_protocol_config_with_pending(authority, Pubkey::default(), fee_wallet, bump)
 }
 
@@ -236,9 +232,9 @@ pub fn serialize_split_config_simple(
         unique_id,
         bump,
         recipients,
-        &[], // no unclaimed
-        0,   // no protocol unclaimed
-        0,   // no last_activity
+        &[],       // no unclaimed
+        0,         // no protocol unclaimed
+        0,         // no last_activity
         authority, // rent_payer defaults to authority
     )
 }

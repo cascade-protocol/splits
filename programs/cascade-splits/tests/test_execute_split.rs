@@ -10,7 +10,7 @@ use {
         accounts::{
             derive_ata, get_rent, mint_account, program_account, system_account, token_account,
         },
-        error_code, ErrorCode,
+        error_code,
         instructions::{
             build_execute_split, derive_protocol_config, derive_split_config, derive_vault,
             PROGRAM_ID,
@@ -19,7 +19,7 @@ use {
             serialize_protocol_config, serialize_split_config_simple, RecipientData,
             PROTOCOL_CONFIG_SIZE, SPLIT_CONFIG_SIZE,
         },
-        setup_mollusk_with_token,
+        setup_mollusk_with_token, ErrorCode,
     },
     mollusk_svm::result::Check,
     mollusk_svm_programs_token::token,
@@ -56,9 +56,8 @@ fn test_execute_split_success() {
 
     // Create account data
     let protocol_config_data = serialize_protocol_config(authority, fee_wallet, protocol_bump);
-    let split_config_data = serialize_split_config_simple(
-        authority, mint, vault, unique_id, split_bump, &recipients,
-    );
+    let split_config_data =
+        serialize_split_config_simple(authority, mint, vault, unique_id, split_bump, &recipients);
 
     // Build instruction
     let instruction = build_execute_split(
@@ -77,21 +76,30 @@ fn test_execute_split_success() {
     // Setup account states
     let accounts = vec![
         // Split config
-        (split_config, program_account(
-            rent.minimum_balance(SPLIT_CONFIG_SIZE),
-            split_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                split_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         // Vault with tokens
-        (vault, token_account(mint, split_config, vault_amount, &rent)),
+        (
+            vault,
+            token_account(mint, split_config, vault_amount, &rent),
+        ),
         // Mint
         (mint, mint_account(Some(authority), 6, vault_amount, &rent)),
         // Protocol config
-        (protocol_config, program_account(
-            rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
-            protocol_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                protocol_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         // Executor
         (executor, system_account(1_000_000)),
         // Token program - use keyed_account() for proper program data
@@ -103,9 +111,7 @@ fn test_execute_split_success() {
     ];
 
     // Validate
-    let checks = vec![
-        Check::success(),
-    ];
+    let checks = vec![Check::success()];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -140,9 +146,8 @@ fn test_execute_split_missing_recipient_ata_stores_unclaimed() {
 
     // Create account data
     let protocol_config_data = serialize_protocol_config(authority, fee_wallet, protocol_bump);
-    let split_config_data = serialize_split_config_simple(
-        authority, mint, vault, unique_id, split_bump, &recipients,
-    );
+    let split_config_data =
+        serialize_split_config_simple(authority, mint, vault, unique_id, split_bump, &recipients);
 
     // Build instruction
     let instruction = build_execute_split(
@@ -159,18 +164,27 @@ fn test_execute_split_missing_recipient_ata_stores_unclaimed() {
 
     // Setup account states - recipient ATA is EMPTY (doesn't exist)
     let accounts = vec![
-        (split_config, program_account(
-            rent.minimum_balance(SPLIT_CONFIG_SIZE),
-            split_config_data,
-            PROGRAM_ID,
-        )),
-        (vault, token_account(mint, split_config, vault_amount, &rent)),
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                split_config_data,
+                PROGRAM_ID,
+            ),
+        ),
+        (
+            vault,
+            token_account(mint, split_config, vault_amount, &rent),
+        ),
         (mint, mint_account(Some(authority), 6, vault_amount, &rent)),
-        (protocol_config, program_account(
-            rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
-            protocol_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                protocol_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         (executor, system_account(1_000_000)),
         // Token program - use keyed_account() for proper program data
         token::keyed_account(),
@@ -181,9 +195,7 @@ fn test_execute_split_missing_recipient_ata_stores_unclaimed() {
     ];
 
     // Should succeed - stores as unclaimed instead of failing
-    let checks = vec![
-        Check::success(),
-    ];
+    let checks = vec![Check::success()];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -223,9 +235,8 @@ fn test_execute_split_insufficient_remaining_accounts_fails() {
 
     // Create account data
     let protocol_config_data = serialize_protocol_config(authority, fee_wallet, protocol_bump);
-    let split_config_data = serialize_split_config_simple(
-        authority, mint, vault, unique_id, split_bump, &recipients,
-    );
+    let split_config_data =
+        serialize_split_config_simple(authority, mint, vault, unique_id, split_bump, &recipients);
 
     // Build instruction - only providing 1 recipient ATA instead of 2
     let recipient1_ata = derive_ata(&recipient1, &mint);
@@ -243,18 +254,27 @@ fn test_execute_split_insufficient_remaining_accounts_fails() {
 
     // Setup account states
     let accounts = vec![
-        (split_config, program_account(
-            rent.minimum_balance(SPLIT_CONFIG_SIZE),
-            split_config_data,
-            PROGRAM_ID,
-        )),
-        (vault, token_account(mint, split_config, vault_amount, &rent)),
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                split_config_data,
+                PROGRAM_ID,
+            ),
+        ),
+        (
+            vault,
+            token_account(mint, split_config, vault_amount, &rent),
+        ),
         (mint, mint_account(Some(authority), 6, vault_amount, &rent)),
-        (protocol_config, program_account(
-            rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
-            protocol_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                protocol_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         (executor, system_account(1_000_000)),
         // Token program - use keyed_account() for proper program data
         token::keyed_account(),
@@ -263,11 +283,9 @@ fn test_execute_split_insufficient_remaining_accounts_fails() {
     ];
 
     // Should fail with InsufficientRemainingAccounts
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(
-            ErrorCode::InsufficientRemainingAccounts,
-        )))
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::InsufficientRemainingAccounts,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -301,9 +319,8 @@ fn test_execute_split_empty_vault() {
 
     // Create account data
     let protocol_config_data = serialize_protocol_config(authority, fee_wallet, protocol_bump);
-    let split_config_data = serialize_split_config_simple(
-        authority, mint, vault, unique_id, split_bump, &recipients,
-    );
+    let split_config_data =
+        serialize_split_config_simple(authority, mint, vault, unique_id, split_bump, &recipients);
 
     // Build instruction
     let instruction = build_execute_split(
@@ -321,19 +338,28 @@ fn test_execute_split_empty_vault() {
 
     // Setup account states
     let accounts = vec![
-        (split_config, program_account(
-            rent.minimum_balance(SPLIT_CONFIG_SIZE),
-            split_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                split_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         // Vault with 0 tokens
-        (vault, token_account(mint, split_config, vault_amount, &rent)),
+        (
+            vault,
+            token_account(mint, split_config, vault_amount, &rent),
+        ),
         (mint, mint_account(Some(authority), 6, 0, &rent)),
-        (protocol_config, program_account(
-            rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
-            protocol_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                protocol_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         (executor, system_account(1_000_000)),
         // Token program - use keyed_account() for proper program data
         token::keyed_account(),
@@ -342,9 +368,7 @@ fn test_execute_split_empty_vault() {
     ];
 
     // Should succeed even with empty vault (no-op)
-    let checks = vec![
-        Check::success(),
-    ];
+    let checks = vec![Check::success()];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -387,9 +411,8 @@ fn test_execute_split_multiple_recipients_math() {
 
     // Create account data
     let protocol_config_data = serialize_protocol_config(authority, fee_wallet, protocol_bump);
-    let split_config_data = serialize_split_config_simple(
-        authority, mint, vault, unique_id, split_bump, &recipients,
-    );
+    let split_config_data =
+        serialize_split_config_simple(authority, mint, vault, unique_id, split_bump, &recipients);
 
     // Build instruction
     let instruction = build_execute_split(
@@ -408,18 +431,27 @@ fn test_execute_split_multiple_recipients_math() {
 
     // Setup account states
     let accounts = vec![
-        (split_config, program_account(
-            rent.minimum_balance(SPLIT_CONFIG_SIZE),
-            split_config_data,
-            PROGRAM_ID,
-        )),
-        (vault, token_account(mint, split_config, vault_amount, &rent)),
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                split_config_data,
+                PROGRAM_ID,
+            ),
+        ),
+        (
+            vault,
+            token_account(mint, split_config, vault_amount, &rent),
+        ),
         (mint, mint_account(Some(authority), 6, vault_amount, &rent)),
-        (protocol_config, program_account(
-            rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
-            protocol_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                protocol_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         (executor, system_account(1_000_000)),
         token::keyed_account(),
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
@@ -462,9 +494,8 @@ fn test_execute_split_protocol_fee_with_rounding() {
 
     // Create account data
     let protocol_config_data = serialize_protocol_config(authority, fee_wallet, protocol_bump);
-    let split_config_data = serialize_split_config_simple(
-        authority, mint, vault, unique_id, split_bump, &recipients,
-    );
+    let split_config_data =
+        serialize_split_config_simple(authority, mint, vault, unique_id, split_bump, &recipients);
 
     // Build instruction
     let instruction = build_execute_split(
@@ -484,18 +515,27 @@ fn test_execute_split_protocol_fee_with_rounding() {
 
     // Setup account states
     let accounts = vec![
-        (split_config, program_account(
-            rent.minimum_balance(SPLIT_CONFIG_SIZE),
-            split_config_data,
-            PROGRAM_ID,
-        )),
-        (vault, token_account(mint, split_config, vault_amount, &rent)),
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                split_config_data,
+                PROGRAM_ID,
+            ),
+        ),
+        (
+            vault,
+            token_account(mint, split_config, vault_amount, &rent),
+        ),
         (mint, mint_account(Some(authority), 6, vault_amount, &rent)),
-        (protocol_config, program_account(
-            rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
-            protocol_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                protocol_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         (executor, system_account(1_000_000)),
         token::keyed_account(),
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
@@ -537,9 +577,8 @@ fn test_execute_split_idempotent() {
 
     // Create account data - empty vault, no unclaimed
     let protocol_config_data = serialize_protocol_config(authority, fee_wallet, protocol_bump);
-    let split_config_data = serialize_split_config_simple(
-        authority, mint, vault, unique_id, split_bump, &recipients,
-    );
+    let split_config_data =
+        serialize_split_config_simple(authority, mint, vault, unique_id, split_bump, &recipients);
 
     // Build instruction
     let instruction = build_execute_split(
@@ -557,18 +596,27 @@ fn test_execute_split_idempotent() {
 
     // Setup account states
     let accounts = vec![
-        (split_config, program_account(
-            rent.minimum_balance(SPLIT_CONFIG_SIZE),
-            split_config_data,
-            PROGRAM_ID,
-        )),
-        (vault, token_account(mint, split_config, vault_amount, &rent)),
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                split_config_data,
+                PROGRAM_ID,
+            ),
+        ),
+        (
+            vault,
+            token_account(mint, split_config, vault_amount, &rent),
+        ),
         (mint, mint_account(Some(authority), 6, 0, &rent)),
-        (protocol_config, program_account(
-            rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
-            protocol_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                protocol_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         (executor, system_account(1_000_000)),
         token::keyed_account(),
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
@@ -650,18 +698,27 @@ fn test_execute_split_unclaimed_protected() {
 
     // Setup account states - ATA still missing
     let accounts = vec![
-        (split_config, program_account(
-            rent.minimum_balance(SPLIT_CONFIG_SIZE),
-            split_config_data,
-            PROGRAM_ID,
-        )),
-        (vault, token_account(mint, split_config, vault_amount, &rent)),
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                split_config_data,
+                PROGRAM_ID,
+            ),
+        ),
+        (
+            vault,
+            token_account(mint, split_config, vault_amount, &rent),
+        ),
         (mint, mint_account(Some(authority), 6, vault_amount, &rent)),
-        (protocol_config, program_account(
-            rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
-            protocol_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                protocol_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         (executor, system_account(1_000_000)),
         token::keyed_account(),
         // ATA still missing - will add to unclaimed
@@ -705,9 +762,8 @@ fn test_execute_split_protocol_unclaimed() {
 
     // Create account data
     let protocol_config_data = serialize_protocol_config(authority, fee_wallet, protocol_bump);
-    let split_config_data = serialize_split_config_simple(
-        authority, mint, vault, unique_id, split_bump, &recipients,
-    );
+    let split_config_data =
+        serialize_split_config_simple(authority, mint, vault, unique_id, split_bump, &recipients);
 
     // Build instruction
     let instruction = build_execute_split(
@@ -724,18 +780,27 @@ fn test_execute_split_protocol_unclaimed() {
 
     // Setup account states - protocol ATA missing
     let accounts = vec![
-        (split_config, program_account(
-            rent.minimum_balance(SPLIT_CONFIG_SIZE),
-            split_config_data,
-            PROGRAM_ID,
-        )),
-        (vault, token_account(mint, split_config, vault_amount, &rent)),
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                split_config_data,
+                PROGRAM_ID,
+            ),
+        ),
+        (
+            vault,
+            token_account(mint, split_config, vault_amount, &rent),
+        ),
         (mint, mint_account(Some(authority), 6, vault_amount, &rent)),
-        (protocol_config, program_account(
-            rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
-            protocol_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                protocol_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         (executor, system_account(1_000_000)),
         token::keyed_account(),
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
@@ -783,13 +848,18 @@ fn test_execute_split_invalid_vault_address_fails() {
     // Create account data - stores correct_vault as the expected vault
     let protocol_config_data = serialize_protocol_config(authority, fee_wallet, protocol_bump);
     let split_config_data = serialize_split_config_simple(
-        authority, mint, correct_vault, unique_id, split_bump, &recipients,
+        authority,
+        mint,
+        correct_vault,
+        unique_id,
+        split_bump,
+        &recipients,
     );
 
     // Build instruction with WRONG vault address
     let instruction = build_execute_split(
         split_config,
-        wrong_vault,  // Wrong vault address!
+        wrong_vault, // Wrong vault address!
         mint,
         protocol_config,
         executor,
@@ -801,19 +871,28 @@ fn test_execute_split_invalid_vault_address_fails() {
 
     // Setup account states
     let accounts = vec![
-        (split_config, program_account(
-            rent.minimum_balance(SPLIT_CONFIG_SIZE),
-            split_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                split_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         // Wrong vault address with valid token account data
-        (wrong_vault, token_account(mint, split_config, vault_amount, &rent)),
+        (
+            wrong_vault,
+            token_account(mint, split_config, vault_amount, &rent),
+        ),
         (mint, mint_account(Some(authority), 6, vault_amount, &rent)),
-        (protocol_config, program_account(
-            rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
-            protocol_config_data,
-            PROGRAM_ID,
-        )),
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                protocol_config_data,
+                PROGRAM_ID,
+            ),
+        ),
         (executor, system_account(1_000_000)),
         token::keyed_account(),
         (recipient1_ata, token_account(mint, recipient1, 0, &rent)),
@@ -821,9 +900,9 @@ fn test_execute_split_invalid_vault_address_fails() {
     ];
 
     // Should fail with InvalidVault because vault.key() != split_config.vault
-    let checks = vec![
-        Check::err(ProgramError::Custom(error_code(ErrorCode::InvalidVault))),
-    ];
+    let checks = vec![Check::err(ProgramError::Custom(error_code(
+        ErrorCode::InvalidVault,
+    )))];
 
     mollusk.process_and_validate_instruction(&instruction, &accounts, &checks);
 }
@@ -851,18 +930,24 @@ fn test_execute_split_many_recipients() {
     let mut recipients = Vec::new();
     let mut recipient_atas = Vec::new();
     let mut account_entries = vec![
-        (split_config, program_account(
-            rent.minimum_balance(SPLIT_CONFIG_SIZE),
-            vec![], // Will be set below
-            PROGRAM_ID,
-        )),
+        (
+            split_config,
+            program_account(
+                rent.minimum_balance(SPLIT_CONFIG_SIZE),
+                vec![], // Will be set below
+                PROGRAM_ID,
+            ),
+        ),
         (vault, token_account(mint, split_config, 1_000_000, &rent)),
         (mint, mint_account(Some(authority), 6, 1_000_000, &rent)),
-        (protocol_config, program_account(
-            rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
-            serialize_protocol_config(authority, fee_wallet, protocol_bump),
-            PROGRAM_ID,
-        )),
+        (
+            protocol_config,
+            program_account(
+                rent.minimum_balance(PROTOCOL_CONFIG_SIZE),
+                serialize_protocol_config(authority, fee_wallet, protocol_bump),
+                PROGRAM_ID,
+            ),
+        ),
         (executor, system_account(1_000_000)),
         token::keyed_account(),
     ];
@@ -882,9 +967,8 @@ fn test_execute_split_many_recipients() {
     account_entries.push((protocol_ata, token_account(mint, fee_wallet, 0, &rent)));
 
     // Update split_config data
-    let split_config_data = serialize_split_config_simple(
-        authority, mint, vault, unique_id, split_bump, &recipients,
-    );
+    let split_config_data =
+        serialize_split_config_simple(authority, mint, vault, unique_id, split_bump, &recipients);
     account_entries[0].1 = program_account(
         rent.minimum_balance(SPLIT_CONFIG_SIZE),
         split_config_data,

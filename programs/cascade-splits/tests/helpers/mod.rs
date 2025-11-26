@@ -12,7 +12,6 @@ pub mod serialization;
 
 pub use errors::*;
 
-
 use mollusk_svm::Mollusk;
 use mollusk_svm_programs_token::{associated_token, token};
 

@@ -9,12 +9,12 @@ use {
         accounts::{
             program_data_account, system_account, system_program_account, uninitialized_account,
         },
-        error_code, ErrorCode,
+        error_code,
         instructions::{
             build_initialize_protocol, derive_program_data, derive_protocol_config, PROGRAM_ID,
         },
         serialization::PROTOCOL_CONFIG_SIZE,
-        setup_mollusk,
+        setup_mollusk, ErrorCode,
     },
     mollusk_svm::result::Check,
     solana_sdk::{account::Account, program_error::ProgramError, pubkey::Pubkey},
@@ -31,7 +31,8 @@ fn test_initialize_protocol_success() {
     let (program_data, _) = derive_program_data();
 
     // Build instruction
-    let instruction = build_initialize_protocol(protocol_config, authority, program_data, fee_wallet);
+    let instruction =
+        build_initialize_protocol(protocol_config, authority, program_data, fee_wallet);
 
     // Setup account states
     let accounts = vec![
@@ -66,7 +67,8 @@ fn test_initialize_protocol_wrong_upgrade_authority_fails() {
     let (program_data, _) = derive_program_data();
 
     // Build instruction with authority as signer
-    let instruction = build_initialize_protocol(protocol_config, authority, program_data, fee_wallet);
+    let instruction =
+        build_initialize_protocol(protocol_config, authority, program_data, fee_wallet);
 
     // Program data has wrong_authority as upgrade authority
     let accounts = vec![
@@ -126,7 +128,8 @@ fn test_initialize_protocol_no_upgrade_authority_fails() {
     let (program_data, _) = derive_program_data();
 
     // Build instruction
-    let instruction = build_initialize_protocol(protocol_config, authority, program_data, fee_wallet);
+    let instruction =
+        build_initialize_protocol(protocol_config, authority, program_data, fee_wallet);
 
     // Create program_data with no upgrade authority (immutable program)
     let mut program_data_no_auth = vec![0u8; 45];
@@ -172,7 +175,8 @@ fn test_initialize_protocol_already_initialized_fails() {
     let existing_data = serialize_protocol_config(authority, fee_wallet, bump);
 
     // Build instruction
-    let instruction = build_initialize_protocol(protocol_config, authority, program_data, fee_wallet);
+    let instruction =
+        build_initialize_protocol(protocol_config, authority, program_data, fee_wallet);
 
     // Setup accounts - protocol_config already exists with data
     let accounts = vec![

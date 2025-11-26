@@ -1,5 +1,57 @@
 # Changelog
 
+## [0.6.0] - 2025-11-26
+
+### Changed
+- Compatible with on-chain program v0.3.0
+- `buildCloseSplit` requires `tokenProgram` account for vault closure
+
+### Fixed
+- Kit adapter: `vault` account now WRITABLE in `buildCloseSplit` (was READONLY)
+- Updated IDL to match program v0.3.0
+
+## [0.5.2] - 2025-11-25
+
+### Added
+- `address` field to `SplitWithBalance` for PDA identification
+
+## [0.5.1] - 2025-11-24
+
+### Fixed
+- Package metadata for npm publish
+
+## [0.5.0] - 2025-11-23
+
+### Added
+- React hooks for split management (`useSplits`, `useCreateSplit`, `useExecuteSplit`, `useUpdateSplit`, `useCloseSplit`)
+- `SplitsProvider` context with connection and wallet configuration
+- TanStack Query integration for data fetching and caching
+- `getAllSplitsForAuthority()` method in web3 adapter
+- Helper utilities (`toBase58`, `toUint8Array`, `formatBasisPointsAsPercent`)
+- Typed error hierarchy (`SplitsError`, `ValidationError`, `NetworkError`, `TransactionError`)
+
+### Changed
+- Expanded error types with specific error codes for React hook consumers
+
+## [0.4.0] - 2025-11-22
+
+### Added
+- `SplitsError` class hierarchy for `instanceof` error handling
+- `matchesDiscriminator()` utility for indexers
+- Comprehensive tests for PDA derivation, deserialization, and discriminators
+- Export `sharesToBasisPoints`/`basisPointsToShares` for advanced use
+
+### Changed
+- Separate Raw/User-facing types (`RawRecipient` vs `Recipient`)
+- Expanded share range to 1-100 (single recipient can have 100%)
+- Pre-validate vault state in update/close operations
+
+## [0.3.1] - 2025-11-21
+
+### Fixed
+- Verified full compatibility with `@solana/kit` v5.0.0
+- Instruction builders use correct v5 `Address` types
+
 ## [0.3.0] - 2025-11-21
 
 ### Added
@@ -24,7 +76,6 @@
 - Package structure: moved `@solana/kit` from devDependencies to dependencies
 
 ### Fixed
-- Removed placeholder implementations from all adapter methods
 - Corrected SplitConfig size to 1832 bytes (was incorrectly documented as 1792)
 - Fixed instruction builder account ordering for execute/update/close operations
 - Protocol ATA derivation now uses actual `feeWallet` from protocol config
@@ -43,13 +94,7 @@
 - Mini schemas for bundler/edge environments
 - PDA derivation utilities
 - Type definitions for all protocol accounts
-
-### Features
 - Create splits with automatic share-to-basis-points conversion
 - Read-only methods for split config and vault balance
 - Transaction building with compute budget support
 - Type-safe schemas with comprehensive validation
-
-### Notes
-- web3 and kit adapters had placeholder implementations for execute/update/close
-- Account deserialization was not fully implemented

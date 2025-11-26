@@ -20,6 +20,13 @@ import {
 } from "@solana/spl-token";
 import { describe, test, expect, beforeAll } from "vitest";
 import type { CascadeSplits } from "../target/types/cascade_splits";
+// Use SDK's IDL for consistency and early detection of IDL sync issues
+import idl from "../packages/sdk/idl.json";
+
+// Helper to create program from SDK's IDL
+function createProgram(provider: anchor.AnchorProvider): Program<CascadeSplits> {
+	return new anchor.Program(idl as anchor.Idl, provider) as Program<CascadeSplits>;
+}
 
 // =============================================================================
 // SMOKE TESTS - Essential E2E tests for real network behavior
@@ -29,7 +36,7 @@ describe("cascade-splits: basic flow", () => {
 	const provider = anchor.AnchorProvider.env();
 	anchor.setProvider(provider);
 
-	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const program = createProgram(provider);
 	const connection = provider.connection;
 	const payer = provider.wallet as anchor.Wallet;
 
@@ -201,7 +208,20 @@ describe("cascade-splits: basic flow", () => {
 		expect(config.lastActivity.gt(new anchor.BN(0))).toBe(true);
 	});
 
-	test("closes the split config", async () => {
+	test("closes the split config and recovers all rent", async () => {
+		// Get initial balances
+		const payerBalanceBefore = await connection.getBalance(payer.publicKey);
+		const splitConfigInfo = await connection.getAccountInfo(splitConfig);
+		const vaultInfo = await connection.getAccountInfo(vault);
+
+		expect(splitConfigInfo).not.toBeNull();
+		expect(vaultInfo).not.toBeNull();
+
+		const splitConfigRent = splitConfigInfo?.lamports ?? 0;
+		const vaultRent = vaultInfo?.lamports ?? 0;
+		const totalRentToRecover = splitConfigRent + vaultRent;
+
+		// Close the split config
 		await program.methods
 			.closeSplitConfig()
 			.accountsPartial({
@@ -209,12 +229,27 @@ describe("cascade-splits: basic flow", () => {
 				vault,
 				authority: payer.publicKey,
 				rentDestination: payer.publicKey,
+				tokenProgram: TOKEN_PROGRAM_ID,
 			})
 			.rpc();
 
-		// Verify account is closed
-		const accountInfo = await connection.getAccountInfo(splitConfig);
-		expect(accountInfo).toBeNull();
+		// Get balance after
+		const payerBalanceAfter = await connection.getBalance(payer.publicKey);
+
+		// Verify split config is closed
+		const splitConfigInfoAfter = await connection.getAccountInfo(splitConfig);
+		expect(splitConfigInfoAfter).toBeNull();
+
+		// Verify vault is closed
+		const vaultInfoAfter = await connection.getAccountInfo(vault);
+		expect(vaultInfoAfter).toBeNull();
+
+		// Verify payer received all rent (minus transaction fees)
+		// Transaction fee should be small (~5000 lamports), so recovered rent should be close to expected
+		const balanceDiff = payerBalanceAfter - payerBalanceBefore;
+		const minExpectedRecovery = totalRentToRecover - 10000; // Allow up to 0.00001 SOL for tx fees
+
+		expect(balanceDiff).toBeGreaterThan(minExpectedRecovery);
 	});
 });
 
@@ -222,7 +257,7 @@ describe("cascade-splits: multiple recipients", () => {
 	const provider = anchor.AnchorProvider.env();
 	anchor.setProvider(provider);
 
-	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const program = createProgram(provider);
 	const connection = provider.connection;
 	const payer = provider.wallet as anchor.Wallet;
 
@@ -346,7 +381,7 @@ describe("cascade-splits: Token-2022 support", () => {
 	const provider = anchor.AnchorProvider.env();
 	anchor.setProvider(provider);
 
-	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const program = createProgram(provider);
 	const connection = provider.connection;
 	const payer = provider.wallet as anchor.Wallet;
 
@@ -503,7 +538,7 @@ describe("cascade-splits: permissionless execution", () => {
 	const provider = anchor.AnchorProvider.env();
 	anchor.setProvider(provider);
 
-	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const program = createProgram(provider);
 	const connection = provider.connection;
 	const payer = provider.wallet as anchor.Wallet;
 
@@ -608,7 +643,7 @@ describe("cascade-splits: self-healing unclaimed flow", () => {
 	const provider = anchor.AnchorProvider.env();
 	anchor.setProvider(provider);
 
-	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const program = createProgram(provider);
 	const connection = provider.connection;
 	const payer = provider.wallet as anchor.Wallet;
 
@@ -720,7 +755,7 @@ describe("cascade-splits: update preserves vault", () => {
 	const provider = anchor.AnchorProvider.env();
 	anchor.setProvider(provider);
 
-	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const program = createProgram(provider);
 	const connection = provider.connection;
 	const payer = provider.wallet as anchor.Wallet;
 
@@ -866,7 +901,7 @@ describe("cascade-splits: multiple configs per authority", () => {
 	const provider = anchor.AnchorProvider.env();
 	anchor.setProvider(provider);
 
-	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const program = createProgram(provider);
 	const connection = provider.connection;
 	const payer = provider.wallet as anchor.Wallet;
 
@@ -947,7 +982,7 @@ describe("cascade-splits: exact distribution math", () => {
 	const provider = anchor.AnchorProvider.env();
 	anchor.setProvider(provider);
 
-	const program = anchor.workspace.CascadeSplits as Program<CascadeSplits>;
+	const program = createProgram(provider);
 	const connection = provider.connection;
 	const payer = provider.wallet as anchor.Wallet;
 

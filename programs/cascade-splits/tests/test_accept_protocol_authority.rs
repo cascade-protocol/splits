@@ -7,10 +7,10 @@ mod helpers;
 use {
     helpers::{
         accounts::{get_rent, program_account, system_account},
-        error_code, ErrorCode,
+        error_code,
         instructions::{build_accept_protocol_authority, derive_protocol_config, PROGRAM_ID},
         serialization::{serialize_protocol_config_with_pending, PROTOCOL_CONFIG_SIZE},
-        setup_mollusk,
+        setup_mollusk, ErrorCode,
     },
     mollusk_svm::result::Check,
     solana_sdk::{program_error::ProgramError, pubkey::Pubkey},
@@ -218,12 +218,8 @@ fn test_transfer_can_be_overwritten() {
     let (protocol_config, bump) = derive_protocol_config();
 
     // Create protocol config with first pending transfer
-    let protocol_config_data = serialize_protocol_config_with_pending(
-        authority,
-        first_new_authority,
-        fee_wallet,
-        bump,
-    );
+    let protocol_config_data =
+        serialize_protocol_config_with_pending(authority, first_new_authority, fee_wallet, bump);
 
     // Authority can overwrite with new pending authority
     let instruction =

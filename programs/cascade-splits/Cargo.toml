@@ -1,6 +1,6 @@
 [package]
 name = "cascade-splits"
-version = "0.2.0"
+version = "0.3.0"
 description = "Non-custodial payment splitter for Solana - distribute incoming payments to multiple recipients automatically"
 edition = "2021"
 license = "Apache-2.0"

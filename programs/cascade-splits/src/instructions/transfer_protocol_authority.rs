@@ -1,10 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{
-    errors::ErrorCode,
-    events::ProtocolAuthorityTransferProposed,
-    state::ProtocolConfig,
-};
+use crate::{errors::ErrorCode, events::ProtocolAuthorityTransferProposed, state::ProtocolConfig};
 
 #[derive(Accounts)]
 pub struct TransferProtocolAuthority<'info> {

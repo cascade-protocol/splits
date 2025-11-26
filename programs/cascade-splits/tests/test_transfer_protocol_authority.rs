@@ -7,10 +7,10 @@ mod helpers;
 use {
     helpers::{
         accounts::{get_rent, program_account, system_account},
-        error_code, ErrorCode,
+        error_code,
         instructions::{build_transfer_protocol_authority, derive_protocol_config, PROGRAM_ID},
         serialization::{serialize_protocol_config, PROTOCOL_CONFIG_SIZE},
-        setup_mollusk,
+        setup_mollusk, ErrorCode,
     },
     mollusk_svm::result::Check,
     solana_sdk::{program_error::ProgramError, pubkey::Pubkey},
@@ -31,8 +31,7 @@ fn test_transfer_protocol_authority_success() {
     let protocol_config_data = serialize_protocol_config(authority, fee_wallet, bump);
 
     // Build instruction
-    let instruction =
-        build_transfer_protocol_authority(protocol_config, authority, new_authority);
+    let instruction = build_transfer_protocol_authority(protocol_config, authority, new_authority);
 
     // Setup account states
     let accounts = vec![

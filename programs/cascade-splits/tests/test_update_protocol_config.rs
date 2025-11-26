@@ -7,10 +7,10 @@ mod helpers;
 use {
     helpers::{
         accounts::{get_rent, program_account, system_account},
-        error_code, ErrorCode,
+        error_code,
         instructions::{build_update_protocol_config, derive_protocol_config, PROGRAM_ID},
         serialization::{serialize_protocol_config, PROTOCOL_CONFIG_SIZE},
-        setup_mollusk,
+        setup_mollusk, ErrorCode,
     },
     mollusk_svm::result::Check,
     solana_sdk::{program_error::ProgramError, pubkey::Pubkey},
@@ -31,8 +31,7 @@ fn test_update_protocol_config_success() {
     let protocol_config_data = serialize_protocol_config(authority, old_fee_wallet, bump);
 
     // Build instruction
-    let instruction =
-        build_update_protocol_config(protocol_config, authority, new_fee_wallet);
+    let instruction = build_update_protocol_config(protocol_config, authority, new_fee_wallet);
 
     // Setup account states
     let accounts = vec![
@@ -106,8 +105,7 @@ fn test_update_protocol_config_zero_fee_wallet_fails() {
     let protocol_config_data = serialize_protocol_config(authority, old_fee_wallet, bump);
 
     // Build instruction with zero fee wallet
-    let instruction =
-        build_update_protocol_config(protocol_config, authority, zero_fee_wallet);
+    let instruction = build_update_protocol_config(protocol_config, authority, zero_fee_wallet);
 
     // Setup account states
     let accounts = vec![

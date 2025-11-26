@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
+    associated_token::get_associated_token_address_with_program_id,
     token,
-    token_2022,
+    token_2022::{self, spl_token_2022::state::AccountState},
     token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked},
 };
 
@@ -29,6 +30,7 @@ pub fn sum_recipient_bps(recipients: &[Recipient]) -> Option<u32> {
 
 /// Validates recipient ATA and transfers tokens
 /// Returns error if ATA is invalid; caller should check data_is_empty() first
+#[allow(clippy::too_many_arguments)]
 pub fn validate_and_send_to_recipient<'info>(
     recipient_ata_info: &'info AccountInfo<'info>,
     recipient: &Recipient,
@@ -41,6 +43,17 @@ pub fn validate_and_send_to_recipient<'info>(
 ) -> Result<()> {
     // Validate account exists and has data
     require!(!recipient_ata_info.data_is_empty(), ErrorCode::RecipientATADoesNotExist);
+
+    // Derive and validate canonical ATA address
+    let expected_ata = get_associated_token_address_with_program_id(
+        &recipient.address,
+        &mint.key(),
+        &token_program.key(),
+    );
+    require!(
+        recipient_ata_info.key() == expected_ata,
+        ErrorCode::RecipientATAInvalid
+    );
 
     // Validate account is owned by token program (SPL Token or Token-2022)
     let valid_owner = recipient_ata_info.owner == &token::ID
@@ -97,6 +110,13 @@ pub fn validate_recipient_ata<'info>(
     require!(token_account.mint == *mint, ErrorCode::RecipientATAWrongMint);
 
     Ok(())
+}
+
+/// Check if token account is frozen
+pub fn is_account_frozen(account_info: &AccountInfo) -> bool {
+    TokenAccount::try_deserialize(&mut &account_info.data.borrow()[..])
+        .map(|acc| acc.state == AccountState::Frozen)
+        .unwrap_or(false)
 }
 
 #[cfg(test)]

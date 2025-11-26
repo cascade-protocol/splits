@@ -1,6 +1,6 @@
 # Cascade Splits Specification
 
-**Version:** 1.0
+**Version:** 1.1
 **GitHub:** [cascade-protocol/splits](https://github.com/cascade-protocol/splits)
 **Target:** Solana payment infrastructure
 
@@ -74,12 +74,14 @@ Payment → Vault (PDA-owned) → execute_split() → Recipients (99%) + Protoco
 
 ### Self-Healing Unclaimed Recovery
 
-If a recipient's ATA is invalid or missing during execution:
+If a recipient's ATA is missing, invalid, or frozen during execution:
 1. Their share is recorded as "unclaimed" and stays in vault
 2. Unclaimed funds are protected from re-splitting
 3. On subsequent `execute_split` calls, the system automatically attempts to clear unclaimed
-4. Once recipient creates their ATA, their funds are delivered on the next execution
+4. Once recipient creates their ATA (or account is thawed if frozen), funds are delivered on the next execution
 5. No separate claim instruction needed - single interface for all operations
+
+**Frozen Accounts**: Token-2022 tokens using sRFC-37 DefaultAccountState::Frozen are supported. Frozen recipient accounts trigger the same unclaimed flow as missing accounts.
 
 Recipients can trigger `execute_split` themselves to retrieve unclaimed funds, even when no new payments exist. This gives recipients agency over their funds without depending on facilitators.
 
@@ -257,6 +259,8 @@ The payer and authority can be the same address (user pays own rent) or differen
 
 *Note: Requiring pre-existing ATAs protects payment facilitators from ATA creation costs (0.002 SOL × recipients). Config creators ensure their recipients are ready before setup.*
 
+*Note: Recipients can be PDAs (multisig vaults, DAO treasuries, other protocols). The controlling program must have logic to withdraw from the ATA - the protocol only transfers to the ATA, not beyond.*
+
 **Example:**
 ```typescript
 const uniqueId = Keypair.generate().publicKey;
@@ -283,12 +287,14 @@ Distributes vault balance to recipients. Self-healing: also clears any pending u
 **Required Accounts:**
 ```typescript
 remaining_accounts: [
-  recipient_1_ata,    // ATA for first recipient
-  recipient_2_ata,    // ATA for second recipient
+  recipient_1_ata,    // Canonical ATA for first recipient
+  recipient_2_ata,    // Canonical ATA for second recipient
   // ... one per recipient in config order
-  protocol_ata        // Protocol fee wallet ATA (last)
+  protocol_ata        // Protocol fee wallet canonical ATA (last)
 ]
 ```
+
+**Important**: All ATAs must be canonical Associated Token Accounts derived via `get_associated_token_address_with_program_id()`. Non-canonical token accounts are rejected to prevent UX issues where recipients don't monitor non-standard accounts.
 
 The instruction validates that `remaining_accounts.len() >= recipient_count + 1`.
 
@@ -341,18 +347,27 @@ Authority updates recipient list while preserving the vault address.
 
 ### close_split_config
 
-Closes config and reclaims rent.
+Closes config and vault, reclaiming all rent.
 
 **Authorization:** Config authority
 
 **Accounts:**
 - `authority` - Must match config authority (authorizes close)
 - `rent_destination` - Must match config `rent_payer` (receives rent refund)
+- `vault` - Vault ATA (closed via CPI to token program)
+- `token_program` - Token program owning the vault
 
 **Requirements:**
-- Vault must be empty (all splits executed successfully, no unclaimed amounts remaining)
+- Vault must be empty (balance = 0)
+- All unclaimed amounts must be zero
+- Protocol unclaimed must be zero
 
-**Rent Routing:** Rent is refunded to the original `rent_payer`, not necessarily the authority. This enables sponsored rent where a third party pays rent but the user controls the config.
+**Rent Recovery:**
+- Config account rent: ~0.015 SOL (1,832 bytes)
+- Vault ATA rent: ~0.002 SOL (165 bytes)
+- **Total recovered**: ~0.017 SOL
+
+The rent is refunded to the original `rent_payer`, not necessarily the authority. This enables sponsored rent where a third party pays rent but the user controls the config.
 
 ---
 
@@ -399,11 +414,19 @@ async function detectSplitVault(destination: PublicKey): Promise<SplitConfig | n
 | Token Type | Support | Notes |
 |------------|---------|-------|
 | SPL Token | ✅ Full | Standard tokens |
-| Token-2022 | ✅ Full | All extensions supported |
+| Token-2022 | ✅ Full | See extensions below |
 | Native SOL | ❌ No | Use wrapped SOL |
 
-**Token-2022 Transfer Fees:**
-If token has transfer fee extension, recipients receive net amounts after token's fees are deducted. This is separate from the 1% protocol fee.
+**Token-2022 Extensions:**
+- ✅ **Transfer Fees**: Recipients receive net amounts after token's fees. Transfer fee is separate from 1% protocol fee.
+- ✅ **sRFC-37 (Frozen Accounts)**: Frozen accounts automatically trigger unclaimed flow. Funds held until account is thawed. See [sRFC-37](https://forum.solana.com/t/srfc-37-efficient-block-allow-list-token-standard/4036).
+- ✅ **Transfer Hooks**: Program invokes transfer hooks per Token-2022 spec. Hook failures revert the transaction.
+- ✅ **Interest-Bearing**: Supported. Interest accrues to vault before distribution.
+- ⚠️ **Confidential Transfer**: Supported but requires proper account setup by recipients.
+
+**Note on Frozen Accounts**: Tokens using sRFC-37 DefaultAccountState::Frozen (e.g., tokens with allowlists/blocklists) are supported. If a recipient's account is frozen during execution, their share is held as unclaimed until the account is thawed by the Gate Program.
+
+**⚠️ Vault Freeze Warning**: Token issuers with freeze authority can freeze the vault account itself, not just recipient accounts. If the vault is frozen, all funds are locked and no distributions can occur. There is no protocol-level recovery mechanism. When using tokens with freeze authority (e.g., regulated stablecoins), users accept that the token issuer has ultimate control over fund movement.
 
 ---
 
@@ -452,7 +475,7 @@ pub struct SplitExecuted {
 | `ZeroAddress` | Recipient address is zero |
 | `ZeroPercentage` | Recipient percentage is zero |
 | `RecipientATADoesNotExist` | Required ATA not found |
-| `RecipientATAInvalid` | ATA validation failed |
+| `RecipientATAInvalid` | ATA is not the canonical derived address |
 | `RecipientATAWrongOwner` | ATA owner doesn't match recipient |
 | `RecipientATAWrongMint` | ATA mint doesn't match config |
 | `VaultNotEmpty` | Vault must be empty for this operation |
@@ -488,6 +511,7 @@ pub struct SplitExecuted {
 - No pause mechanism (redeploy if critical issue found)
 - Single authority per config (use Squads multisig as authority for multi-sig control)
 - Unclaimed funds never expire
+- Vault freeze risk: Token-2022 issuers with freeze authority can freeze the vault directly, locking all funds with no protocol-level recovery (see Token Support section)
 
 ---
 
@@ -512,6 +536,9 @@ pub struct SplitExecuted {
 | **Two-step authority transfer** | Prevents accidental irreversible authority transfers. Current authority proposes, new authority accepts. Can be cancelled before acceptance. |
 | **Payer separation** | Separates rent payer from authority. Enables sponsored rent (protocol/third party pays) while user retains control. Rent refunds go to original payer, not authority. |
 | **Activity timestamp tracking** | Enables future stale account cleanup without breaking changes. Updated on every execution. |
+| **Frozen account detection** | sRFC-37 tokens with DefaultAccountState::Frozen are detected before transfer attempts (~300 CU per recipient). Frozen accounts trigger unclaimed flow rather than transaction failure. Minimal overhead for compatibility with allowlist/blocklist tokens. |
+| **Vault rent recovery on close** | Close instruction closes both config and vault via CPI, recovering all rent (~0.017 SOL total). Adds ~5,000 CU to close operation but ensures no rent is left behind. |
+| **Canonical ATA enforcement** | All recipient and protocol ATAs must be canonical derived addresses. Prevents funds from being sent to non-standard accounts that recipients may not monitor. Consistent with security best practices. |
 
 ---
 
@@ -599,14 +626,26 @@ pub const PROTOCOL_CONFIG_SIZE: usize =
 ```
 
 **Compute Budget:**
-For high-throughput micropayments, set explicit CU limits to minimize priority fees:
+Current compute unit consumption (as of 2025-11-26):
+
+| Instruction | 1 recipient | 5 recipients | 20 recipients |
+|-------------|-------------|--------------|---------------|
+| execute_split | 28,505 CU | 68,573 CU | 211,703 CU |
+| create_split_config | 36,590 CU | 40,024 CU | N/A |
+| close_split_config | 10,168 CU | N/A | N/A |
+| update_split_config | N/A | 7,424 CU (to 2) | 14,032 CU (to 10) |
+
+For high-throughput micropayments, set explicit CU limits based on recipient count:
 ```typescript
+// Conservative estimate: 30,000 base + (3,500 * recipient_count)
+const computeUnits = 30_000 + (recipientCount * 3_500);
+
 transaction.add(
-  ComputeBudgetProgram.setComputeUnitLimit({
-    units: 50000  // Adjust based on recipient count
-  })
+  ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnits })
 );
 ```
+
+Latest benchmarks: [docs/benchmarks/compute_units.md](../benchmarks/compute_units.md)
 
 **Logging:**
 Production builds use minimal logging to save compute. Debug logging available via feature flag:
@@ -628,4 +667,4 @@ msg!("Debug: {}", value);
 
 ---
 
-**Last Updated:** 2025-11-25
+**Last Updated:** 2025-11-26
