@@ -192,18 +192,38 @@ The `SplitExecuted` event includes transfer status for each recipient. Integrato
 
 ### SplitFactory
 
-Global factory for deploying splits. No on-chain registry—discovery via events.
+Global factory for deploying splits. Supports versioned implementations for safe iteration during active development.
 
 ```solidity
 contract SplitFactory {
-    address public immutable implementation;
+    // Versioned implementation pattern
+    address public immutable initialImplementation;  // V1, never changes
+    address public currentImplementation;            // Latest version for new splits
+
+    // Protocol configuration
     address public feeWallet;
     address public authority;
     address public pendingAuthority;
 }
 ```
 
+**Versioned implementations:**
+- `initialImplementation`: Set at factory deployment, immutable (for historical reference)
+- `currentImplementation`: Used for new splits, can be upgraded by protocol authority
+- Existing splits are unaffected by upgrades (their implementation is baked into clone bytecode)
+- Enables safe bug fixes: deploy new implementation, new splits use it, old splits unchanged
+
 **No registry mapping:** Split addresses are deterministic via CREATE2. Discovery uses `SplitConfigCreated` events indexed by subgraphs. On-chain verification recomputes CREATE2 address from known parameters.
+
+**Implementation upgrade:**
+```solidity
+function upgradeImplementation(address newImplementation) external onlyAuthority {
+    require(newImplementation != address(0), ZeroAddress());
+    require(newImplementation.code.length > 0, InvalidImplementation());
+    currentImplementation = newImplementation;
+    emit ImplementationUpgraded(newImplementation);
+}
+```
 
 ### SplitConfig
 
@@ -261,8 +281,9 @@ Where `totalUnclaimed() = sum(_unclaimedByIndex[i] for all set bits)`.
 
 | Instruction | Description | Authorization |
 |-------------|-------------|---------------|
-| `createSplitConfig` | Deploy new split clone | Anyone |
-| `updateProtocolConfig` | Update fee wallet | Protocol authority |
+| `createSplitConfig` | Deploy new split clone (uses `currentImplementation`) | Anyone |
+| `updateProtocolConfig` | Update fee wallet (validates non-zero) | Protocol authority |
+| `upgradeImplementation` | Set new implementation for future splits | Protocol authority |
 | `transferProtocolAuthority` | Propose authority transfer | Protocol authority |
 | `acceptProtocolAuthority` | Accept authority transfer | Pending authority |
 
@@ -464,6 +485,7 @@ CREATE2 address depends on factory address. Deploy factory via deterministic dep
 | `ProtocolConfigUpdated` | Fee wallet changed |
 | `ProtocolAuthorityTransferProposed` | Authority transfer initiated |
 | `ProtocolAuthorityTransferAccepted` | Authority transfer completed |
+| `ImplementationUpgraded` | New implementation set for future splits |
 | `SplitConfigCreated` | New split deployed (includes full recipient list for indexing) |
 | `SplitExecuted` | Funds distributed (includes per-recipient status) |
 | `TransferFailed` | Individual transfer failed (recipient stored as unclaimed) |
@@ -505,10 +527,11 @@ event TransferFailed(
 | `InvalidRecipientCount` | Recipients not in 1-20 range |
 | `InvalidSplitTotal` | Percentages don't sum to 9900 bps |
 | `DuplicateRecipient` | Same address appears twice |
-| `ZeroAddress` | Recipient address is zero |
+| `ZeroAddress` | Recipient or feeWallet address is zero |
 | `ZeroPercentage` | Recipient percentage is zero |
 | `Unauthorized` | Signer not authorized |
 | `SplitAlreadyExists` | Split with same params already deployed |
+| `InvalidImplementation` | Implementation address has no code |
 | `Reentrancy` | Reentrant call detected |
 
 ---
@@ -517,20 +540,50 @@ event TransferFailed(
 
 ### Implemented Protections
 
-- ReentrancyGuard on state-changing functions (transient storage)
-- SafeERC20 for token transfers
+- ReentrancyGuard on `executeSplit` only (transient storage via EIP-1153)
+- SafeERC20 for all token transfers (handles non-standard tokens like USDT)
 - Overflow protection (Solidity 0.8+)
-- Two-step protocol authority transfer
-- Duplicate recipient validation
-- Bounded recipient count (max 20)
-- Self-healing unclaimed pattern
+- Two-step protocol authority transfer (prevents accidental transfers)
+- Duplicate recipient validation at creation
+- Bounded recipient count (max 20, bounds gas consumption)
+- Self-healing unclaimed pattern (CEI-compliant)
+- Zero-address validation on feeWallet updates
+- Implementation code-length validation on upgrades
 
 ### Not Implemented (by design)
 
-- Pausability (immutable contracts)
-- Upgrades (trust-minimized)
-- Time locks (unnecessary for this use case)
+- Pausability (split contracts are immutable, factory can stop creating new splits if needed)
+- Per-split upgrades (existing splits use fixed implementation, trust-minimized)
+- Time locks (unnecessary—no high-stakes parameter changes in splits)
 - Close/reclaim (no rent on EVM)
+- Native ETH support (ERC20 only—simplifies implementation, USDC is primary use case)
+
+### Audit Considerations
+
+**Reentrancy:**
+- Transient storage guard prevents same-tx reentrancy
+- CEI pattern followed: bitmap updated before external calls
+- Only `executeSplit` needs guard (only state-changing function with external calls)
+
+**Bitmap synchronization:**
+- Invariant: `bitmap bit set ⟺ unclaimedByIndex[i] > 0`
+- Both updated atomically within same transaction
+- Reentrancy guard prevents concurrent modifications
+
+**Unclaimed index mapping:**
+- Indices 0-19: Recipients (fixed, immutable in bytecode)
+- Index 20: Protocol fee
+- Indices never change after split creation
+
+**Token compatibility:**
+- SafeERC20 handles USDT (no return value)
+- Fee-on-transfer tokens: supported (recipients receive post-fee amounts)
+- Rebasing tokens: explicitly excluded (documented, not enforced)
+
+**CREATE2 determinism:**
+- Salt = `keccak256(authority, token, uniqueId)`
+- Same params = same address (intentional, prevents duplicates)
+- `SplitAlreadyExists` error if clone already deployed
 
 ---
 
@@ -553,9 +606,11 @@ Optimized for high-throughput micropayments where `executeSplit` is called frequ
 
 ### Clones with Immutable Args
 
-Recipients stored in clone bytecode instead of storage:
+Recipients stored in clone bytecode instead of storage. **Use Solady's `LibClone`** (not OpenZeppelin—OZ doesn't support immutable args).
 
 ```solidity
+import {LibClone} from "solady/utils/LibClone.sol";
+
 // Factory deploys clone with appended data
 bytes memory data = abi.encodePacked(
     factory,      // 20 bytes
@@ -564,16 +619,38 @@ bytes memory data = abi.encodePacked(
     uniqueId,     // 32 bytes
     recipients    // 22 bytes each (address + uint16)
 );
-address split = LibClone.cloneDeterministic(implementation, data, salt);
+address split = LibClone.cloneDeterministic(currentImplementation, data, salt);
 ```
 
-**Reading from bytecode:**
+**Reading from bytecode (in SplitConfig implementation):**
 ```solidity
-// CODECOPY: ~3 gas per word vs SLOAD: 2,100 gas (cold)
-function _getRecipients() internal pure returns (Recipient[] memory) {
-    return _getArgRecipients(92);  // Offset after fixed fields
+import {Clone} from "solady/utils/Clone.sol";
+
+contract SplitConfigImpl is Clone {
+    // CODECOPY: ~3 gas per word vs SLOAD: 2,100 gas (cold)
+    function factory() public pure returns (address) {
+        return _getArgAddress(0);
+    }
+
+    function authority() public pure returns (address) {
+        return _getArgAddress(20);
+    }
+
+    function token() public pure returns (address) {
+        return _getArgAddress(40);
+    }
+
+    function uniqueId() public pure returns (bytes32) {
+        return _getArgBytes32(60);
+    }
 }
 ```
+
+**Why Solady over OpenZeppelin:**
+- Native `cloneDeterministicWithImmutableArgs` support
+- Highly gas-optimized (hand-tuned assembly)
+- Battle-tested, maintained by Vectorized
+- OpenZeppelin's `Clones.sol` lacks immutable args support
 
 ### Compiler Requirements
 
@@ -681,22 +758,59 @@ const isSplit = await sdk.detectSplitConfig(address);
 
 ## Deployment
 
+### Deterministic Multi-Chain Deployment
+
+Factory deployed to **same address on all chains** using CREATE2 via deterministic deployer.
+
+```solidity
+// 0age's Deterministic Deployment Proxy (same address on all EVM chains)
+address constant DETERMINISTIC_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
+```
+
+**Deployment script:**
+```solidity
+// script/Deploy.s.sol
+import {Script} from "forge-std/Script.sol";
+import {SplitFactory} from "../src/SplitFactory.sol";
+import {SplitConfigImpl} from "../src/SplitConfigImpl.sol";
+
+contract Deploy is Script {
+    bytes32 constant SALT = keccak256("cascade-splits-v1");
+
+    function run() external {
+        vm.startBroadcast();
+
+        // Deploy implementation first
+        SplitConfigImpl impl = new SplitConfigImpl{salt: SALT}();
+
+        // Deploy factory with deterministic address
+        SplitFactory factory = new SplitFactory{salt: SALT}(
+            address(impl),  // initialImplementation
+            feeWallet
+        );
+
+        vm.stopBroadcast();
+    }
+}
+```
+
+```bash
+# Deploy to multiple chains (same address each time)
+forge script script/Deploy.s.sol --rpc-url base --broadcast --verify
+forge script script/Deploy.s.sol --rpc-url arbitrum --broadcast --verify
+forge script script/Deploy.s.sol --rpc-url optimism --broadcast --verify
+```
+
 ### Contract Addresses
 
 | Network | Contract | Address |
 |---------|----------|---------|
 | Base Mainnet | SplitFactory | TBD |
+| Base Mainnet | SplitConfigImpl | TBD |
 | Base Sepolia | SplitFactory | TBD |
+| Base Sepolia | SplitConfigImpl | TBD |
 
-### Deployment Steps
-
-```bash
-# 1. Deploy factory (sets deployer as protocol authority)
-forge create SplitFactory --constructor-args $FEE_WALLET
-
-# 2. Verify
-forge verify-contract $FACTORY_ADDRESS SplitFactory
-```
+**Note:** Same salt + same bytecode = same address across all EVM chains (except zkSync Era which uses different CREATE2 formula).
 
 ---
 
@@ -706,14 +820,17 @@ forge verify-contract $FACTORY_ADDRESS SplitFactory
 |----------|-----------|
 | **Hardcoded 1% fee** | Transparency. Anyone can verify on-chain. Avoids calculation complexity. |
 | **Immutable splits** | Trustless verification—payers can verify recipients on-chain. Authority cannot rug by changing recipients post-payment. Deploy new split to change. |
-| **Immutable args in bytecode** | 88% gas savings vs storage. Recipients encoded in clone bytecode via `clones-with-immutable-args`. |
+| **Immutable args in bytecode** | 88% gas savings vs storage. Recipients encoded in clone bytecode via Solady's `LibClone`. |
+| **Versioned implementations** | Safe iteration during development. New splits use latest impl, existing splits unchanged. |
 | **No factory registry** | Events + CREATE2 sufficient. Saves 22k gas per creation. Indexers use events anyway. |
 | **Lazy unclaimed bitmap** | Only write storage on failure. Happy path: 1 SLOAD. 11% execution savings. |
+| **Solady over OpenZeppelin** | Native immutable args support, superior gas optimization. OZ Clones lacks this feature. |
 | **`token` not `mint`** | "Mint" means creating tokens in EVM. Avoid confusion. |
 | **No close instruction** | EVM has no rent. Contracts persist forever. No reclaim needed. |
 | **Self-healing over claim** | Single idempotent interface. Recipients auto-receive on retry. |
 | **Clone pattern** | ~83k gas deploy with immutable args. Critical for high-throughput. |
 | **Two-step protocol authority** | Higher stakes. Prevent accidental irreversible transfers. |
+| **ERC20 only, no native ETH** | Simplifies implementation. USDC is primary use case for x402. |
 
 ---
 
@@ -730,13 +847,23 @@ uint8 public constant MAX_RECIPIENTS = 20;
 
 ## Resources
 
-- [Solana Specification](./specification.md)
+### Core Dependencies
+- [Solady LibClone](https://github.com/Vectorized/solady/blob/main/src/utils/LibClone.sol) - Clones with immutable args
+- [Solady Clone](https://github.com/Vectorized/solady/blob/main/src/utils/Clone.sol) - Base contract for reading immutable args
+- [OpenZeppelin SafeERC20](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/utils/SafeERC20.sol)
+
+### Standards
 - [EIP-1167: Minimal Proxy Contract](https://eips.ethereum.org/EIPS/eip-1167)
 - [EIP-1153: Transient Storage](https://eips.ethereum.org/EIPS/eip-1153)
-- [clones-with-immutable-args (Solady)](https://github.com/Vectorized/solady/blob/main/src/utils/LibClone.sol)
+
+### Related Projects
+- [Solana Specification](./specification.md)
 - [x402 Protocol](https://github.com/coinbase/x402)
-- [Base Documentation](https://docs.base.org/)
 - [0xSplits V2 Architecture](https://docs.splits.org/core/split-v2)
+- [Base Documentation](https://docs.base.org/)
+
+### Deployment
+- [Deterministic Deployment Proxy](https://github.com/Arachnid/deterministic-deployment-proxy)
 
 ---
 
