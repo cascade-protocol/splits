@@ -239,12 +239,12 @@ Per-split configuration deployed as EIP-1167 clone with immutable args.
 
 ```solidity
 contract SplitConfig {
-    // === IMMUTABLE (encoded in clone bytecode via clones-with-immutable-args) ===
-    // address public factory;      // Read via _getArgAddress(0)
-    // address public authority;    // Read via _getArgAddress(20)
-    // address public token;        // Read via _getArgAddress(40)
-    // bytes32 public uniqueId;     // Read via _getArgBytes32(60)
-    // Recipient[] recipients;      // Read via _getArgRecipients(92)
+    // === IMMUTABLE (encoded in clone bytecode, read via EXTCODECOPY) ===
+    // address public factory;      // Read via extcodecopy at offset 0x2d + 0
+    // address public authority;    // Read via extcodecopy at offset 0x2d + 20
+    // address public token;        // Read via extcodecopy at offset 0x2d + 40
+    // bytes32 public uniqueId;     // Read via extcodecopy at offset 0x2d + 60
+    // Recipient[] recipients;      // Read via extcodecopy at offset 0x2d + 92
 
     // === STORAGE (only for unclaimed tracking) ===
     uint256 private _unclaimedBitmap;              // Bits 0-19: recipients, bit 20: protocol
@@ -259,17 +259,17 @@ struct Recipient {
 
 **Immutable args byte layout:**
 
-| Offset | Size | Field | Accessor |
-|--------|------|-------|----------|
-| 0 | 20 | factory | `_getArgAddress(0)` |
-| 20 | 20 | authority | `_getArgAddress(20)` |
-| 40 | 20 | token | `_getArgAddress(40)` |
-| 60 | 32 | uniqueId | `_getArgBytes32(60)` |
-| 92 | 22×N | recipients[N] | `_getArgRecipient(92 + i*22)` |
+| Offset | Size | Field | Clone Bytecode Offset |
+|--------|------|-------|----------------------|
+| 0 | 20 | factory | `0x2d + 0` |
+| 20 | 20 | authority | `0x2d + 20` |
+| 40 | 20 | token | `0x2d + 40` |
+| 60 | 32 | uniqueId | `0x2d + 60` |
+| 92 | 22×N | recipients[N] | `0x2d + 92 + i*22` |
 
-Each recipient is packed as `address (20 bytes) + uint16 percentageBps (2 bytes) = 22 bytes`. Total clone data size: `92 + 22×N` bytes where N is recipient count (1-20).
+Each recipient is packed as `address (20 bytes) + uint16 percentageBps (2 bytes) = 22 bytes`. Total clone data size: `92 + 22×N` bytes where N is recipient count (1-20). The `0x2d` (45 bytes) prefix is the EIP-1167 proxy bytecode that precedes the immutable args.
 
-**Immutable args pattern:** Recipients and configuration are encoded in the clone's bytecode, not storage. Reading from bytecode (~3 gas/word via CODECOPY) is 700x cheaper than storage (~2,100 gas cold SLOAD). Trade-off: splits are immutable—deploy new split to change recipients.
+**Immutable args pattern:** Recipients and configuration are encoded in the clone's bytecode, not storage. Reading from bytecode via EXTCODECOPY (~100 gas base + ~3 gas/word) is significantly cheaper than storage (~2,100 gas cold SLOAD per slot). Trade-off: splits are immutable—deploy new split to change recipients.
 
 **Lazy unclaimed tracking:**
 - `_unclaimedBitmap`: Single slot, bits indicate which indices have unclaimed
@@ -776,41 +776,70 @@ bytes memory data = abi.encodePacked(
 address split = LibClone.cloneDeterministic(currentImplementation, data, salt);
 ```
 
-**Reading from bytecode (in SplitConfig implementation):**
+**Reading immutable args from bytecode (in SplitConfig implementation):**
+
+Solady's `LibClone` stores immutable args in the clone's bytecode after the proxy code (offset 0x2d = 45 bytes). **Important:** Unlike wighawag's original CWIA pattern, Solady does NOT append args to calldata during delegatecall—they remain in bytecode only.
+
 ```solidity
-// Option 1: Use wighawag's clones-with-immutable-args (original pattern)
-import {Clone} from "clones-with-immutable-args/Clone.sol";
+import {LibClone} from "solady/utils/LibClone.sol";
 
-// Option 2: Use Solady's legacy CWIA
-import {CWIA} from "solady/utils/legacy/CWIA.sol";
+contract SplitConfigImpl {
+    // Byte offsets in clone bytecode (after 0x2d proxy bytes)
+    uint256 private constant _FACTORY_OFFSET = 0;
+    uint256 private constant _AUTHORITY_OFFSET = 20;
+    uint256 private constant _TOKEN_OFFSET = 40;
+    uint256 private constant _UNIQUE_ID_OFFSET = 60;
+    uint256 private constant _RECIPIENTS_OFFSET = 92;
 
-// Both provide identical _getArg* helpers
-contract SplitConfigImpl is Clone {  // or CWIA
-    // CODECOPY: ~3 gas per word vs SLOAD: 2,100 gas (cold)
-    function factory() public pure returns (address) {
-        return _getArgAddress(0);
+    // Gas-efficient: inline assembly reads directly from clone bytecode
+    // EXTCODECOPY: ~3 gas per word vs SLOAD: 2,100 gas (cold)
+    function factory() public view returns (address result) {
+        assembly {
+            extcodecopy(address(), 0x00, 0x2d, 0x20)  // 0x2d = proxy code size
+            result := shr(96, mload(0x00))            // Right-align address
+        }
     }
 
-    function authority() public pure returns (address) {
-        return _getArgAddress(20);
+    function authority() public view returns (address result) {
+        assembly {
+            extcodecopy(address(), 0x00, add(0x2d, 20), 0x20)
+            result := shr(96, mload(0x00))
+        }
     }
 
-    function token() public pure returns (address) {
-        return _getArgAddress(40);
+    function token() public view returns (address result) {
+        assembly {
+            extcodecopy(address(), 0x00, add(0x2d, 40), 0x20)
+            result := shr(96, mload(0x00))
+        }
     }
 
-    function uniqueId() public pure returns (bytes32) {
-        return _getArgBytes32(60);
+    function uniqueId() public view returns (bytes32 result) {
+        assembly {
+            extcodecopy(address(), 0x00, add(0x2d, 60), 0x20)
+            result := mload(0x00)
+        }
     }
 
     // Reading packed recipients (22 bytes each: address + uint16)
-    function _getRecipient(uint256 index) internal pure returns (address addr, uint16 bps) {
-        uint256 offset = 92 + (index * 22);  // After fixed fields
-        addr = _getArgAddress(offset);
-        bps = _getArgUint16(offset + 20);
+    function _getRecipient(uint256 index) internal view returns (address addr, uint16 bps) {
+        uint256 offset = 0x2d + 92 + (index * 22);  // After proxy + fixed fields
+        assembly {
+            extcodecopy(address(), 0x00, offset, 0x20)
+            addr := shr(96, mload(0x00))
+            extcodecopy(address(), 0x00, add(offset, 20), 0x20)
+            bps := shr(240, mload(0x00))
+        }
+    }
+
+    // Alternative: Use LibClone helper (allocates memory, less gas-efficient)
+    function _getAllArgs() internal view returns (bytes memory) {
+        return LibClone.argsOnClone(address(this));
     }
 }
 ```
+
+**Note:** `address(this)` inside the implementation refers to the clone proxy (where args are stored), not the implementation contract. This is because the clone delegates calls to the implementation while maintaining its own address context.
 
 **Why Solady over OpenZeppelin:**
 - Native `cloneDeterministicWithImmutableArgs` support
@@ -1015,10 +1044,10 @@ uint256 public constant PROTOCOL_INDEX = 20;          // Bitmap index for protoc
 ## Resources
 
 ### Core Dependencies
-- [Solady LibClone](https://github.com/Vectorized/solady/blob/main/src/utils/LibClone.sol) - Factory: clones with immutable args
-- [Solady CWIA](https://github.com/Vectorized/solady/blob/main/src/utils/legacy/CWIA.sol) - Implementation: reading immutable args
-- [clones-with-immutable-args](https://github.com/wighawag/clones-with-immutable-args) - Alternative: original CWIA pattern by wighawag
+- [Solady LibClone](https://github.com/Vectorized/solady/blob/main/src/utils/LibClone.sol) - Clones with immutable args (factory + reading)
 - [OpenZeppelin SafeERC20](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/utils/SafeERC20.sol)
+
+**Note on CWIA patterns:** Solady's `LibClone` stores args in bytecode but does NOT append them to calldata during delegatecall. Reading uses `LibClone.argsOnClone()` or inline EXTCODECOPY. This differs from wighawag's original `clones-with-immutable-args` which appends to calldata—do not mix these patterns.
 
 ### Standards
 - [EIP-1167: Minimal Proxy Contract](https://eips.ethereum.org/EIPS/eip-1167)
