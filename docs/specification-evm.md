@@ -691,6 +691,13 @@ The protocol fee wallet (index 20) uses the same self-healing pattern as recipie
 
 This ensures protocol fees are never lost—they remain in the split contract until successfully delivered. The fee wallet address is read from the factory on each execution, not stored in the split, so updating the factory's fee wallet allows recovery of stuck protocol fees.
 
+**Factory call pattern for feeWallet:**
+```solidity
+// In SplitConfigImpl.executeSplit()
+address feeWallet = ISplitFactory(factory()).feeWallet();
+// factory() reads from immutable args via _getArgAddress(0)
+```
+
 **Token compatibility:**
 - Fee-on-transfer tokens: supported (recipients receive post-fee amounts)
 - Rebasing tokens: explicitly excluded (documented, not enforced)
@@ -771,9 +778,14 @@ address split = LibClone.cloneDeterministic(currentImplementation, data, salt);
 
 **Reading from bytecode (in SplitConfig implementation):**
 ```solidity
-import {Clone} from "solady/utils/Clone.sol";
+// Option 1: Use wighawag's clones-with-immutable-args (original pattern)
+import {Clone} from "clones-with-immutable-args/Clone.sol";
 
-contract SplitConfigImpl is Clone {
+// Option 2: Use Solady's legacy CWIA
+import {CWIA} from "solady/utils/legacy/CWIA.sol";
+
+// Both provide identical _getArg* helpers
+contract SplitConfigImpl is Clone {  // or CWIA
     // CODECOPY: ~3 gas per word vs SLOAD: 2,100 gas (cold)
     function factory() public pure returns (address) {
         return _getArgAddress(0);
@@ -789,6 +801,13 @@ contract SplitConfigImpl is Clone {
 
     function uniqueId() public pure returns (bytes32) {
         return _getArgBytes32(60);
+    }
+
+    // Reading packed recipients (22 bytes each: address + uint16)
+    function _getRecipient(uint256 index) internal pure returns (address addr, uint16 bps) {
+        uint256 offset = 92 + (index * 22);  // After fixed fields
+        addr = _getArgAddress(offset);
+        bps = _getArgUint16(offset + 20);
     }
 }
 ```
@@ -996,8 +1015,9 @@ uint256 public constant PROTOCOL_INDEX = 20;          // Bitmap index for protoc
 ## Resources
 
 ### Core Dependencies
-- [Solady LibClone](https://github.com/Vectorized/solady/blob/main/src/utils/LibClone.sol) - Clones with immutable args
-- [Solady Clone](https://github.com/Vectorized/solady/blob/main/src/utils/Clone.sol) - Base contract for reading immutable args
+- [Solady LibClone](https://github.com/Vectorized/solady/blob/main/src/utils/LibClone.sol) - Factory: clones with immutable args
+- [Solady CWIA](https://github.com/Vectorized/solady/blob/main/src/utils/legacy/CWIA.sol) - Implementation: reading immutable args
+- [clones-with-immutable-args](https://github.com/wighawag/clones-with-immutable-args) - Alternative: original CWIA pattern by wighawag
 - [OpenZeppelin SafeERC20](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/utils/SafeERC20.sol)
 
 ### Standards
