@@ -249,6 +249,18 @@ struct Recipient {
 }
 ```
 
+**Immutable args byte layout:**
+
+| Offset | Size | Field | Accessor |
+|--------|------|-------|----------|
+| 0 | 20 | factory | `_getArgAddress(0)` |
+| 20 | 20 | authority | `_getArgAddress(20)` |
+| 40 | 20 | token | `_getArgAddress(40)` |
+| 60 | 32 | uniqueId | `_getArgBytes32(60)` |
+| 92 | 22×N | recipients[N] | `_getArgRecipient(92 + i*22)` |
+
+Each recipient is packed as `address (20 bytes) + uint16 percentageBps (2 bytes) = 22 bytes`. Total clone data size: `92 + 22×N` bytes where N is recipient count (1-20).
+
 **Immutable args pattern:** Recipients and configuration are encoded in the clone's bytecode, not storage. Reading from bytecode (~3 gas/word via CODECOPY) is 700x cheaper than storage (~2,100 gas cold SLOAD). Trade-off: splits are immutable—deploy new split to change recipients.
 
 **Lazy unclaimed tracking:**
@@ -306,6 +318,30 @@ Where `totalUnclaimed() = sum(_unclaimedByIndex[i] for all set bits)`.
 | `previewExecution()` | `(uint256[], uint256, uint256)` | Preview distribution (recipient amounts, protocol fee, available) |
 | `getBalance()` | `uint256` | Total token balance held |
 | `isCascadeSplitConfig()` | `bool` | Always returns true (for detection) |
+
+### executeSplit Algorithm
+
+```
+1. Load _unclaimedBitmap (1 SLOAD)
+2. If bitmap != 0:
+   - For each set bit i in bitmap:
+     - Attempt transfer of _unclaimedByIndex[i] to recipient[i] (or feeWallet if i == 20)
+     - If success: clear bit and mapping
+     - If fail: keep as unclaimed
+3. Calculate available = token.balanceOf(this) - totalUnclaimed()
+4. If available > 0:
+   a. For each recipient i:
+      - amount[i] = available * percentageBps[i] / 10000
+      - Attempt transfer, record as unclaimed on failure
+   b. protocolFee = available - sum(amount[i])  // Includes 1% + dust
+      - Attempt transfer to feeWallet, record as unclaimed on failure
+5. Emit SplitExecuted(totalDistributed, protocolFee, unclaimedCleared, newUnclaimed)
+```
+
+**Key behaviors:**
+- Step 2 runs before step 4: unclaimed retries happen first
+- Step 4b uses subtraction, not multiplication: protocol gets exact remainder including dust
+- All transfers use self-healing wrapper: failures don't revert, they record as unclaimed
 
 ---
 
@@ -541,7 +577,7 @@ event TransferFailed(
 ### Implemented Protections
 
 - ReentrancyGuard on `executeSplit` only (transient storage via EIP-1153)
-- SafeERC20 for all token transfers (handles non-standard tokens like USDT)
+- Self-healing transfer wrapper (catches failures, records as unclaimed—see Audit Considerations)
 - Overflow protection (Solidity 0.8+)
 - Two-step protocol authority transfer (prevents accidental transfers)
 - Duplicate recipient validation at creation
@@ -575,10 +611,51 @@ event TransferFailed(
 - Index 20: Protocol fee
 - Indices never change after split creation
 
+**Protocol fee unclaimed handling:**
+
+The protocol fee wallet (index 20) uses the same self-healing pattern as recipients. If the fee wallet transfer fails (e.g., fee wallet is blocklisted):
+1. Fee amount is stored in `_unclaimedByIndex[20]`
+2. Bit 20 is set in `_unclaimedBitmap`
+3. Next `executeSplit()` retries the transfer to current `feeWallet` from factory
+4. If `feeWallet` was updated via `updateProtocolConfig`, retry succeeds to new address
+
+This ensures protocol fees are never lost—they remain in the split contract until successfully delivered. The fee wallet address is read from the factory on each execution, not stored in the split, so updating the factory's fee wallet allows recovery of stuck protocol fees.
+
 **Token compatibility:**
-- SafeERC20 handles USDT (no return value)
 - Fee-on-transfer tokens: supported (recipients receive post-fee amounts)
 - Rebasing tokens: explicitly excluded (documented, not enforced)
+
+**Self-healing transfer wrapper:**
+
+Standard `SafeERC20.safeTransfer` reverts on failure, which would break the self-healing pattern. Instead, use a low-level call that catches failures:
+
+```solidity
+function _safeTransferWithFallback(
+    IERC20 token,
+    address to,
+    uint256 amount,
+    uint256 index
+) private returns (bool success) {
+    (bool ok, bytes memory data) = address(token).call(
+        abi.encodeCall(IERC20.transfer, (to, amount))
+    );
+
+    success = ok && (data.length == 0 || abi.decode(data, (bool)));
+
+    if (!success) {
+        // Record as unclaimed for retry on next execution
+        _unclaimedByIndex[index] += amount;
+        _unclaimedBitmap |= (1 << index);
+        emit TransferFailed(to, amount, index == PROTOCOL_INDEX);
+    }
+}
+```
+
+This pattern:
+- Handles USDT (no return value) via `data.length == 0` check
+- Catches reverts (blocklisted addresses, paused tokens)
+- Records failures in unclaimed state instead of reverting entire execution
+- Allows other recipients to receive funds even when one transfer fails
 
 **CREATE2 determinism:**
 - Salt = `keccak256(authority, token, uniqueId)`
