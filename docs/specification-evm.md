@@ -204,6 +204,14 @@ contract SplitFactory {
     address public feeWallet;
     address public authority;
     address public pendingAuthority;
+
+    constructor(address initialImplementation_, address feeWallet_) {
+        initialImplementation = initialImplementation_;
+        currentImplementation = initialImplementation_;
+        feeWallet = feeWallet_;
+        authority = msg.sender;  // Deployer becomes initial authority
+        emit ProtocolConfigCreated(msg.sender, feeWallet_);
+    }
 }
 ```
 
@@ -298,6 +306,47 @@ Where `totalUnclaimed() = sum(_unclaimedByIndex[i] for all set bits)`.
 | `upgradeImplementation` | Set new implementation for future splits | Protocol authority |
 | `transferProtocolAuthority` | Propose authority transfer | Protocol authority |
 | `acceptProtocolAuthority` | Accept authority transfer | Pending authority |
+
+#### createSplitConfig
+
+```solidity
+function createSplitConfig(
+    address authority,
+    address token,
+    bytes32 uniqueId,
+    Recipient[] calldata recipients
+) external returns (address split);
+```
+
+**Parameters:**
+- `authority`: Address that owns the split (can be any address, not just caller—enables sponsored creation)
+- `token`: ERC20 token address (e.g., USDC)
+- `uniqueId`: Unique identifier (enables multiple splits per authority/token pair)
+- `recipients`: Array of recipients with percentage allocations (must sum to 9900 bps)
+
+**Returns:** Deployed split clone address
+
+**Validation:**
+- 1-20 recipients
+- Total exactly 9900 bps (99%)
+- No duplicate recipients
+- No zero addresses
+- No zero percentages
+- Split with same params must not already exist
+
+**Implementation note—CREATE2 collision check:**
+
+CREATE2 returns the existing address if a contract is already deployed there (doesn't revert). Must explicitly check before deployment:
+
+```solidity
+bytes32 salt = keccak256(abi.encode(authority, token, uniqueId));
+bytes memory data = abi.encodePacked(address(this), authority, token, uniqueId, _packRecipients(recipients));
+address predicted = LibClone.predictDeterministicAddress(currentImplementation, data, salt, address(this));
+
+require(predicted.code.length == 0, SplitAlreadyExists());
+
+split = LibClone.cloneDeterministic(currentImplementation, data, salt);
+```
 
 ### Split Instructions
 
@@ -484,14 +533,20 @@ Circle/Tether can freeze addresses. Self-healing handles gracefully, but funds m
 
 ### Deterministic Address Derivation
 
-Split addresses are deterministic via CREATE2:
+Split addresses are deterministic via CREATE2. The address depends on **both** the salt AND the immutable data (which includes recipients):
 
 ```solidity
-salt = keccak256(abi.encode(authority, token, uniqueId))
-address = predictDeterministicAddress(implementation, salt, factory)
+// Salt ensures uniqueness per (authority, token, uniqueId) tuple
+bytes32 salt = keccak256(abi.encode(authority, token, uniqueId));
+
+// Immutable data is encoded in the clone bytecode
+bytes memory data = abi.encodePacked(factory, authority, token, uniqueId, recipients);
+
+// Address depends on implementation, data, salt, AND factory
+address = LibClone.predictDeterministicAddress(implementation, data, salt, factory);
 ```
 
-Integrators can compute addresses off-chain before deployment.
+**Important:** Changing any parameter (including recipients) produces a different address. To compute the address off-chain, you need all parameters including the full recipient list.
 
 ### L2 Compatibility
 
@@ -525,6 +580,20 @@ CREATE2 address depends on factory address. Deploy factory via deterministic dep
 | `SplitConfigCreated` | New split deployed (includes full recipient list for indexing) |
 | `SplitExecuted` | Funds distributed (includes per-recipient status) |
 | `TransferFailed` | Individual transfer failed (recipient stored as unclaimed) |
+
+### SplitConfigCreated Details
+
+```solidity
+event SplitConfigCreated(
+    address indexed split,
+    address indexed authority,
+    address indexed token,
+    bytes32 uniqueId,
+    Recipient[] recipients
+);
+```
+
+Emitted by factory when a new split is deployed. Recipients array enables indexers to capture full configuration without additional queries.
 
 ### SplitExecuted Details
 
@@ -566,6 +635,7 @@ event TransferFailed(
 | `ZeroAddress` | Recipient or feeWallet address is zero |
 | `ZeroPercentage` | Recipient percentage is zero |
 | `Unauthorized` | Signer not authorized |
+| `NoPendingTransfer` | No pending authority transfer to accept |
 | `SplitAlreadyExists` | Split with same params already deployed |
 | `InvalidImplementation` | Implementation address has no code |
 | `Reentrancy` | Reentrant call detected |
@@ -918,6 +988,7 @@ uint16 public constant PROTOCOL_FEE_BPS = 100;        // 1%
 uint16 public constant REQUIRED_SPLIT_TOTAL = 9900;   // 99%
 uint8 public constant MIN_RECIPIENTS = 1;
 uint8 public constant MAX_RECIPIENTS = 20;
+uint256 public constant PROTOCOL_INDEX = 20;          // Bitmap index for protocol fee
 ```
 
 ---
