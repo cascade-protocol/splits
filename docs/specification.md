@@ -3,6 +3,7 @@
 **Version:** 1.1
 **GitHub:** [cascade-protocol/splits](https://github.com/cascade-protocol/splits)
 **Target:** Solana payment infrastructure
+**Terminology:** [Glossary](./glossary.md)
 
 ---
 
@@ -667,4 +668,4 @@ msg!("Debug: {}", value);
 
 ---
 
-**Last Updated:** 2025-11-26
+**Last Updated:** 2025-11-29
