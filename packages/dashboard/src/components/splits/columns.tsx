@@ -139,8 +139,9 @@ export function createColumns(
 			},
 		},
 		{
-			accessorKey: "recipientCount",
+			id: "recipients",
 			header: "Recipients",
+			accessorFn: (row) => row.recipients.length,
 			cell: ({ row }) => {
 				const splitConfig = row.original;
 				const hasUnclaimed = hasUnclaimedAmounts(splitConfig);
@@ -154,7 +155,7 @@ export function createColumns(
 							<TooltipTrigger asChild>
 								<div className="flex items-center gap-1.5 cursor-help">
 									<Users className="h-4 w-4 text-muted-foreground" />
-									<span>{splitConfig.recipientCount}</span>
+									<span>{splitConfig.recipients.length}</span>
 									{hasUnclaimed && (
 										<AlertTriangle className="h-4 w-4 text-amber-500" />
 									)}
@@ -164,22 +165,20 @@ export function createColumns(
 								<div className="space-y-2 text-xs">
 									{/* Recipient breakdown */}
 									<div className="space-y-1">
-										{splitConfig.recipients
-											.slice(0, splitConfig.recipientCount)
-											.map((r) => (
-												<div
-													key={r.address as string}
-													className="flex justify-between gap-4"
-												>
-													<span className="font-mono text-muted-foreground">
-														{(r.address as string).slice(0, 4)}...
-														{(r.address as string).slice(-4)}
-													</span>
-													<span className="font-medium">
-														{bpsToShares(r.percentageBps)}%
-													</span>
-												</div>
-											))}
+										{splitConfig.recipients.map((r) => (
+											<div
+												key={r.address as string}
+												className="flex justify-between gap-4"
+											>
+												<span className="font-mono text-muted-foreground">
+													{(r.address as string).slice(0, 4)}...
+													{(r.address as string).slice(-4)}
+												</span>
+												<span className="font-medium">
+													{bpsToShares(r.percentageBps)}%
+												</span>
+											</div>
+										))}
 									</div>
 
 									{/* Unclaimed warning */}
@@ -234,12 +233,10 @@ export function createColumns(
 				const splitConfig = row.original;
 				const isExecuting = executingVault === (splitConfig.vault as string);
 				const hasBalance = splitConfig.vaultBalance > 0n;
-				const activeRecipients = splitConfig.recipients
-					.slice(0, splitConfig.recipientCount)
-					.map((r) => ({
-						address: r.address as string,
-						percentageBps: r.percentageBps,
-					}));
+				const activeRecipients = splitConfig.recipients.map((r) => ({
+					address: r.address as string,
+					percentageBps: r.percentageBps,
+				}));
 				const preview = hasBalance
 					? previewDistribution(splitConfig.vaultBalance, activeRecipients)
 					: null;

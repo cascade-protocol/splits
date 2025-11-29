@@ -15,37 +15,35 @@ export function SplitDetailRow({ splitConfig }: SplitDetailRowProps) {
 			<div>
 				<h4 className="font-medium text-sm mb-3">Recipients</h4>
 				<div className="space-y-2">
-					{splitConfig.recipients
-						.slice(0, splitConfig.recipientCount)
-						.map((r) => {
-							const address = r.address as string;
-							// Find unclaimed amount for this recipient (if any)
-							const unclaimedEntry = splitConfig.unclaimedAmounts.find(
-								(u) => u.recipient === r.address,
-							);
-							const unclaimedAmount = unclaimedEntry?.amount ?? 0n;
+					{splitConfig.recipients.map((r) => {
+						const address = r.address as string;
+						// Find unclaimed amount for this recipient (if any)
+						const unclaimedEntry = splitConfig.unclaimedAmounts.find(
+							(u) => u.recipient === r.address,
+						);
+						const unclaimedAmount = unclaimedEntry?.amount ?? 0n;
 
-							return (
-								<div
-									key={address}
-									className="flex items-center justify-between gap-4 text-sm"
-								>
-									<code className="font-mono text-xs bg-muted px-2 py-1 rounded truncate max-w-[200px] md:max-w-none">
-										{address}
-									</code>
-									<div className="flex items-center gap-3 shrink-0">
-										<span className="font-medium">
-											{bpsToShares(r.percentageBps)}%
+						return (
+							<div
+								key={address}
+								className="flex items-center justify-between gap-4 text-sm"
+							>
+								<code className="font-mono text-xs bg-muted px-2 py-1 rounded truncate max-w-[200px] md:max-w-none">
+									{address}
+								</code>
+								<div className="flex items-center gap-3 shrink-0">
+									<span className="font-medium">
+										{bpsToShares(r.percentageBps)}%
+									</span>
+									{unclaimedAmount > 0n && (
+										<span className="text-amber-500 text-xs">
+											{formatBalance(unclaimedAmount)} unclaimed
 										</span>
-										{unclaimedAmount > 0n && (
-											<span className="text-amber-500 text-xs">
-												{formatBalance(unclaimedAmount)} unclaimed
-											</span>
-										)}
-									</div>
+									)}
 								</div>
-							);
-						})}
+							</div>
+						);
+					})}
 				</div>
 			</div>
 

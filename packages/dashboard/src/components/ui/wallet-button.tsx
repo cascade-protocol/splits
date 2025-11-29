@@ -1,5 +1,4 @@
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useWalletConnection } from "@solana/react-hooks";
 import { Wallet, ChevronDown, LogOut, Copy, Check } from "lucide-react";
 import { useState, useCallback } from "react";
 
@@ -14,15 +13,17 @@ import {
 
 /**
  * Custom wallet button styled to match the app's design system.
- * Replaces WalletMultiButton from @solana/wallet-adapter-react-ui.
+ * Uses framework-kit's useWalletConnection hook.
  */
 export function WalletButton() {
-	const { connected, publicKey, disconnect, connecting } = useWallet();
-	const { setVisible } = useWalletModal();
+	const { connect, disconnect, connectors, connecting, connected, wallet } =
+		useWalletConnection();
 	const [copied, setCopied] = useState(false);
 
-	const address = publicKey?.toBase58() ?? "";
-	const shortAddress = address ? `${address.slice(0, 4)}...${address.slice(-4)}` : "";
+	const address = wallet?.account.address ?? "";
+	const shortAddress = address
+		? `${address.slice(0, 4)}...${address.slice(-4)}`
+		: "";
 
 	const copyAddress = useCallback(async () => {
 		if (!address) return;
@@ -31,13 +32,34 @@ export function WalletButton() {
 		setTimeout(() => setCopied(false), 2000);
 	}, [address]);
 
-	// Not connected - show connect button
+	// Not connected - show wallet selector dropdown
 	if (!connected) {
 		return (
-			<Button onClick={() => setVisible(true)} disabled={connecting}>
-				<Wallet className="h-4 w-4" />
-				{connecting ? "Connecting..." : "Connect Wallet"}
-			</Button>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button disabled={connecting}>
+						<Wallet className="h-4 w-4" />
+						{connecting ? "Connecting..." : "Connect Wallet"}
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end">
+					{connectors.map((connector) => (
+						<DropdownMenuItem
+							key={connector.id}
+							onClick={() => connect(connector.id)}
+						>
+							{connector.icon && (
+								<img
+									src={connector.icon}
+									alt={connector.name}
+									className="h-4 w-4"
+								/>
+							)}
+							{connector.name}
+						</DropdownMenuItem>
+					))}
+				</DropdownMenuContent>
+			</DropdownMenu>
 		);
 	}
 
@@ -60,10 +82,6 @@ export function WalletButton() {
 					{copied ? "Copied!" : "Copy Address"}
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem onClick={() => setVisible(true)}>
-					<Wallet className="h-4 w-4" />
-					Change Wallet
-				</DropdownMenuItem>
 				<DropdownMenuItem onClick={disconnect} className="text-destructive">
 					<LogOut className="h-4 w-4" />
 					Disconnect
