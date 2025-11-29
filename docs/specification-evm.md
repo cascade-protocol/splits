@@ -233,6 +233,32 @@ function upgradeImplementation(address newImplementation) external onlyAuthority
 }
 ```
 
+**Access control modifier:**
+```solidity
+modifier onlyAuthority() {
+    if (msg.sender != authority) revert Unauthorized(msg.sender, authority);
+    _;
+}
+```
+
+### Interfaces
+
+```solidity
+/// @notice Factory interface for SplitConfig to read protocol configuration
+interface ISplitFactory {
+    function feeWallet() external view returns (address);
+    function currentImplementation() external view returns (address);
+    function authority() external view returns (address);
+}
+
+/// @notice Minimal ERC20 interface for token operations
+/// @dev Use OpenZeppelin's IERC20 or Solady's equivalent in implementation
+interface IERC20 {
+    function transfer(address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
+```
+
 ### SplitConfig
 
 Per-split configuration deployed as EIP-1167 clone with immutable args.
@@ -268,6 +294,15 @@ struct Recipient {
 | 92 | 22×N | recipients[N] | `0x2d + 92 + i*22` |
 
 Each recipient is packed as `address (20 bytes) + uint16 percentageBps (2 bytes) = 22 bytes`. Total clone data size: `92 + 22×N` bytes where N is recipient count (1-20). The `0x2d` (45 bytes) prefix is the EIP-1167 proxy bytecode that precedes the immutable args.
+
+**Recipient count derivation:** N is not stored explicitly—it's derived from the clone's code size:
+
+```solidity
+function getRecipientCount() public view returns (uint256) {
+    // code.length = 0x2d (proxy) + 92 (fixed fields) + 22*N (recipients)
+    return (address(this).code.length - 0x2d - 92) / 22;
+}
+```
 
 **Immutable args pattern:** Recipients and configuration are encoded in the clone's bytecode, not storage. Reading from bytecode via EXTCODECOPY (~100 gas base + ~3 gas/word) is significantly cheaper than storage (~2,100 gas cold SLOAD per slot). Trade-off: splits are immutable—deploy new split to change recipients.
 
@@ -361,12 +396,56 @@ split = LibClone.cloneDeterministic(currentImplementation, data, salt);
 | Function | Returns | Description |
 |----------|---------|-------------|
 | `getRecipients()` | `Recipient[]` | All configured recipients |
-| `getRecipientCount()` | `uint256` | Number of recipients |
+| `getRecipientCount()` | `uint256` | Number of recipients (derived from code size) |
+| `totalUnclaimed()` | `uint256` | Sum of all unclaimed amounts |
 | `hasPendingFunds()` | `bool` | True if balance > unclaimed |
 | `pendingAmount()` | `uint256` | Amount available for next execution |
 | `previewExecution()` | `(uint256[], uint256, uint256)` | Preview distribution (recipient amounts, protocol fee, available) |
 | `getBalance()` | `uint256` | Total token balance held |
 | `isCascadeSplitConfig()` | `bool` | Always returns true (for detection) |
+
+**View function implementations:**
+
+```solidity
+/// @notice Calculate total unclaimed across all recipients + protocol
+function totalUnclaimed() public view returns (uint256 total) {
+    uint256 bitmap = _unclaimedBitmap;
+    if (bitmap == 0) return 0;
+
+    for (uint256 i; i < 21; ) {
+        if (bitmap & (1 << i) != 0) {
+            total += _unclaimedByIndex[i];
+        }
+        unchecked { i++; }
+    }
+}
+
+/// @notice Preview what executeSplit would distribute without executing
+/// @return recipientAmounts Amount each recipient would receive
+/// @return protocolFee Amount protocol would receive (1% + dust)
+/// @return available Total amount being distributed
+function previewExecution() public view returns (
+    uint256[] memory recipientAmounts,
+    uint256 protocolFee,
+    uint256 available
+) {
+    uint256 count = getRecipientCount();
+    recipientAmounts = new uint256[](count);
+
+    available = IERC20(token()).balanceOf(address(this)) - totalUnclaimed();
+    if (available == 0) return (recipientAmounts, 0, 0);
+
+    uint256 distributed;
+    for (uint256 i; i < count; ) {
+        (, uint16 bps) = _getRecipient(i);
+        recipientAmounts[i] = (available * bps) / 10000;
+        distributed += recipientAmounts[i];
+        unchecked { i++; }
+    }
+
+    protocolFee = available - distributed;  // 1% + dust
+}
+```
 
 ### executeSplit Algorithm
 
@@ -625,20 +704,43 @@ event TransferFailed(
 
 ---
 
-## Error Codes
+## Error Definitions
 
-| Error | Description |
-|-------|-------------|
-| `InvalidRecipientCount` | Recipients not in 1-20 range |
-| `InvalidSplitTotal` | Percentages don't sum to 9900 bps |
-| `DuplicateRecipient` | Same address appears twice |
-| `ZeroAddress` | Recipient or feeWallet address is zero |
-| `ZeroPercentage` | Recipient percentage is zero |
-| `Unauthorized` | Signer not authorized |
-| `NoPendingTransfer` | No pending authority transfer to accept |
-| `SplitAlreadyExists` | Split with same params already deployed |
-| `InvalidImplementation` | Implementation address has no code |
-| `Reentrancy` | Reentrant call detected |
+Custom errors with diagnostic parameters for debugging and SDK integration:
+
+```solidity
+/// @dev Recipients array length not in [1, 20] range
+error InvalidRecipientCount(uint256 count, uint256 min, uint256 max);
+
+/// @dev Recipient percentages don't sum to 9900 bps (99%)
+error InvalidSplitTotal(uint256 actual, uint256 expected);
+
+/// @dev Same recipient address appears multiple times
+error DuplicateRecipient(address recipient, uint256 firstIndex, uint256 duplicateIndex);
+
+/// @dev Recipient or feeWallet address is zero
+error ZeroAddress(uint256 index);
+
+/// @dev Recipient has 0 bps allocation
+error ZeroPercentage(uint256 index);
+
+/// @dev Caller not authorized for this operation
+error Unauthorized(address caller, address expected);
+
+/// @dev No pending authority transfer to accept
+error NoPendingTransfer();
+
+/// @dev Split with identical params already deployed at this address
+error SplitAlreadyExists(address predicted);
+
+/// @dev Implementation address has no deployed code
+error InvalidImplementation(address implementation);
+
+/// @dev Reentrant call detected
+error Reentrancy();
+```
+
+**Rationale:** Parameterized errors cost minimal bytecode (defined once) but dramatically improve debugging. When `InvalidRecipientCount(25, 1, 20)` is thrown, the issue is immediately clear vs tracing through transaction logs.
 
 ---
 
@@ -695,16 +797,23 @@ This ensures protocol fees are never lost—they remain in the split contract un
 ```solidity
 // In SplitConfigImpl.executeSplit()
 address feeWallet = ISplitFactory(factory()).feeWallet();
-// factory() reads from immutable args via _getArgAddress(0)
+// factory() uses EXTCODECOPY to read from clone bytecode (see Gas Optimization section)
 ```
 
 **Token compatibility:**
 - Fee-on-transfer tokens: supported (recipients receive post-fee amounts)
 - Rebasing tokens: explicitly excluded (documented, not enforced)
 
-**Self-healing transfer wrapper:**
+**Self-healing transfer wrapper (why NOT SafeERC20):**
 
-Standard `SafeERC20.safeTransfer` reverts on failure, which would break the self-healing pattern. Instead, use a low-level call that catches failures:
+`SafeERC20.safeTransfer` reverts on failure—if one recipient is blocklisted, the entire `executeSplit()` transaction reverts and nobody gets paid. Self-healing **requires** catching failures gracefully:
+
+| Pattern | On Transfer Failure | Result |
+|---------|---------------------|--------|
+| `SafeERC20.safeTransfer()` | Reverts entire tx | All recipients blocked |
+| Manual `call()` | Returns false | Failed recipient stored as unclaimed, others paid |
+
+We use low-level `call()` to catch failures and continue:
 
 ```solidity
 function _safeTransferWithFallback(
@@ -739,6 +848,16 @@ This pattern:
 - Same params = same address (intentional, prevents duplicates)
 - `SplitAlreadyExists` error if clone already deployed
 
+**CREATE2 collision (known limitation):**
+
+The factory checks `predicted.code.length == 0` before deploying. If code already exists at the predicted address (deployed by someone else), `SplitAlreadyExists` is thrown. We do NOT verify whether existing code is a valid SplitConfig.
+
+*Why this is acceptable:*
+- Attack requires knowing factory address + exact salt before factory deployment
+- Even if successful, attacker only griefs one specific split creation—no funds at risk
+- Using `isCascadeSplitConfig()` check would be spoofable (any contract can implement it)
+- Realistic threat level: zero (requires predicting deterministic deployer output)
+
 ---
 
 ## Gas Optimization
@@ -761,6 +880,28 @@ Optimized for high-throughput micropayments where `executeSplit` is called frequ
 ### Clones with Immutable Args
 
 Recipients stored in clone bytecode instead of storage. **Use Solady's `LibClone`** (not OpenZeppelin—OZ doesn't support immutable args).
+
+> ⚠️ **CRITICAL: Two Incompatible CWIA Patterns Exist**
+>
+> Solady has **TWO libraries** for clones with immutable args—they are **INCOMPATIBLE**:
+>
+> | Library | Location | Args Storage | Reading Method |
+> |---------|----------|--------------|----------------|
+> | **LibClone** | `utils/LibClone.sol` | Bytecode only | EXTCODECOPY or `LibClone.argsOnClone()` |
+> | **LibCWIA** (legacy) | `utils/legacy/LibCWIA.sol` | Appended to calldata | `_getArg*()` via `CWIA.sol` |
+>
+> **We use LibClone (modern pattern).** From LibClone.sol:
+> > "The implementation of CWIA here does NOT append the immutable args into the calldata passed into delegatecall."
+>
+> **DO NOT:**
+> - Import or inherit from `CWIA.sol` or `LibCWIA.sol`
+> - Use `_getArgAddress()`, `_getArgUint256()`, or other `_getArg*()` helpers
+> - Read args via `calldataload`—args are NOT in calldata with LibClone
+>
+> **DO:**
+> - Use inline `extcodecopy` assembly (shown below)
+> - Or use `LibClone.argsOnClone(address(this))` helper
+> - Read from bytecode offset `0x2d` (45 bytes = proxy code size)
 
 ```solidity
 import {LibClone} from "solady/utils/LibClone.sol";
@@ -865,16 +1006,21 @@ evm_version = "cancun"    # Required for transient storage
 Use EIP-1153 transient storage for reentrancy protection. Saves ~9,800 gas per `executeSplit` call compared to traditional storage-based guards.
 
 ```solidity
-// Transient storage: 100 gas per TSTORE/TLOAD
-uint256 private transient _reentrancyStatus;
-
+// Gas-optimal: direct TLOAD/TSTORE assembly (~100 gas each)
+// Slot 0 is used for reentrancy flag (0 = not entered, 1 = entered)
 modifier nonReentrant() {
-    require(_reentrancyStatus == 0, Reentrancy());
-    _reentrancyStatus = 1;
+    assembly {
+        if tload(0) { revert(0, 0) }  // Already entered → revert
+        tstore(0, 1)                   // Mark as entered
+    }
     _;
-    _reentrancyStatus = 0;
+    assembly {
+        tstore(0, 0)                   // Clear on exit
+    }
 }
 ```
+
+**Why assembly over Solidity syntax:** The `uint256 private transient` syntax works but generates slightly more bytecode. Direct `tload`/`tstore` is maximally gas-efficient and explicit about slot usage.
 
 ### Lazy Unclaimed Bitmap
 
@@ -1015,7 +1161,7 @@ forge script script/Deploy.s.sol --rpc-url optimism --broadcast --verify
 |----------|-----------|
 | **Hardcoded 1% fee** | Transparency. Anyone can verify on-chain. Avoids calculation complexity. |
 | **Immutable splits** | Trustless verification—payers can verify recipients on-chain. Authority cannot rug by changing recipients post-payment. Deploy new split to change. |
-| **Immutable args in bytecode** | 88% gas savings vs storage. Recipients encoded in clone bytecode via Solady's `LibClone`. |
+| **Immutable args in bytecode** | 88% gas savings vs storage. Recipients encoded in clone bytecode via Solady's `LibClone`. Read via EXTCODECOPY (NOT `_getArg*()` calldata helpers—see [critical warning](#clones-with-immutable-args)). |
 | **Versioned implementations** | Safe iteration during development. New splits use latest impl, existing splits unchanged. |
 | **No factory registry** | Events + CREATE2 sufficient. Saves 22k gas per creation. Indexers use events anyway. |
 | **Lazy unclaimed bitmap** | Only write storage on failure. Happy path: 1 SLOAD. 11% execution savings. |
@@ -1039,15 +1185,20 @@ uint8 public constant MAX_RECIPIENTS = 20;
 uint256 public constant PROTOCOL_INDEX = 20;          // Bitmap index for protocol fee
 ```
 
+**PROTOCOL_INDEX explained:** Recipients use indices 0-19 (up to 20 recipients). Index 20 is reserved for protocol fee unclaimed tracking. This allows a single 21-bit bitmap to track unclaimed status for all parties:
+- Bits 0-19: Recipients (one bit per possible recipient slot)
+- Bit 20: Protocol fee wallet
+
 ---
 
 ## Resources
 
 ### Core Dependencies
 - [Solady LibClone](https://github.com/Vectorized/solady/blob/main/src/utils/LibClone.sol) - Clones with immutable args (factory + reading)
-- [OpenZeppelin SafeERC20](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/utils/SafeERC20.sol)
 
-**Note on CWIA patterns:** Solady's `LibClone` stores args in bytecode but does NOT append them to calldata during delegatecall. Reading uses `LibClone.argsOnClone()` or inline EXTCODECOPY. This differs from wighawag's original `clones-with-immutable-args` which appends to calldata—do not mix these patterns.
+**Note:** We do NOT use SafeERC20 for self-healing transfers—it reverts on failure. See [Audit Considerations](#self-healing-transfer-wrapper-why-not-safeerc20) for the manual `call()` pattern we use instead.
+
+**Note on CWIA patterns:** See the [critical warning in Gas Optimization](#clones-with-immutable-args) for details on Solady's two incompatible CWIA patterns. We use `LibClone` (modern, bytecode storage) NOT `LibCWIA` (legacy, calldata appending). Reading must use EXTCODECOPY, not `_getArg*()` helpers.
 
 ### Standards
 - [EIP-1167: Minimal Proxy Contract](https://eips.ethereum.org/EIPS/eip-1167)
@@ -1064,4 +1215,4 @@ uint256 public constant PROTOCOL_INDEX = 20;          // Bitmap index for protoc
 
 ---
 
-**Last Updated:** 2025-11-28
+**Last Updated:** 2025-11-29
