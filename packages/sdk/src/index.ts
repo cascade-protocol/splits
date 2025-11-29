@@ -1,120 +1,150 @@
 /**
  * Cascade Splits SDK
  *
- * Modern TypeScript SDK with 100-share mental model
- * Supports both @solana/web3.js and @solana/kit
+ * Types, constants, and helpers for the Cascade Splits payment splitter.
  *
  * @example
  * ```typescript
- * // For @solana/web3.js users
- * import { CascadeSplits } from '@cascade-fyi/splits-sdk/web3';
+ * // Types and helpers
+ * import { type Recipient, sharesToBps, bpsToShares } from '@cascade-fyi/splits-sdk';
  *
- * const sdk = CascadeSplits.mainnet();
- * const result = await sdk.buildCreateSplit(authority, {
- *   recipients: [
- *     { address: "alice...", share: 60 },
- *     { address: "bob...", share: 40 }
- *   ]
- * });
+ * // Solana instructions
+ * import { createSplitConfig, executeSplit } from '@cascade-fyi/splits-sdk/solana';
  *
- * // For @solana/kit users
- * import { CascadeSplits } from '@cascade-fyi/splits-sdk/kit';
- * // (Kit adapter coming soon)
+ * // Using share (1-100, user-friendly)
+ * const recipients: Recipient[] = [
+ *   { address: "alice...", share: 60 },
+ *   { address: "bob...", share: 40 }
+ * ];
  *
- * // Shared utilities and types
- * import { PROGRAM_ID, deriveSplitConfig } from '@cascade-fyi/splits-sdk';
- * import type { ShareRecipient } from '@cascade-fyi/splits-sdk';
+ * // Or using percentageBps directly (advanced)
+ * const recipientsAdvanced: Recipient[] = [
+ *   { address: "alice...", percentageBps: 5940 },
+ *   { address: "bob...", percentageBps: 3960 }
+ * ];
  * ```
  */
 
-// Dual exports for framework-specific implementations
-export * as web3 from "./web3/index.js";
-export * as kit from "./kit/index.js";
+import type { Address } from "@solana/kit";
+import { InvalidRecipientsError } from "./errors.js";
 
-// Core exports (schemas, business logic, constants)
-export {
-	PROGRAM_ID,
-	MAX_RECIPIENTS,
-	PROTOCOL_FEE_BPS,
-	ADDRESS_SIZE,
-	U16_SIZE,
-	U32_SIZE,
-	U64_SIZE,
-	DISCRIMINATOR_SIZE,
-	RECIPIENT_SIZE,
-	PROTOCOL_CONFIG_SEED,
-	SPLIT_CONFIG_SEED,
-	TOKEN_PROGRAM_ID,
-	TOKEN_2022_PROGRAM_ID,
-	ASSOCIATED_TOKEN_PROGRAM_ID,
-	SYSTEM_PROGRAM_ID,
-	USDC_MINT,
-} from "./core/constants.js";
-export * from "./core/schemas.js";
-export type {
-	ProcessedCreateSplit,
-	ProcessedUpdateSplit,
-	RecipientDistribution,
-} from "./core/business-logic.js";
-export {
-	validateAndTransformCreate,
-	validateAndTransformUpdate,
-	calculateDistribution,
-	previewDistribution,
-	sharesToBasisPoints,
-	basisPointsToShares,
-} from "./core/business-logic.js";
+// =============================================================================
+// Constants
+// =============================================================================
 
-// Shared types (internal representations)
-export type {
-	Recipient,
-	UnclaimedAmount,
-	ProtocolConfig,
-	SplitConfig,
-	SplitWithBalance,
-	DistributionPreview,
-} from "./core/types.js";
+/** Program ID for Cascade Splits */
+export const PROGRAM_ID: Address =
+	"SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB" as Address;
 
-// Discriminators
-export * from "./discriminators.js";
+/** Maximum recipients per split (protocol limit) */
+export const MAX_RECIPIENTS = 20;
 
+/** Protocol fee in basis points (1% = 100 bps) */
+export const PROTOCOL_FEE_BPS = 100;
+
+/** Total basis points for all recipients (99% = 9900 bps) */
+export const TOTAL_RECIPIENT_BPS = 9900;
+
+/** SPL Token program ID */
+export const TOKEN_PROGRAM_ID: Address =
+	"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as Address;
+
+/** SPL Token 2022 program ID */
+export const TOKEN_2022_PROGRAM_ID: Address =
+	"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb" as Address;
+
+/** Associated Token Account program ID */
+export const ASSOCIATED_TOKEN_PROGRAM_ID: Address =
+	"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL" as Address;
+
+/** System program ID */
+export const SYSTEM_PROGRAM_ID: Address =
+	"11111111111111111111111111111111" as Address;
+
+/** Default USDC mint (mainnet) */
+export const USDC_MINT: Address =
+	"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" as Address;
+
+// PDA Seeds
+export const PROTOCOL_CONFIG_SEED = "protocol_config";
+export const SPLIT_CONFIG_SEED = "split_config";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/**
+ * Recipient input for creating/updating splits.
+ *
+ * Provide either `share` (1-100) or `percentageBps` (1-9900).
+ *
+ * @example
+ * ```typescript
+ * // User-friendly: share (1-100)
+ * { address: "...", share: 60 }
+ *
+ * // Advanced: exact basis points
+ * { address: "...", percentageBps: 5940 }
+ * ```
+ */
+export interface Recipient {
+	address: string;
+	/** Share percentage 1-100 (converted to bps: share × 99) */
+	share?: number;
+	/** Raw basis points 1-9900 (for advanced usage) */
+	percentageBps?: number;
+}
+
+// =============================================================================
+// Conversion Helpers
+// =============================================================================
+
+/**
+ * Convert user-facing share (1-100) to protocol basis points.
+ * Each share point = 99 bps (total 9900 bps for 100 shares)
+ */
+export function sharesToBps(share: number): number {
+	if (!Number.isInteger(share) || share < 1 || share > 100) {
+		throw new InvalidRecipientsError(
+			`Share must be integer 1-100, got ${share}`,
+		);
+	}
+	return share * 99;
+}
+
+/**
+ * Convert protocol basis points to user-facing share (1-100).
+ */
+export function bpsToShares(bps: number): number {
+	return Math.round(bps / 99);
+}
+
+/**
+ * Get percentageBps from a Recipient (handles both share and percentageBps).
+ */
+export function toPercentageBps(r: Recipient): number {
+	if (r.percentageBps !== undefined) {
+		if (
+			!Number.isInteger(r.percentageBps) ||
+			r.percentageBps < 1 ||
+			r.percentageBps > 9900
+		) {
+			throw new InvalidRecipientsError(
+				`percentageBps must be integer 1-9900, got ${r.percentageBps}`,
+			);
+		}
+		return r.percentageBps;
+	}
+	if (r.share !== undefined) {
+		return sharesToBps(r.share);
+	}
+	throw new InvalidRecipientsError(
+		"Recipient must have either share or percentageBps",
+	);
+}
+
+// =============================================================================
 // Errors
+// =============================================================================
+
 export * from "./errors.js";
-
-// PDA derivation (framework-agnostic, string-based)
-export {
-	deriveProtocolConfig,
-	deriveSplitConfig,
-	deriveVault,
-	deriveAta,
-	deriveProgramData,
-	deriveCreateSplitConfigAddresses,
-} from "./pda.js";
-export type { CreateSplitConfigResult } from "./pda.js";
-
-// Encoding utilities (base58)
-export { encodeAddress, decodeAddress } from "./core/encoding.js";
-
-// Deserialization utilities (use getSplit() for split config with shares)
-export { deserializeProtocolConfig } from "./core/deserialization.js";
-
-// Account sizes (for memcmp filters)
-export {
-	SPLIT_CONFIG_SIZE,
-	PROTOCOL_CONFIG_SIZE,
-} from "./core/deserialization.js";
-
-// Layout offsets (for getProgramAccounts filters)
-export { LAYOUT_OFFSETS } from "./core/constants.js";
-
-// State inspection helpers
-export {
-	hasUnclaimedAmounts,
-	getTotalUnclaimed,
-	canUpdateOrClose,
-} from "./core/helpers.js";
-
-// IDL export
-import IDL_JSON from "../idl.json" with { type: "json" };
-export const IDL = IDL_JSON;
-export type CascadeSplitsIDL = typeof IDL_JSON;

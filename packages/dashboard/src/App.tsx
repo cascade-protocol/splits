@@ -2,19 +2,15 @@ import { useState, useMemo, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
-import {
-	USDC_MINT,
-	type ShareRecipient,
-	type SplitWithBalance,
-} from "@cascade-fyi/splits-sdk";
+import { USDC_MINT, type Recipient } from "@cascade-fyi/splits-sdk";
 import {
 	useSplits,
 	useCreateSplit,
 	useExecuteSplit,
 	useUpdateSplit,
 	useCloseSplit,
-	type MutationConfig,
-} from "@cascade-fyi/splits-sdk/react";
+	type SplitWithBalance,
+} from "./hooks/use-splits";
 
 import { useCreationTimestamps } from "./hooks/use-creation-timestamps";
 
@@ -35,17 +31,6 @@ import { ErrorBoundary } from "./components/ui/error-boundary";
 import { Toaster } from "./components/ui/sonner";
 import { openExternal } from "./lib/utils";
 
-// Mainnet transaction config - priority fees help transactions land on congested network
-const CREATE_CONFIG: MutationConfig = {
-	priorityFee: 50_000, // 50k microlamports
-	computeUnits: 200_000,
-};
-
-const EXECUTE_CONFIG: MutationConfig = {
-	priorityFee: 50_000,
-	computeUnits: 300_000, // Execute needs more CUs for multiple transfers
-};
-
 export default function App() {
 	const { connected } = useWallet();
 
@@ -65,11 +50,11 @@ export default function App() {
 		[splits, timestamps],
 	);
 
-	// Mutations with mainnet config
-	const createSplitMutation = useCreateSplit(CREATE_CONFIG);
-	const executeSplitMutation = useExecuteSplit(EXECUTE_CONFIG);
-	const updateSplitMutation = useUpdateSplit(CREATE_CONFIG);
-	const closeSplitMutation = useCloseSplit(CREATE_CONFIG);
+	// Mutations (priority fees handled in hooks)
+	const createSplitMutation = useCreateSplit();
+	const executeSplitMutation = useExecuteSplit();
+	const updateSplitMutation = useUpdateSplit();
+	const closeSplitMutation = useCloseSplit();
 
 	// Track which vault is being executed (for loading state in table)
 	const [executingVault, setExecutingVault] = useState<string | null>(null);
@@ -86,8 +71,8 @@ export default function App() {
 
 	// Stable execute callback - mutateAsync reference is stable from TanStack Query
 	const handleExecuteSplit = useCallback(
-		async (vault: string) => {
-			setExecutingVault(vault);
+		async (splitConfig: SplitWithBalance) => {
+			setExecutingVault(splitConfig.vault as string);
 			const toastId = toast.loading("Signing transaction...");
 			try {
 				// Update toast once wallet interaction starts
@@ -95,7 +80,7 @@ export default function App() {
 					toast.loading("Confirming transaction...", { id: toastId });
 				}, 2000); // Approximate time for wallet popup
 
-				const result = await executeSplitMutation.mutateAsync(vault);
+				const result = await executeSplitMutation.mutateAsync(splitConfig);
 				toast.success("Split executed!", {
 					id: toastId,
 					description: `Funds distributed. Signature: ${result.signature.slice(0, 8)}...`,
@@ -118,23 +103,23 @@ export default function App() {
 	);
 
 	// Callbacks for update/close actions
-	const handleUpdateSplit = useCallback((split: SplitWithBalance) => {
-		setSelectedSplit(split);
+	const handleUpdateSplit = useCallback((splitConfig: SplitWithBalance) => {
+		setSelectedSplit(splitConfig);
 		setUpdateDialogOpen(true);
 	}, []);
 
-	const handleCloseSplit = useCallback((split: SplitWithBalance) => {
-		setSelectedSplit(split);
+	const handleCloseSplit = useCallback((splitConfig: SplitWithBalance) => {
+		setSelectedSplit(splitConfig);
 		setCloseDialogOpen(true);
 	}, []);
 
 	// Handlers for dialog submissions - dialogs handle errors internally
 	const handleUpdateSubmit = async (
-		vault: string,
-		recipients: ShareRecipient[],
+		splitConfig: SplitWithBalance,
+		recipients: Recipient[],
 	) => {
 		const result = await updateSplitMutation.mutateAsync({
-			vault,
+			split: splitConfig,
 			recipients,
 		});
 		toast.success("Recipients updated!", {
@@ -147,8 +132,8 @@ export default function App() {
 		});
 	};
 
-	const handleCloseSubmit = async (vault: string) => {
-		const result = await closeSplitMutation.mutateAsync(vault);
+	const handleCloseSubmit = async (splitConfig: SplitWithBalance) => {
+		const result = await closeSplitMutation.mutateAsync(splitConfig);
 		toast.success("Split closed!", {
 			description: `Rent returned. Signature: ${result.signature.slice(0, 8)}...`,
 			action: {
@@ -175,7 +160,7 @@ export default function App() {
 		[splitActions, executingVault],
 	);
 
-	const handleCreateSplit = async (recipients: ShareRecipient[]) => {
+	const handleCreateSplit = async (recipients: Recipient[]) => {
 		const toastId = toast.loading("Signing transaction...");
 		try {
 			setTimeout(() => {
@@ -186,14 +171,19 @@ export default function App() {
 				recipients,
 				token: USDC_MINT,
 			});
+			const vault = result.vault;
 			toast.success("Split created!", {
 				id: toastId,
-				description: `Vault: ${result.vault.slice(0, 8)}...${result.vault.slice(-4)}`,
-				action: {
-					label: "View",
-					onClick: () =>
-						openExternal(`https://solscan.io/account/${result.vault}`),
-				},
+				description: vault
+					? `Vault: ${vault.slice(0, 8)}...${vault.slice(-4)}`
+					: `Signature: ${result.signature.slice(0, 8)}...`,
+				action: vault
+					? {
+							label: "View",
+							onClick: () =>
+								openExternal(`https://solscan.io/account/${vault}`),
+						}
+					: undefined,
 			});
 		} catch (err) {
 			toast.error("Failed to create split", {
@@ -297,14 +287,14 @@ export default function App() {
 
 			{/* Update/Close dialogs */}
 			<UpdateSplitDialog
-				split={selectedSplit}
+				splitConfig={selectedSplit}
 				open={updateDialogOpen}
 				onOpenChange={setUpdateDialogOpen}
 				onSubmit={handleUpdateSubmit}
 				isPending={updateSplitMutation.isPending}
 			/>
 			<CloseSplitDialog
-				split={selectedSplit}
+				splitConfig={selectedSplit}
 				open={closeDialogOpen}
 				onOpenChange={setCloseDialogOpen}
 				onConfirm={handleCloseSubmit}

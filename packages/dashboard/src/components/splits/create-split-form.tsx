@@ -2,13 +2,10 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod/v4";
 import { zodResolver } from "@/lib/zod-resolver";
 import { Check, Loader2, Minus, Plus, Wallet } from "lucide-react";
-import type { ShareRecipient } from "@cascade-fyi/splits-sdk";
+import { MAX_RECIPIENTS, type Recipient } from "@cascade-fyi/splits-sdk";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-// Constants
-const MAX_RECIPIENTS = 20;
 
 /**
  * Validates a Solana address (base58, 32-44 chars)
@@ -64,7 +61,7 @@ const createSplitSchema = z
 type CreateSplitFormData = z.infer<typeof createSplitSchema>;
 
 interface CreateSplitFormProps {
-	onSubmit?: (data: ShareRecipient[]) => void;
+	onSubmit?: (data: Recipient[]) => void;
 	isPending?: boolean;
 }
 
@@ -93,7 +90,7 @@ export function CreateSplitForm({ onSubmit, isPending }: CreateSplitFormProps) {
 	const isComplete = totalShare === 100;
 
 	const handleFormSubmit = (data: CreateSplitFormData) => {
-		const recipients: ShareRecipient[] = data.recipients.map((r) => ({
+		const recipients: Recipient[] = data.recipients.map((r) => ({
 			address: r.address,
 			share: r.share,
 		}));

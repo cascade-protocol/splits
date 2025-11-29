@@ -2,16 +2,15 @@ import { useState } from "react";
 import { ArrowDown, Check, Copy, ExternalLink } from "lucide-react";
 import { Button } from "../ui/button";
 
-const CODE_SNIPPET = `import { CascadeSplits } from "@cascade-fyi/splits-sdk/web3";
+const CODE_SNIPPET = `import { createSplitConfig } from "@cascade-fyi/splits-sdk/solana";
 
-const sdk = new CascadeSplits(connection);
-const { vault } = await sdk.buildCreateSplit(authority, {
+const { vault } = await createSplitConfig({
+  authority: wallet,
   recipients: [
-    { address: "merchant.sol", share: 90 },
-    { address: "platform.sol", share: 10 }
-  ]
-});
-// Use \`vault\` as your x402 payTo address`;
+    { address: "Agent111111111111111111111111111111111111111", share: 90 },
+    { address: "Marketplace1111111111111111111111111111111", share: 10 },
+  ],
+});`;
 
 const NPM_INSTALL = "npm install @cascade-fyi/splits-sdk";
 
@@ -80,26 +79,28 @@ export function SplitExplainer() {
 						Automatically splits to
 					</p>
 
-					{/* Recipients - 10/90 marketplace split */}
+					{/* Recipients - 90/10 agent/marketplace split */}
 					<div className="space-y-2">
 						<div className="flex items-center justify-between rounded-md bg-muted/30 p-3">
 							<div className="flex items-center gap-2">
-								<div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/10 text-xs font-medium text-blue-600">
+								<div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10 text-xs font-medium text-emerald-600">
 									1
 								</div>
-								<span className="text-sm text-muted-foreground">Platform</span>
+								<span className="text-sm text-muted-foreground">Agent</span>
 							</div>
-							<span className="font-semibold">10%</span>
+							<span className="font-semibold">90%</span>
 						</div>
 
 						<div className="flex items-center justify-between rounded-md bg-muted/30 p-3">
 							<div className="flex items-center gap-2">
-								<div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10 text-xs font-medium text-emerald-600">
+								<div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/10 text-xs font-medium text-blue-600">
 									2
 								</div>
-								<span className="text-sm text-muted-foreground">Merchant</span>
+								<span className="text-sm text-muted-foreground">
+									Marketplace
+								</span>
 							</div>
-							<span className="font-semibold">90%</span>
+							<span className="font-semibold">10%</span>
 						</div>
 					</div>
 				</div>
@@ -181,7 +182,7 @@ export function SplitExplainer() {
 					<ExternalLink className="h-3.5 w-3.5" />
 				</a>
 				<a
-					href="https://github.com/cascade-protocol/splits/blob/main/docs/usage.md"
+					href="https://github.com/cascade-protocol/splits/blob/main/packages/sdk/README.md"
 					target="_blank"
 					rel="noopener noreferrer"
 					className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"

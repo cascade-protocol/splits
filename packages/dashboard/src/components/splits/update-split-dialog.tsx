@@ -3,7 +3,12 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod/v4";
 import { zodResolver } from "@/lib/zod-resolver";
 import { AlertCircle, Check, Loader2, Minus, Plus } from "lucide-react";
-import type { SplitWithBalance, ShareRecipient } from "@cascade-fyi/splits-sdk";
+import {
+	MAX_RECIPIENTS,
+	type Recipient,
+	bpsToShares,
+} from "@cascade-fyi/splits-sdk";
+import type { SplitWithBalance } from "@/hooks/use-splits";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +18,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-
-const MAX_RECIPIENTS = 20;
 
 function isValidSolanaAddress(address: string): boolean {
 	const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -66,15 +69,18 @@ const updateSplitSchema = z
 type UpdateSplitFormData = z.infer<typeof updateSplitSchema>;
 
 interface UpdateSplitDialogProps {
-	split: SplitWithBalance | null;
+	splitConfig: SplitWithBalance | null;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onSubmit: (vault: string, recipients: ShareRecipient[]) => Promise<void>;
+	onSubmit: (
+		splitConfig: SplitWithBalance,
+		recipients: Recipient[],
+	) => Promise<void>;
 	isPending: boolean;
 }
 
 export function UpdateSplitDialog({
-	split,
+	splitConfig,
 	open,
 	onOpenChange,
 	onSubmit,
@@ -95,18 +101,20 @@ export function UpdateSplitDialog({
 		name: "recipients",
 	});
 
-	// Reset form and error when split changes or dialog opens
+	// Reset form and error when splitConfig changes or dialog opens
 	useEffect(() => {
-		if (split && open) {
+		if (splitConfig && open) {
 			setError(null);
 			form.reset({
-				recipients: split.recipients.map((r) => ({
-					address: r.address,
-					share: r.share,
-				})),
+				recipients: splitConfig.recipients
+					.slice(0, splitConfig.recipientCount)
+					.map((r) => ({
+						address: r.address as string,
+						share: bpsToShares(r.percentageBps),
+					})),
 			});
 		}
-	}, [split, open, form]);
+	}, [splitConfig, open, form]);
 
 	const watchedRecipients = form.watch("recipients");
 	const totalShare = watchedRecipients.reduce(
@@ -116,16 +124,16 @@ export function UpdateSplitDialog({
 	const isComplete = totalShare === 100;
 
 	const handleFormSubmit = async (data: UpdateSplitFormData) => {
-		if (!split) return;
+		if (!splitConfig) return;
 		setError(null);
 
-		const recipients: ShareRecipient[] = data.recipients.map((r) => ({
+		const recipients: Recipient[] = data.recipients.map((r) => ({
 			address: r.address,
 			share: r.share,
 		}));
 
 		try {
-			await onSubmit(split.vault, recipients);
+			await onSubmit(splitConfig, recipients);
 			onOpenChange(false); // Only close on success
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to update split");
@@ -140,12 +148,14 @@ export function UpdateSplitDialog({
 					<DialogTitle>Update Recipients</DialogTitle>
 				</DialogHeader>
 
-				{split && (
+				{splitConfig && (
 					<div className="rounded-md bg-muted p-3 text-sm mb-4">
 						<div className="font-mono text-xs text-muted-foreground mb-1">
 							Vault
 						</div>
-						<div className="font-mono text-xs break-all">{split.vault}</div>
+						<div className="font-mono text-xs break-all">
+							{splitConfig.vault as string}
+						</div>
 					</div>
 				)}
 

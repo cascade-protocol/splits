@@ -15,7 +15,8 @@
 			"**/*.json",
 			"!!**/dist",
 			"!**/idl.json",
-			"!packages/dashboard/src/components/ui"
+			"!packages/dashboard/src/components/ui",
+			"!packages/sdk/src/solana/generated"
 		]
 	},
 	"formatter": {

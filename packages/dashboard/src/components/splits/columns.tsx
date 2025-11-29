@@ -12,13 +12,15 @@ import {
 	Settings,
 	Trash2,
 } from "lucide-react";
+import { bpsToShares } from "@cascade-fyi/splits-sdk";
+import type { SplitWithBalance } from "@/hooks/use-splits";
 import {
 	canUpdateOrClose,
 	hasUnclaimedAmounts,
 	getTotalUnclaimed,
 	previewDistribution,
-	type SplitWithBalance,
-} from "@cascade-fyi/splits-sdk";
+	formatBalance,
+} from "@/lib/splits-helpers";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { openExternal } from "@/lib/utils";
 
@@ -49,19 +51,6 @@ function formatRelativeTime(timestamp: bigint): string {
 	if (secondsAgo < 86400) return `${Math.floor(secondsAgo / 3600)}h ago`;
 	if (secondsAgo < 2592000) return `${Math.floor(secondsAgo / 86400)}d ago`;
 	return `${Math.floor(secondsAgo / 2592000)}mo ago`;
-}
-
-// USDC decimals
-const USDC_DECIMALS = 6;
-
-/**
- * Format token balance for display
- */
-function formatBalance(amount: bigint): string {
-	const value = Number(amount) / 10 ** USDC_DECIMALS;
-	if (value === 0) return "0.00 USDC";
-	if (value < 0.01) return "< 0.01 USDC";
-	return `${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`;
 }
 
 /**
@@ -100,9 +89,9 @@ function CopyButton({ text }: { text: string }) {
  * Action callbacks for split operations
  */
 export interface SplitActions {
-	onExecute: (vault: string) => void;
-	onUpdate: (split: SplitWithBalance) => void;
-	onClose: (split: SplitWithBalance) => void;
+	onExecute: (splitConfig: SplitWithBalance) => void;
+	onUpdate: (splitConfig: SplitWithBalance) => void;
+	onClose: (splitConfig: SplitWithBalance) => void;
 }
 
 /**
@@ -153,9 +142,11 @@ export function createColumns(
 			accessorKey: "recipientCount",
 			header: "Recipients",
 			cell: ({ row }) => {
-				const split = row.original;
-				const hasUnclaimed = hasUnclaimedAmounts(split);
-				const unclaimedTotal = hasUnclaimed ? getTotalUnclaimed(split) : 0n;
+				const splitConfig = row.original;
+				const hasUnclaimed = hasUnclaimedAmounts(splitConfig);
+				const unclaimedTotal = hasUnclaimed
+					? getTotalUnclaimed(splitConfig)
+					: 0n;
 
 				return (
 					<TooltipProvider>
@@ -163,7 +154,7 @@ export function createColumns(
 							<TooltipTrigger asChild>
 								<div className="flex items-center gap-1.5 cursor-help">
 									<Users className="h-4 w-4 text-muted-foreground" />
-									<span>{split.recipientCount}</span>
+									<span>{splitConfig.recipientCount}</span>
 									{hasUnclaimed && (
 										<AlertTriangle className="h-4 w-4 text-amber-500" />
 									)}
@@ -173,17 +164,22 @@ export function createColumns(
 								<div className="space-y-2 text-xs">
 									{/* Recipient breakdown */}
 									<div className="space-y-1">
-										{split.recipients.map((r) => (
-											<div
-												key={r.address}
-												className="flex justify-between gap-4"
-											>
-												<span className="font-mono text-muted-foreground">
-													{r.address.slice(0, 4)}...{r.address.slice(-4)}
-												</span>
-												<span className="font-medium">{r.share}%</span>
-											</div>
-										))}
+										{splitConfig.recipients
+											.slice(0, splitConfig.recipientCount)
+											.map((r) => (
+												<div
+													key={r.address as string}
+													className="flex justify-between gap-4"
+												>
+													<span className="font-mono text-muted-foreground">
+														{(r.address as string).slice(0, 4)}...
+														{(r.address as string).slice(-4)}
+													</span>
+													<span className="font-medium">
+														{bpsToShares(r.percentageBps)}%
+													</span>
+												</div>
+											))}
 									</div>
 
 									{/* Unclaimed warning */}
@@ -235,11 +231,17 @@ export function createColumns(
 			id: "actions",
 			enableHiding: false,
 			cell: ({ row }) => {
-				const split = row.original;
-				const isExecuting = executingVault === split.vault;
-				const hasBalance = split.vaultBalance > 0n;
+				const splitConfig = row.original;
+				const isExecuting = executingVault === (splitConfig.vault as string);
+				const hasBalance = splitConfig.vaultBalance > 0n;
+				const activeRecipients = splitConfig.recipients
+					.slice(0, splitConfig.recipientCount)
+					.map((r) => ({
+						address: r.address as string,
+						percentageBps: r.percentageBps,
+					}));
 				const preview = hasBalance
-					? previewDistribution(split.vaultBalance, split.recipients)
+					? previewDistribution(splitConfig.vaultBalance, activeRecipients)
 					: null;
 
 				return (
@@ -252,7 +254,7 @@ export function createColumns(
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={() => actions.onExecute(split.vault)}
+											onClick={() => actions.onExecute(splitConfig)}
 											disabled={isExecuting}
 											aria-label={
 												isExecuting ? "Executing split" : "Execute split"
@@ -301,7 +303,7 @@ export function createColumns(
 						)}
 
 						{/* More actions dropdown */}
-						<ActionsDropdown split={split} actions={actions} />
+						<ActionsDropdown splitConfig={splitConfig} actions={actions} />
 					</div>
 				);
 			},
@@ -310,19 +312,19 @@ export function createColumns(
 }
 
 interface ActionsDropdownProps {
-	split: SplitWithBalance;
+	splitConfig: SplitWithBalance;
 	actions: SplitActions;
 }
 
 /**
  * Get specific reason why update/close is blocked
  */
-function getBlockedReason(split: SplitWithBalance): string | null {
-	if (split.vaultBalance > 0n) {
+function getBlockedReason(splitConfig: SplitWithBalance): string | null {
+	if (splitConfig.vaultBalance > 0n) {
 		return "Execute to distribute vault balance first";
 	}
-	if (hasUnclaimedAmounts(split)) {
-		const unclaimed = getTotalUnclaimed(split);
+	if (hasUnclaimedAmounts(splitConfig)) {
+		const unclaimed = getTotalUnclaimed(splitConfig);
 		return `${formatBalance(unclaimed)} unclaimed - recipients need token accounts`;
 	}
 	return null;
@@ -331,10 +333,10 @@ function getBlockedReason(split: SplitWithBalance): string | null {
 /**
  * Actions dropdown component
  */
-function ActionsDropdown({ split, actions }: ActionsDropdownProps) {
+function ActionsDropdown({ splitConfig, actions }: ActionsDropdownProps) {
 	const { copied, copy } = useCopyToClipboard();
-	const canModify = canUpdateOrClose(split, split.vaultBalance);
-	const blockedReason = canModify ? null : getBlockedReason(split);
+	const canModify = canUpdateOrClose(splitConfig, splitConfig.vaultBalance);
+	const blockedReason = canModify ? null : getBlockedReason(splitConfig);
 
 	return (
 		<DropdownMenu>
@@ -346,7 +348,7 @@ function ActionsDropdown({ split, actions }: ActionsDropdownProps) {
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
 				<DropdownMenuLabel>Actions</DropdownMenuLabel>
-				<DropdownMenuItem onClick={() => copy(split.vault)}>
+				<DropdownMenuItem onClick={() => copy(splitConfig.vault as string)}>
 					{copied ? (
 						<Check className="mr-2 h-4 w-4 text-green-500" />
 					) : (
@@ -357,7 +359,7 @@ function ActionsDropdown({ split, actions }: ActionsDropdownProps) {
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					disabled={!canModify}
-					onClick={() => canModify && actions.onUpdate(split)}
+					onClick={() => canModify && actions.onUpdate(splitConfig)}
 					className={!canModify ? "opacity-50 cursor-not-allowed" : ""}
 					title={blockedReason ?? undefined}
 				>
@@ -366,7 +368,7 @@ function ActionsDropdown({ split, actions }: ActionsDropdownProps) {
 				</DropdownMenuItem>
 				<DropdownMenuItem
 					disabled={!canModify}
-					onClick={() => canModify && actions.onClose(split)}
+					onClick={() => canModify && actions.onClose(splitConfig)}
 					className={
 						!canModify
 							? "opacity-50 cursor-not-allowed"
@@ -380,7 +382,9 @@ function ActionsDropdown({ split, actions }: ActionsDropdownProps) {
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					onClick={() => {
-						openExternal(`https://solscan.io/account/${split.vault}`);
+						openExternal(
+							`https://solscan.io/account/${splitConfig.vault as string}`,
+						);
 					}}
 				>
 					<ExternalLink className="mr-2 h-4 w-4" />
