@@ -226,10 +226,11 @@ contract SplitFactory {
 **Implementation upgrade:**
 ```solidity
 function upgradeImplementation(address newImplementation) external onlyAuthority {
-    require(newImplementation != address(0), ZeroAddress());
-    require(newImplementation.code.length > 0, InvalidImplementation());
+    if (newImplementation == address(0)) revert ZeroAddress(0);
+    if (newImplementation.code.length == 0) revert InvalidImplementation(newImplementation);
+    address oldImplementation = currentImplementation;
     currentImplementation = newImplementation;
-    emit ImplementationUpgraded(newImplementation);
+    emit ImplementationUpgraded(oldImplementation, newImplementation);
 }
 ```
 
@@ -387,11 +388,70 @@ if (alreadyDeployed) revert SplitAlreadyExists(split);
 
 This is cleaner than manual `predictDeterministicAddress` + `code.length` check—Solady handles the atomic check-and-deploy pattern internally.
 
+#### updateProtocolConfig
+
+```solidity
+function updateProtocolConfig(address newFeeWallet) external onlyAuthority;
+```
+
+Updates the protocol fee wallet. Validates non-zero address.
+
+```solidity
+function updateProtocolConfig(address newFeeWallet) external onlyAuthority {
+    if (newFeeWallet == address(0)) revert ZeroAddress(0);
+    address oldFeeWallet = feeWallet;
+    feeWallet = newFeeWallet;
+    emit ProtocolConfigUpdated(oldFeeWallet, newFeeWallet);
+}
+```
+
+#### transferProtocolAuthority
+
+```solidity
+function transferProtocolAuthority(address newAuthority) external onlyAuthority;
+```
+
+Initiates two-step authority transfer. Set to `address(0)` to cancel pending transfer.
+
+```solidity
+function transferProtocolAuthority(address newAuthority) external onlyAuthority {
+    pendingAuthority = newAuthority;
+    emit ProtocolAuthorityTransferProposed(authority, newAuthority);
+}
+```
+
+#### acceptProtocolAuthority
+
+```solidity
+function acceptProtocolAuthority() external;
+```
+
+Completes authority transfer. Must be called by pending authority.
+
+```solidity
+function acceptProtocolAuthority() external {
+    if (msg.sender != pendingAuthority) revert Unauthorized(msg.sender, pendingAuthority);
+    if (pendingAuthority == address(0)) revert NoPendingTransfer();
+    address oldAuthority = authority;
+    authority = pendingAuthority;
+    pendingAuthority = address(0);
+    emit ProtocolAuthorityTransferAccepted(oldAuthority, authority);
+}
+```
+
 ### Split Instructions
 
 | Instruction | Description | Authorization |
 |-------------|-------------|---------------|
 | `executeSplit` | Distribute balance to recipients | Permissionless |
+
+#### executeSplit
+
+```solidity
+function executeSplit() external nonReentrant;
+```
+
+Distributes available balance to recipients and protocol. Automatically retries any pending unclaimed transfers. See [executeSplit Algorithm](#executesplit-algorithm) for detailed behavior.
 
 **No `updateSplitConfig`:** Splits are immutable by design. To change recipients, deploy a new split and update your `payTo` address. This provides trustless verification—payers can verify recipients on-chain before paying, and authority cannot change recipients after payment.
 
@@ -663,6 +723,25 @@ CREATE2 address depends on factory address. Deploy factory via deterministic dep
 | `SplitConfigCreated` | New split deployed (includes full recipient list for indexing) |
 | `SplitExecuted` | Funds distributed (includes per-recipient status) |
 | `TransferFailed` | Individual transfer failed (recipient stored as unclaimed) |
+
+### Factory Event Signatures
+
+```solidity
+/// @notice Emitted when factory is deployed
+event ProtocolConfigCreated(address indexed authority, address indexed feeWallet);
+
+/// @notice Emitted when fee wallet is updated
+event ProtocolConfigUpdated(address indexed oldFeeWallet, address indexed newFeeWallet);
+
+/// @notice Emitted when authority transfer is initiated
+event ProtocolAuthorityTransferProposed(address indexed currentAuthority, address indexed pendingAuthority);
+
+/// @notice Emitted when authority transfer is completed
+event ProtocolAuthorityTransferAccepted(address indexed oldAuthority, address indexed newAuthority);
+
+/// @notice Emitted when implementation is upgraded for future splits
+event ImplementationUpgraded(address indexed oldImplementation, address indexed newImplementation);
+```
 
 ### SplitConfigCreated Details
 
