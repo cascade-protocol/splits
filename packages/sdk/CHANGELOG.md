@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.7.0] - 2025-11-29
+
+### BREAKING CHANGES
+- **Complete API restructure**: `/web3` and `/kit` exports replaced with unified `/solana` export
+- **Removed**: `kit/`, `web3/`, `react/` modules entirely
+- **Removed**: `SplitsProvider`, React hooks (`useSplits`, `useCreateSplit`, etc.)
+- **Removed**: Zod schemas (`schemas.ts`, `schemas-mini.ts`)
+- **Removed**: Old instruction builders
+
+### Added
+- Codama-generated instruction encoders in `/solana/generated`
+- Manual instruction builders with correct remaining accounts:
+  - `createSplitConfig` - includes recipient ATAs as remaining accounts
+  - `executeSplit` - returns discriminated union `{ ok, instruction }` or `{ ok: false, reason }`
+  - `updateSplitConfig` - includes recipient ATAs for validation
+  - `closeSplitConfig` - recovers vault rent
+- Web3.js compatibility bridge (`/solana/web3-compat`):
+  - `toAddress()`, `toPublicKey()`, `toKitSigner()`
+  - `toWeb3Instruction()`, `fromWeb3Instruction()`
+- Helper utilities:
+  - `getSplitConfigFromVault()` - vault-centric API
+  - `getProtocolConfig()`, `getVaultBalance()`, `isCascadeSplit()`
+  - PDA derivation: `deriveSplitConfig()`, `deriveVault()`, `deriveAta()`
+  - `generateUniqueId()` for random unique IDs
+
+### Changed
+- SDK now requires `@solana/kit` as peer dependency
+- Main export provides types, constants, and conversion helpers only
+- All Solana functionality moved to `/solana` subpath
+
 ## [0.6.0] - 2025-11-26
 
 ### Changed

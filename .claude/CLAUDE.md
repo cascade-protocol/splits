@@ -55,13 +55,18 @@ User Payment → Vault (ATA owned by SplitConfig PDA)
 
 ## SDK
 
-Dual format with identical APIs:
 ```typescript
-import { web3 } from '@cascade-fyi/splits-sdk';  // @solana/web3.js
-import { kit } from '@cascade-fyi/splits-sdk';   // @solana/kit
+// Types, constants, conversion helpers
+import { PROGRAM_ID, Recipient, toPercentageBps } from '@cascade-fyi/splits-sdk';
+
+// Instruction builders (requires @solana/kit)
+import { createSplitConfig, executeSplit } from '@cascade-fyi/splits-sdk/solana';
+
+// Bridge to @solana/web3.js (for wallet adapters)
+import { toWeb3Instruction, toAddress } from '@cascade-fyi/splits-sdk/solana/web3-compat';
 ```
 
-Instruction serialization is manual (not IDL-generated) - account order matters.
+Instruction builders use Codama-generated encoders. Account order matters for remaining accounts.
 
 ## Release Process
 

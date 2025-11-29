@@ -1,7 +1,7 @@
 import { useConnection } from "@solana/wallet-adapter-react";
 import { useQueries } from "@tanstack/react-query";
 import { PublicKey, type Connection } from "@solana/web3.js";
-import type { SplitWithBalance } from "@cascade-fyi/splits-sdk";
+import type { SplitWithBalance } from "./use-splits";
 
 /**
  * Fetch creation timestamp for a split by getting oldest transaction signature.

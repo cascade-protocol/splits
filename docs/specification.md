@@ -42,7 +42,7 @@ The protocol automatically creates a vault (PDA-owned ATA) to receive payments.
 ### 2. Payment Flow
 
 ```
-Payment → Vault (PDA-owned) → execute_split() → Recipients (99%) + Protocol (1%)
+Payment → Vault (PDA-owned) → execute_split() → Recipients
 ```
 
 **Without Facilitator:**
@@ -264,19 +264,15 @@ The payer and authority can be the same address (user pays own rent) or differen
 
 **Example:**
 ```typescript
-const uniqueId = Keypair.generate().publicKey;
+import { createSplitConfig } from "@cascade-fyi/splits-sdk/solana";
 
-const { splitConfigPDA, vault, signature } = await createSplitConfig({
-  authority: merchantKeypair,
-  mint: USDC_MINT,
-  uniqueId,
+const { instruction, vault } = await createSplitConfig({
+  authority: wallet,
   recipients: [
-    { address: platform, percentageBps: 900 },   // 9%
-    { address: merchant, percentageBps: 9000 },  // 90%
+    { address: "Agent111111111111111111111111111111111111111", share: 90 },
+    { address: "Marketplace1111111111111111111111111111111", share: 10 },
   ],
 });
-
-// Store uniqueId for future operations
 ```
 
 ### execute_split
@@ -317,13 +313,6 @@ The instruction validates that `remaining_accounts.len() >= recipient_count + 1`
    - No additional fee charged on clearing (fee was calculated on original split)
 
 **Idempotency:** Safe to call multiple times. Only new funds are split. Unclaimed funds cannot be redistributed to other recipients.
-
-**Example Distribution (100 USDC):**
-```
-Platform (9%):  9.00 USDC
-Merchant (90%): 90.00 USDC
-Protocol (1%):  1.00 USDC
-```
 
 ### update_split_config
 
@@ -540,44 +529,6 @@ pub struct SplitExecuted {
 | **Frozen account detection** | sRFC-37 tokens with DefaultAccountState::Frozen are detected before transfer attempts (~300 CU per recipient). Frozen accounts trigger unclaimed flow rather than transaction failure. Minimal overhead for compatibility with allowlist/blocklist tokens. |
 | **Vault rent recovery on close** | Close instruction closes both config and vault via CPI, recovering all rent (~0.017 SOL total). Adds ~5,000 CU to close operation but ensures no rent is left behind. |
 | **Canonical ATA enforcement** | All recipient and protocol ATAs must be canonical derived addresses. Prevents funds from being sent to non-standard accounts that recipients may not monitor. Consistent with security best practices. |
-
----
-
-## Example Use Cases
-
-### Marketplace Split
-```
-Payment: $100
-├── Platform (9%):  $9
-├── Merchant (90%): $90
-└── Protocol (1%):  $1
-```
-
-### Revenue Share
-```
-Payment: $1000
-├── Founder 1 (40%): $400
-├── Founder 2 (29%): $290
-├── Investor (20%):  $200
-├── Advisor (10%):   $100
-└── Protocol (1%):   $10
-```
-
-### Simple Forwarding
-```
-Payment: $50
-├── Recipient (99%): $49.50
-└── Protocol (1%):   $0.50
-```
-
-### Subscription Split
-```
-Payment: $50/month
-├── Service (50%):   $25
-├── Affiliate (30%): $15
-├── Platform (19%):  $9.50
-└── Protocol (1%):   $0.50
-```
 
 ---
 

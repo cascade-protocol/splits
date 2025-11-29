@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
-import type { SplitWithBalance } from "@cascade-fyi/splits-sdk";
+import type { SplitWithBalance } from "@/hooks/use-splits";
 
 import {
 	AlertDialog,
@@ -14,15 +14,15 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface CloseSplitDialogProps {
-	split: SplitWithBalance | null;
+	splitConfig: SplitWithBalance | null;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onConfirm: (vault: string) => Promise<void>;
+	onConfirm: (splitConfig: SplitWithBalance) => Promise<void>;
 	isPending: boolean;
 }
 
 export function CloseSplitDialog({
-	split,
+	splitConfig,
 	open,
 	onOpenChange,
 	onConfirm,
@@ -37,11 +37,11 @@ export function CloseSplitDialog({
 	};
 
 	const handleConfirm = async () => {
-		if (!split) return;
+		if (!splitConfig) return;
 		setError(null);
 
 		try {
-			await onConfirm(split.vault);
+			await onConfirm(splitConfig);
 			onOpenChange(false); // Only close on success
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to close split");
@@ -59,12 +59,14 @@ export function CloseSplitDialog({
 						permanently deleted and rent will be returned to your wallet.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
-				{split && (
+				{splitConfig && (
 					<div className="rounded-md bg-muted p-3 text-sm">
 						<div className="font-mono text-xs text-muted-foreground mb-1">
 							Vault
 						</div>
-						<div className="font-mono text-xs break-all">{split.vault}</div>
+						<div className="font-mono text-xs break-all">
+							{splitConfig.vault}
+						</div>
 					</div>
 				)}
 				{/* Error display */}

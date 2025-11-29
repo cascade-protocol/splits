@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import type { ShareRecipient } from "@cascade-fyi/splits-sdk";
+import type { Recipient } from "@cascade-fyi/splits-sdk";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,7 @@ import {
 import { CreateSplitForm } from "./create-split-form";
 
 interface CreateSplitDialogProps {
-	onSubmit: (recipients: ShareRecipient[]) => Promise<void>;
+	onSubmit: (recipients: Recipient[]) => Promise<void>;
 	isPending: boolean;
 }
 
@@ -23,7 +23,7 @@ export function CreateSplitDialog({
 }: CreateSplitDialogProps) {
 	const [open, setOpen] = useState(false);
 
-	const handleSubmit = async (recipients: ShareRecipient[]) => {
+	const handleSubmit = async (recipients: Recipient[]) => {
 		await onSubmit(recipients);
 		setOpen(false);
 	};

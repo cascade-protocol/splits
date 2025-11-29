@@ -16,7 +16,7 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import type { SplitWithBalance } from "@cascade-fyi/splits-sdk";
+import type { SplitWithBalance } from "@/hooks/use-splits";
 
 import {
 	Table,
@@ -143,7 +143,7 @@ export function DataTable<TData, TValue>({
 										<TableRow>
 											<TableCell colSpan={columns.length + 1} className="p-0">
 												<SplitDetailRow
-													split={row.original as SplitWithBalance}
+													splitConfig={row.original as SplitWithBalance}
 												/>
 											</TableCell>
 										</TableRow>

@@ -1,24 +1,13 @@
-import {
-	hasUnclaimedAmounts,
-	type SplitWithBalance,
-} from "@cascade-fyi/splits-sdk";
-
-// USDC decimals
-const USDC_DECIMALS = 6;
-
-function formatBalance(amount: bigint): string {
-	const value = Number(amount) / 10 ** USDC_DECIMALS;
-	if (value === 0) return "0.00 USDC";
-	if (value < 0.01) return "< 0.01 USDC";
-	return `${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`;
-}
+import { bpsToShares } from "@cascade-fyi/splits-sdk";
+import type { SplitWithBalance } from "@/hooks/use-splits";
+import { hasUnclaimedAmounts, formatBalance } from "@/lib/splits-helpers";
 
 interface SplitDetailRowProps {
-	split: SplitWithBalance;
+	splitConfig: SplitWithBalance;
 }
 
-export function SplitDetailRow({ split }: SplitDetailRowProps) {
-	const hasUnclaimed = hasUnclaimedAmounts(split);
+export function SplitDetailRow({ splitConfig }: SplitDetailRowProps) {
+	const hasUnclaimed = hasUnclaimedAmounts(splitConfig);
 
 	return (
 		<div className="p-4 bg-muted/30 border-t space-y-4">
@@ -26,32 +15,37 @@ export function SplitDetailRow({ split }: SplitDetailRowProps) {
 			<div>
 				<h4 className="font-medium text-sm mb-3">Recipients</h4>
 				<div className="space-y-2">
-					{split.recipients.map((r) => {
-						// Find unclaimed amount for this recipient (if any)
-						const unclaimedEntry = split.unclaimedAmounts.find(
-							(u) => u.recipient === r.address,
-						);
-						const unclaimedAmount = unclaimedEntry?.amount ?? 0n;
+					{splitConfig.recipients
+						.slice(0, splitConfig.recipientCount)
+						.map((r) => {
+							const address = r.address as string;
+							// Find unclaimed amount for this recipient (if any)
+							const unclaimedEntry = splitConfig.unclaimedAmounts.find(
+								(u) => u.recipient === r.address,
+							);
+							const unclaimedAmount = unclaimedEntry?.amount ?? 0n;
 
-						return (
-							<div
-								key={r.address}
-								className="flex items-center justify-between gap-4 text-sm"
-							>
-								<code className="font-mono text-xs bg-muted px-2 py-1 rounded truncate max-w-[200px] md:max-w-none">
-									{r.address}
-								</code>
-								<div className="flex items-center gap-3 shrink-0">
-									<span className="font-medium">{r.share}%</span>
-									{unclaimedAmount > 0n && (
-										<span className="text-amber-500 text-xs">
-											{formatBalance(unclaimedAmount)} unclaimed
+							return (
+								<div
+									key={address}
+									className="flex items-center justify-between gap-4 text-sm"
+								>
+									<code className="font-mono text-xs bg-muted px-2 py-1 rounded truncate max-w-[200px] md:max-w-none">
+										{address}
+									</code>
+									<div className="flex items-center gap-3 shrink-0">
+										<span className="font-medium">
+											{bpsToShares(r.percentageBps)}%
 										</span>
-									)}
+										{unclaimedAmount > 0n && (
+											<span className="text-amber-500 text-xs">
+												{formatBalance(unclaimedAmount)} unclaimed
+											</span>
+										)}
+									</div>
 								</div>
-							</div>
-						);
-					})}
+							);
+						})}
 				</div>
 			</div>
 
@@ -68,9 +62,9 @@ export function SplitDetailRow({ split }: SplitDetailRowProps) {
 			)}
 
 			{/* Protocol unclaimed if any */}
-			{split.protocolUnclaimed > 0n && (
+			{splitConfig.protocolUnclaimed > 0n && (
 				<div className="text-sm text-muted-foreground">
-					Protocol fee unclaimed: {formatBalance(split.protocolUnclaimed)}
+					Protocol fee unclaimed: {formatBalance(splitConfig.protocolUnclaimed)}
 				</div>
 			)}
 		</div>

@@ -19,7 +19,7 @@ Cascade Splits enables trustless payment distribution on Solana:
 ### How It Works
 
 ```
-Payment → Vault (PDA) → execute_split() → Recipients (99%) + Protocol (1%)
+Payment → Vault (PDA) → execute_split() → Recipients
 ```
 
 1. Authority creates a split config with recipients and percentages
@@ -30,7 +30,7 @@ Payment → Vault (PDA) → execute_split() → Recipients (99%) + Protocol (1%)
 ## Features
 
 - **1-20 recipients** per split configuration
-- **99% to recipients**, 1% protocol fee (transparent, on-chain enforced)
+- **1% protocol fee** (transparent, on-chain enforced)
 - **SPL Token & Token-2022** support, including [sRFC-37](https://forum.solana.com/t/srfc-37-efficient-block-allow-list-token-standard/4036) frozen accounts
 - **Multiple configs** per authority/mint via unique identifiers
 - **Idempotent execution** - safe to retry
@@ -103,47 +103,21 @@ See [docs/benchmarks/compute_units.md](docs/benchmarks/compute_units.md) for ful
 
 ## Usage Example
 
-### Create Split Config
-
 ```typescript
-import { createSplitConfig } from '@cascade-fyi/splits-sdk';
+import { createSplitConfig, executeSplit } from "@cascade-fyi/splits-sdk/solana";
 
-const uniqueId = Keypair.generate().publicKey;
-
-const { splitConfigPDA, vault } = await createSplitConfig({
+const { instruction, vault } = await createSplitConfig({
   authority: wallet,
-  mint: USDC_MINT,
-  uniqueId,
   recipients: [
-    { address: platform, percentageBps: 900 },   // 9%
-    { address: merchant, percentageBps: 9000 },  // 90%
+    { address: "Agent111111111111111111111111111111111111111", share: 90 },
+    { address: "Marketplace1111111111111111111111111111111", share: 10 },
   ],
 });
 
-// Share `vault` address to receive payments
-```
-
-### Execute Split
-
-```typescript
-import { executeSplit } from '@cascade-fyi/splits-sdk';
-
-// Anyone can call this - permissionless
-await executeSplit({
-  splitConfig: splitConfigPDA,
-  recipientAtas: [platformAta, merchantAta],
-  protocolAta,
-});
-```
-
-### Distribution Example
-
-For a 100 USDC payment with config `[9%, 90%]`:
-
-```
-Platform (9%):  9.00 USDC
-Merchant (90%): 90.00 USDC
-Protocol (1%):  1.00 USDC
+const result = await executeSplit(rpc, vault, executor);
+if (result.ok) {
+  await sendTransaction(result.instruction);
+}
 ```
 
 ## Architecture
