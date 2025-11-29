@@ -28,6 +28,27 @@ Cascade Splits EVM is a non-custodial payment splitting protocol for EVM chains 
 
 ---
 
+## Terminology
+
+This spec follows the [canonical glossary](./glossary.md). Key EVM-specific mappings:
+
+| Glossary Term | EVM Implementation | Notes |
+|---------------|-------------------|-------|
+| **ProtocolConfig** | `SplitFactory` contract | Factory IS the protocol config singleton |
+| **SplitConfig** | `SplitConfigImpl` clone | Each split is a minimal proxy clone |
+| **Vault** | SplitConfig contract balance | On EVM, vault = split address (same contract) |
+| **initialize_protocol** | Constructor | Factory constructor handles initialization |
+| **percentage_bps** | `percentageBps` | camelCase per EVM convention |
+
+**Vault as Primary Identifier:** The vault address (where users deposit) IS the SplitConfig address on EVM. Unlike Solana where vault is a separate ATA, EVM splits hold funds directly. SDK functions accept this address:
+
+```typescript
+getSplit(vault)        // Returns SplitConfig data
+executeSplit(vault)    // Distributes vault balance
+```
+
+---
+
 ## How It Works
 
 ### 1. Setup
@@ -376,7 +397,13 @@ Use Solady's `createDeterministicClone` which handles collision detection intern
 
 ```solidity
 bytes32 salt = keccak256(abi.encode(authority, token, uniqueId));
-bytes memory data = abi.encodePacked(address(this), authority, token, uniqueId, _packRecipients(recipients));
+
+// Pack immutable args: factory (20) + authority (20) + token (20) + uniqueId (32) + recipients (22 each)
+bytes memory data = abi.encodePacked(address(this), authority, token, uniqueId);
+for (uint256 i; i < recipients.length; ) {
+    data = abi.encodePacked(data, recipients[i].addr, recipients[i].percentageBps);
+    unchecked { i++; }
+}
 
 (bool alreadyDeployed, address split) = LibClone.createDeterministicClone(
     currentImplementation,
@@ -1159,13 +1186,16 @@ With EIP-4844 blobs, L2 calldata costs are minimal. Optimization priority:
 
 ## SDK Usage
 
+Per [glossary](./glossary.md), vault address is the primary identifier. On EVM, vault = split address.
+
 ```typescript
 import { CascadeSplits } from "@cascade-fyi/splits-sdk/evm";
 
 const sdk = new CascadeSplits({ rpcUrl: "https://mainnet.base.org" });
 
-// Create split config
-const { splitConfig, tx } = await sdk.buildCreateSplitConfig(authority, {
+// Create split config - returns vault (deposit address)
+const { vault, tx } = await sdk.createSplitConfig({
+  authority,
   token: USDC_BASE,
   recipients: [
     { addr: platform, percentageBps: 900 },   // 9%
@@ -1173,12 +1203,17 @@ const { splitConfig, tx } = await sdk.buildCreateSplitConfig(authority, {
   ],
 });
 
-// Execute split
-const { transaction } = await sdk.buildExecuteSplit(splitConfig);
+// Get split data by vault address
+const split = await sdk.getSplit(vault);
 
-// Detect split
-const isSplit = await sdk.detectSplitConfig(address);
+// Execute split (distribute vault balance)
+await sdk.executeSplit(vault);
+
+// Detect if address is a Cascade split
+const isSplit = await sdk.detectSplitConfig(vault);
 ```
+
+**Note:** `vault` and `split` refer to the same address on EVM. The SDK uses `vault` as the parameter name for consistency with Solana SDK where they differ.
 
 ---
 
@@ -1289,8 +1324,11 @@ uint256 public constant PROTOCOL_INDEX = 20;          // Bitmap index for protoc
 - [EIP-1167: Minimal Proxy Contract](https://eips.ethereum.org/EIPS/eip-1167)
 - [EIP-1153: Transient Storage](https://eips.ethereum.org/EIPS/eip-1153)
 
-### Related Projects
+### Related Documentation
+- [Glossary](./glossary.md) - Canonical terminology (Solana is source of truth)
 - [Solana Specification](./specification.md)
+
+### Related Projects
 - [x402 Protocol](https://github.com/coinbase/x402)
 - [0xSplits V2 Architecture](https://docs.splits.org/core/split-v2)
 - [Base Documentation](https://docs.base.org/)
