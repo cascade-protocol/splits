@@ -34,7 +34,7 @@ export function SplitExplainer() {
 	};
 
 	return (
-		<div className="flex w-full max-w-md flex-col items-center py-8 md:py-12">
+		<div className="flex w-full max-w-xl flex-col items-center py-8 md:py-12">
 			{/* Positioning Badge */}
 			<div className="mb-4 rounded-full border border-border/50 bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">
 				First x402-native splitter on Solana
