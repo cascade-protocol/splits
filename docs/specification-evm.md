@@ -369,19 +369,23 @@ function createSplitConfig(
 - No zero percentages
 - Split with same params must not already exist
 
-**Implementation note—CREATE2 collision check:**
+**Implementation note—CREATE2 collision handling:**
 
-CREATE2 returns the existing address if a contract is already deployed there (doesn't revert). Must explicitly check before deployment:
+Use Solady's `createDeterministicClone` which handles collision detection internally and returns deployment status:
 
 ```solidity
 bytes32 salt = keccak256(abi.encode(authority, token, uniqueId));
 bytes memory data = abi.encodePacked(address(this), authority, token, uniqueId, _packRecipients(recipients));
-address predicted = LibClone.predictDeterministicAddress(currentImplementation, data, salt, address(this));
 
-require(predicted.code.length == 0, SplitAlreadyExists());
-
-split = LibClone.cloneDeterministic(currentImplementation, data, salt);
+(bool alreadyDeployed, address split) = LibClone.createDeterministicClone(
+    currentImplementation,
+    data,
+    salt
+);
+if (alreadyDeployed) revert SplitAlreadyExists(split);
 ```
+
+This is cleaner than manual `predictDeterministicAddress` + `code.length` check—Solady handles the atomic check-and-deploy pattern internally.
 
 ### Split Instructions
 
@@ -990,16 +994,18 @@ contract SplitConfigImpl {
 
 ### Compiler Requirements
 
-**Solidity 0.8.28+** required for native transient storage support.
+**Solidity 0.8.30+** required for native transient storage support.
 
 ```toml
 # foundry.toml
 [profile.default]
-solc = "0.8.28"
+solc = "0.8.30"
 optimizer = true
 optimizer_runs = 1000000  # Optimize for runtime (frequently called)
-evm_version = "cancun"    # Required for transient storage
+evm_version = "cancun"    # Required for transient storage (Base L2)
 ```
+
+**Note:** Solidity 0.8.30 defaults to "prague" EVM version, but we explicitly set "cancun" for Base L2 compatibility. Cancun includes EIP-1153 (transient storage) which is all we need.
 
 ### Transient Storage ReentrancyGuard
 
