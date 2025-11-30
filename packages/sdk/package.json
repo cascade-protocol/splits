@@ -1,6 +1,6 @@
 {
 	"name": "@cascade-fyi/splits-sdk",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"type": "module",
 	"description": "TypeScript SDK for Cascade Splits payment splitting protocol",
 	"scripts": {
