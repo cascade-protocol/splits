@@ -58,6 +58,9 @@ Where platforms diverge from canonical terms:
 | Recipient updates | Supported | Not supported | EVM uses immutable args for gas optimization |
 | Close/reclaim | Supported | Not applicable | EVM has no rent model |
 | Vault location | Separate ATA | Contract balance | Platform architecture |
+| Vault address | Different from SplitConfig PDA | Same as SplitConfig address | EVM splits hold funds directly |
+| ProtocolConfig | Separate account | Embedded in SplitFactory | Factory IS the protocol config |
+| initialize_protocol | Explicit instruction | Constructor | One-time at factory deploy |
 
 ---
 
