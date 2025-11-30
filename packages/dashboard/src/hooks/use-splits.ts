@@ -1,48 +1,46 @@
 /**
- * TanStack Query hooks for Cascade Splits
+ * Framework-kit hooks for Cascade Splits
  *
- * Uses SDK instruction builders + generated decoders
- * web3.js for RPC calls and transaction submission
+ * Uses SDK instruction builders + @solana/react-hooks for wallet/transaction management
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { ComputeBudgetProgram, PublicKey, Transaction } from "@solana/web3.js";
-import bs58 from "bs58";
-import type { Address } from "@solana/kit";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+	useSolanaClient,
+	useWalletSession,
+	useTransactionPool,
+	useProgramAccounts,
+} from "@solana/react-hooks";
+import {
+	type Address,
+	type Rpc,
+	type SolanaRpcApi,
+	type Base58EncodedBytes,
+	type Signature,
+	getBase58Decoder,
+	getAddressEncoder,
+} from "@solana/kit";
 
-// Generated SDK imports for decoding
+// SDK imports
+import {
+	createSplitConfig,
+	executeSplit,
+	updateSplitConfig,
+	closeSplitConfig,
+	getVaultBalance,
+	type SplitConfig,
+	type SplitRecipient,
+	type UnclaimedAmount,
+} from "@cascade-fyi/splits-sdk/solana";
 import {
 	SPLIT_CONFIG_DISCRIMINATOR,
 	getSplitConfigDecoder,
-	type SplitConfig,
-	getProtocolConfigDecoder,
 } from "@cascade-fyi/splits-sdk/solana/generated";
-
-// SDK instruction builders (handle remaining accounts correctly)
-import {
-	createSplitConfig,
-	deriveProtocolConfig,
-	deriveAta,
-} from "@cascade-fyi/splits-sdk/solana";
-
-// web3.js compat
-import { toWeb3Instruction } from "@cascade-fyi/splits-sdk/solana/web3-compat";
-
-// SDK types and constants
 import {
 	PROGRAM_ID,
-	TOKEN_PROGRAM_ID,
-	toPercentageBps,
+	bpsToShares,
 	type Recipient,
 } from "@cascade-fyi/splits-sdk";
-
-// Instruction data encoders for manual instruction building
-import {
-	getExecuteSplitInstructionDataEncoder,
-	getUpdateSplitConfigInstructionDataEncoder,
-	getCloseSplitConfigInstructionDataEncoder,
-} from "@cascade-fyi/splits-sdk/solana/generated";
 
 // =============================================================================
 // Types
@@ -50,9 +48,6 @@ import {
 
 /** SplitConfig with vault balance for dashboard display */
 export interface SplitWithBalance extends SplitConfig {
-	/** The splitConfig PDA address */
-	address: string;
-	/** Current vault token balance */
 	vaultBalance: bigint;
 }
 
@@ -60,65 +55,141 @@ export interface SplitWithBalance extends SplitConfig {
 // Constants
 // =============================================================================
 
-const SPLITS_QUERY_KEY = ["splits"] as const;
-const PROTOCOL_CONFIG_QUERY_KEY = ["protocol-config"] as const;
-const DEFAULT_PRIORITY_FEE = 50_000; // microlamports
-const DEFAULT_COMPUTE_UNITS = 200_000;
-const EXECUTE_COMPUTE_UNITS = 300_000; // more CUs for multiple transfers
-
-// Layout offset for authority field (discriminator + version = 9 bytes)
 const AUTHORITY_OFFSET = 9;
-
-// Account roles for manual instruction building
-const SIGNER = 2;
-const WRITABLE = 1;
-const READONLY = 0;
-
-// =============================================================================
-// Decoders
-// =============================================================================
-
+const base58Decoder = getBase58Decoder();
+const addressEncoder = getAddressEncoder();
 const splitConfigDecoder = getSplitConfigDecoder();
-const protocolConfigDecoder = getProtocolConfigDecoder();
 
-// =============================================================================
-// Protocol Config Hook
-// =============================================================================
+// Confirmation polling settings
+const CONFIRMATION_POLL_INTERVAL_MS = 1000;
+const CONFIRMATION_MAX_RETRIES = 60; // 60 seconds max
 
-function useProtocolConfig() {
-	const { connection } = useConnection();
+type ConfirmationCommitment = "processed" | "confirmed" | "finalized";
 
-	return useQuery({
-		queryKey: PROTOCOL_CONFIG_QUERY_KEY,
-		queryFn: async () => {
-			const address = await deriveProtocolConfig();
-			const accountInfo = await connection.getAccountInfo(
-				new PublicKey(address),
-			);
-			if (!accountInfo) {
-				throw new Error("Protocol config not found");
+/**
+ * Wait for transaction confirmation by polling getSignatureStatuses.
+ * Mirrors framework-kit's useWaitForSignature behavior.
+ */
+async function waitForConfirmation(
+	rpc: Rpc<SolanaRpcApi>,
+	signature: Signature,
+	commitment: ConfirmationCommitment = "confirmed",
+): Promise<void> {
+	const commitmentPriority: Record<ConfirmationCommitment, number> = {
+		processed: 0,
+		confirmed: 1,
+		finalized: 2,
+	};
+	const targetPriority = commitmentPriority[commitment];
+
+	for (let i = 0; i < CONFIRMATION_MAX_RETRIES; i++) {
+		const result = await rpc.getSignatureStatuses([signature]).send();
+		const status = result.value[0];
+
+		if (status?.confirmationStatus) {
+			const statusPriority =
+				commitmentPriority[
+					status.confirmationStatus as ConfirmationCommitment
+				] ?? -1;
+			if (statusPriority >= targetPriority) {
+				return;
 			}
-			return {
-				...protocolConfigDecoder.decode(accountInfo.data),
-				address,
-			};
-		},
-		staleTime: Number.POSITIVE_INFINITY,
-		gcTime: Number.POSITIVE_INFINITY,
-	});
+		}
+
+		await new Promise((r) => setTimeout(r, CONFIRMATION_POLL_INTERVAL_MS));
+	}
+
+	throw new Error("Transaction confirmation timeout");
+}
+
+/**
+ * Decode base64 account data to Uint8Array
+ */
+function decodeBase64ToBytes(base64: string): Uint8Array {
+	const binary = atob(base64);
+	return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
 // =============================================================================
-// Helpers
+// Vault Balance Watching
 // =============================================================================
 
-function addComputeBudget(tx: Transaction, computeUnits: number): void {
-	tx.add(
-		ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnits }),
-		ComputeBudgetProgram.setComputeUnitPrice({
-			microLamports: DEFAULT_PRIORITY_FEE,
-		}),
-	);
+/**
+ * Watch multiple vault balances via WebSocket subscriptions.
+ * Returns a Map of vault address -> balance that updates in real-time.
+ */
+export function useVaultBalances(vaults: Address[]) {
+	const client = useSolanaClient();
+	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
+	const [balances, setBalances] = useState<Map<string, bigint>>(new Map());
+	const [isLoading, setIsLoading] = useState(true);
+
+	useEffect(() => {
+		if (vaults.length === 0) {
+			setBalances(new Map());
+			setIsLoading(false);
+			return;
+		}
+
+		setIsLoading(true);
+		const abortControllers: Array<{ abort: () => void }> = [];
+
+		// Fetch initial balances and set up watchers for each vault
+		for (const vault of vaults) {
+			const vaultKey = vault.toString();
+
+			// Fetch initial balance using SDK's proven function
+			getVaultBalance(rpc, vault)
+				.then((balance) => {
+					setBalances((prev) => {
+						const next = new Map(prev);
+						next.set(vaultKey, balance);
+						return next;
+					});
+				})
+				.catch(() => {
+					// Vault may not exist yet
+					setBalances((prev) => {
+						const next = new Map(prev);
+						next.set(vaultKey, 0n);
+						return next;
+					});
+				});
+
+			// Set up watcher for real-time updates
+			const subscription = client.watchers.watchAccount(
+				{ address: vault },
+				() => {
+					// On any account change, re-fetch balance using SDK
+					getVaultBalance(rpc, vault)
+						.then((balance) => {
+							setBalances((prev) => {
+								const next = new Map(prev);
+								next.set(vaultKey, balance);
+								return next;
+							});
+						})
+						.catch(() => {
+							// Ignore errors on updates
+						});
+				},
+			);
+
+			abortControllers.push(subscription);
+		}
+
+		// Mark loading complete after setup
+		setIsLoading(false);
+
+		// Cleanup: abort all subscriptions
+		return () => {
+			for (const controller of abortControllers) {
+				controller.abort();
+			}
+		};
+	}, [client, rpc, vaults]);
+
+	return { balances, isLoading };
 }
 
 // =============================================================================
@@ -126,309 +197,262 @@ function addComputeBudget(tx: Transaction, computeUnits: number): void {
 // =============================================================================
 
 export function useSplits() {
-	const { connection } = useConnection();
-	const { publicKey } = useWallet();
+	const session = useWalletSession();
+	const authority = session?.account.address;
 
-	return useQuery({
-		queryKey: [...SPLITS_QUERY_KEY, publicKey?.toBase58()],
-		queryFn: async (): Promise<SplitWithBalance[]> => {
-			if (!publicKey) return [];
+	// Encode filter bytes (memoized to avoid recreating on every render)
+	const filterConfig = useMemo(() => {
+		if (!authority) return null;
 
-			const accounts = await connection.getProgramAccounts(
-				new PublicKey(PROGRAM_ID),
+		const discriminatorBase58 = base58Decoder.decode(
+			SPLIT_CONFIG_DISCRIMINATOR,
+		) as Base58EncodedBytes;
+		const authorityBytes = addressEncoder.encode(authority);
+		const authorityBase58 = base58Decoder.decode(
+			authorityBytes,
+		) as Base58EncodedBytes;
+
+		return {
+			encoding: "base64" as const,
+			filters: [
 				{
-					filters: [
-						{
-							memcmp: {
-								offset: 0,
-								bytes: bs58.encode(SPLIT_CONFIG_DISCRIMINATOR),
-							},
-						},
-						{
-							memcmp: {
-								offset: AUTHORITY_OFFSET,
-								bytes: publicKey.toBase58(),
-							},
-						},
-					],
+					memcmp: {
+						offset: 0n,
+						bytes: discriminatorBase58,
+						encoding: "base58" as const,
+					},
 				},
-			);
+				{
+					memcmp: {
+						offset: BigInt(AUTHORITY_OFFSET),
+						bytes: authorityBase58,
+						encoding: "base58" as const,
+					},
+				},
+			],
+		};
+	}, [authority]);
 
-			const results: SplitWithBalance[] = [];
-
-			for (const { pubkey, account } of accounts) {
-				const decoded = splitConfigDecoder.decode(account.data);
-
-				let vaultBalance = 0n;
-				try {
-					const balance = await connection.getTokenAccountBalance(
-						new PublicKey(decoded.vault),
-					);
-					vaultBalance = BigInt(balance.value.amount);
-				} catch {
-					// Vault may not exist yet
-				}
-
-				results.push({
-					...decoded,
-					address: pubkey.toBase58(),
-					vaultBalance,
-				});
-			}
-
-			return results;
-		},
-		enabled: !!publicKey,
-		staleTime: 30_000,
+	// Use framework-kit's useProgramAccounts for SWR caching
+	const query = useProgramAccounts(PROGRAM_ID, {
+		config: filterConfig ?? undefined,
+		disabled: !authority || !filterConfig,
 	});
+
+	// Process accounts synchronously (balances come from useVaultBalances)
+	const data = useMemo<SplitConfig[]>(() => {
+		if (!query.accounts || query.accounts.length === 0) {
+			return [];
+		}
+
+		return query.accounts.map(({ pubkey, account }) => {
+			const bytes = decodeBase64ToBytes(account.data[0]);
+			const decoded = splitConfigDecoder.decode(bytes);
+
+			const recipients: SplitRecipient[] = decoded.recipients
+				.slice(0, decoded.recipientCount)
+				.map((r) => ({
+					address: r.address,
+					percentageBps: r.percentageBps,
+					share: bpsToShares(r.percentageBps),
+				}));
+
+			const unclaimedAmounts: UnclaimedAmount[] = decoded.unclaimedAmounts
+				.filter((u) => u.amount > 0n)
+				.map((u) => ({
+					recipient: u.recipient,
+					amount: u.amount,
+					timestamp: u.timestamp,
+				}));
+
+			return {
+				address: pubkey,
+				version: decoded.version,
+				authority: decoded.authority,
+				mint: decoded.mint,
+				vault: decoded.vault,
+				uniqueId: decoded.uniqueId,
+				bump: decoded.bump,
+				recipients,
+				unclaimedAmounts,
+				protocolUnclaimed: decoded.protocolUnclaimed,
+				lastActivity: decoded.lastActivity,
+				rentPayer: decoded.rentPayer,
+			};
+		});
+	}, [query.accounts]);
+
+	return {
+		data,
+		error: query.error,
+		isLoading: query.isLoading,
+		refetch: query.refresh,
+	};
+}
+
+/**
+ * Combines useSplits with useVaultBalances for real-time balance updates.
+ * Drop-in replacement for useSplits that includes live vault balances.
+ */
+export function useSplitsWithBalances() {
+	const {
+		data: splits,
+		error,
+		isLoading: splitsLoading,
+		refetch,
+	} = useSplits();
+
+	// Extract vault addresses for balance watching
+	const vaults = useMemo(() => splits.map((s) => s.vault), [splits]);
+
+	const { balances, isLoading: balancesLoading } = useVaultBalances(vaults);
+
+	// Combine splits with their watched balances
+	const data = useMemo<SplitWithBalance[]>(
+		() =>
+			splits.map((split) => ({
+				...split,
+				vaultBalance: balances.get(split.vault.toString()) ?? 0n,
+			})),
+		[splits, balances],
+	);
+
+	return {
+		data,
+		error,
+		isLoading: splitsLoading || balancesLoading,
+		refetch,
+	};
 }
 
 // =============================================================================
 // Mutation Hooks
 // =============================================================================
 
-interface MutationResult {
-	signature: string;
-	vault?: string;
-}
-
 export function useCreateSplit() {
-	const { connection } = useConnection();
-	const { publicKey, signTransaction } = useWallet();
-	const queryClient = useQueryClient();
+	const client = useSolanaClient();
+	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
+	const session = useWalletSession();
+	const { addInstruction, prepareAndSend, isSending, clearInstructions } =
+		useTransactionPool();
 
-	return useMutation<
-		MutationResult,
-		Error,
-		{ recipients: Recipient[]; token: string }
-	>({
-		mutationFn: async ({ recipients, token }) => {
-			if (!publicKey || !signTransaction) {
-				throw new Error("Wallet not connected");
-			}
+	const mutate = useCallback(
+		async (recipients: Recipient[], mint: Address) => {
+			if (!session) throw new Error("Wallet not connected");
 
-			// Use SDK's createSplitConfig which handles everything
 			const { instruction, vault } = await createSplitConfig({
-				authority: publicKey.toBase58() as Address,
+				authority: session.account.address,
 				recipients,
-				mint: token as Address,
+				mint,
 			});
 
-			const tx = new Transaction();
-			addComputeBudget(tx, DEFAULT_COMPUTE_UNITS);
-			tx.add(toWeb3Instruction(instruction));
+			clearInstructions();
+			addInstruction(instruction);
+			const sig = await prepareAndSend({ authority: session });
 
-			const { blockhash, lastValidBlockHeight } =
-				await connection.getLatestBlockhash();
-			tx.recentBlockhash = blockhash;
-			tx.feePayer = publicKey;
+			// Wait for confirmation before returning
+			await waitForConfirmation(rpc, sig);
 
-			const signed = await signTransaction(tx);
-			const signature = await connection.sendRawTransaction(signed.serialize());
-			await connection.confirmTransaction({
-				signature,
-				blockhash,
-				lastValidBlockHeight,
-			});
-
-			return { signature, vault };
+			return { signature: sig, vault };
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: SPLITS_QUERY_KEY });
-		},
-	});
+		[rpc, session, addInstruction, prepareAndSend, clearInstructions],
+	);
+
+	return { mutate, isPending: isSending };
 }
 
 export function useExecuteSplit() {
-	const { connection } = useConnection();
-	const { publicKey, signTransaction } = useWallet();
-	const queryClient = useQueryClient();
-	const { data: protocolConfig } = useProtocolConfig();
+	const client = useSolanaClient();
+	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
+	const session = useWalletSession();
+	const { addInstruction, prepareAndSend, isSending, clearInstructions } =
+		useTransactionPool();
 
-	return useMutation<MutationResult, Error, SplitWithBalance>({
-		mutationFn: async (split) => {
-			if (!publicKey || !signTransaction) {
-				throw new Error("Wallet not connected");
-			}
-			if (!protocolConfig) {
-				throw new Error("Protocol config not loaded");
-			}
+	const mutate = useCallback(
+		async (split: SplitWithBalance) => {
+			if (!session) throw new Error("Wallet not connected");
 
-			const executor = publicKey.toBase58() as Address;
-
-			// Derive recipient ATAs + protocol ATA
-			const recipientAtas = await Promise.all(
-				split.recipients
-					.slice(0, split.recipientCount)
-					.map((r) => deriveAta(r.address, split.mint)),
+			const result = await executeSplit(
+				rpc,
+				split.vault,
+				session.account.address,
 			);
-			const protocolAta = await deriveAta(protocolConfig.feeWallet, split.mint);
+			if (!result.ok) throw new Error(result.reason);
 
-			// Build instruction manually (protocol ATA must be last in remaining accounts)
-			const data = getExecuteSplitInstructionDataEncoder().encode({});
+			clearInstructions();
+			addInstruction(result.instruction);
+			const sig = await prepareAndSend({ authority: session });
 
-			const instruction = {
-				programAddress: PROGRAM_ID,
-				accounts: [
-					{ address: split.address as Address, role: WRITABLE },
-					{ address: split.vault, role: WRITABLE },
-					{ address: split.mint, role: READONLY },
-					{ address: protocolConfig.address, role: READONLY },
-					{ address: executor, role: READONLY },
-					{ address: TOKEN_PROGRAM_ID, role: READONLY },
-					// Remaining accounts: recipient ATAs + protocol ATA (last)
-					...recipientAtas.map((ata) => ({ address: ata, role: WRITABLE })),
-					{ address: protocolAta, role: WRITABLE },
-				],
-				data,
-			};
+			// Wait for confirmation before returning
+			await waitForConfirmation(rpc, sig);
 
-			const tx = new Transaction();
-			addComputeBudget(tx, EXECUTE_COMPUTE_UNITS);
-			tx.add(toWeb3Instruction(instruction));
-
-			const { blockhash, lastValidBlockHeight } =
-				await connection.getLatestBlockhash();
-			tx.recentBlockhash = blockhash;
-			tx.feePayer = publicKey;
-
-			const signed = await signTransaction(tx);
-			const signature = await connection.sendRawTransaction(signed.serialize());
-			await connection.confirmTransaction({
-				signature,
-				blockhash,
-				lastValidBlockHeight,
-			});
-
-			return { signature };
+			return { signature: sig };
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: SPLITS_QUERY_KEY });
-		},
-	});
+		[rpc, session, addInstruction, prepareAndSend, clearInstructions],
+	);
+
+	return { mutate, isPending: isSending };
 }
 
 export function useUpdateSplit() {
-	const { connection } = useConnection();
-	const { publicKey, signTransaction } = useWallet();
-	const queryClient = useQueryClient();
+	const client = useSolanaClient();
+	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
+	const session = useWalletSession();
+	const { addInstruction, prepareAndSend, isSending, clearInstructions } =
+		useTransactionPool();
 
-	return useMutation<
-		MutationResult,
-		Error,
-		{ split: SplitWithBalance; recipients: Recipient[] }
-	>({
-		mutationFn: async ({ split, recipients }) => {
-			if (!publicKey || !signTransaction) {
-				throw new Error("Wallet not connected");
-			}
+	const mutate = useCallback(
+		async (split: SplitWithBalance, recipients: Recipient[]) => {
+			if (!session) throw new Error("Wallet not connected");
 
-			const authority = publicKey.toBase58() as Address;
-
-			// Convert recipients to on-chain format
-			const onChainRecipients = recipients.map((r) => ({
-				address: r.address as Address,
-				percentageBps: toPercentageBps(r),
-			}));
-
-			// Derive recipient ATAs for validation
-			const recipientAtas = await Promise.all(
-				onChainRecipients.map((r) => deriveAta(r.address, split.mint)),
-			);
-
-			// Build instruction manually
-			const data = getUpdateSplitConfigInstructionDataEncoder().encode({
-				newRecipients: onChainRecipients,
+			const instruction = await updateSplitConfig(rpc, {
+				vault: split.vault,
+				authority: session.account.address,
+				recipients,
 			});
 
-			const instruction = {
-				programAddress: PROGRAM_ID,
-				accounts: [
-					{ address: split.address as Address, role: WRITABLE },
-					{ address: split.vault, role: READONLY },
-					{ address: split.mint, role: READONLY },
-					{ address: authority, role: SIGNER },
-					{ address: TOKEN_PROGRAM_ID, role: READONLY },
-					// Remaining accounts: recipient ATAs for validation
-					...recipientAtas.map((ata) => ({ address: ata, role: READONLY })),
-				],
-				data,
-			};
+			clearInstructions();
+			addInstruction(instruction);
+			const sig = await prepareAndSend({ authority: session });
 
-			const tx = new Transaction();
-			addComputeBudget(tx, DEFAULT_COMPUTE_UNITS);
-			tx.add(toWeb3Instruction(instruction));
+			// Wait for confirmation before returning
+			await waitForConfirmation(rpc, sig);
 
-			const { blockhash, lastValidBlockHeight } =
-				await connection.getLatestBlockhash();
-			tx.recentBlockhash = blockhash;
-			tx.feePayer = publicKey;
-
-			const signed = await signTransaction(tx);
-			const signature = await connection.sendRawTransaction(signed.serialize());
-			await connection.confirmTransaction({
-				signature,
-				blockhash,
-				lastValidBlockHeight,
-			});
-
-			return { signature };
+			return { signature: sig };
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: SPLITS_QUERY_KEY });
-		},
-	});
+		[rpc, session, addInstruction, prepareAndSend, clearInstructions],
+	);
+
+	return { mutate, isPending: isSending };
 }
 
 export function useCloseSplit() {
-	const { connection } = useConnection();
-	const { publicKey, signTransaction } = useWallet();
-	const queryClient = useQueryClient();
+	const client = useSolanaClient();
+	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
+	const session = useWalletSession();
+	const { addInstruction, prepareAndSend, isSending, clearInstructions } =
+		useTransactionPool();
 
-	return useMutation<MutationResult, Error, SplitWithBalance>({
-		mutationFn: async (split) => {
-			if (!publicKey || !signTransaction) {
-				throw new Error("Wallet not connected");
-			}
+	const mutate = useCallback(
+		async (split: SplitWithBalance) => {
+			if (!session) throw new Error("Wallet not connected");
 
-			const authority = publicKey.toBase58() as Address;
-
-			// Build instruction manually
-			const data = getCloseSplitConfigInstructionDataEncoder().encode({});
-
-			const instruction = {
-				programAddress: PROGRAM_ID,
-				accounts: [
-					{ address: split.address as Address, role: WRITABLE },
-					{ address: split.vault, role: WRITABLE },
-					{ address: authority, role: SIGNER },
-					{ address: authority, role: WRITABLE }, // rentDestination = authority
-					{ address: TOKEN_PROGRAM_ID, role: READONLY },
-				],
-				data,
-			};
-
-			const tx = new Transaction();
-			addComputeBudget(tx, DEFAULT_COMPUTE_UNITS);
-			tx.add(toWeb3Instruction(instruction));
-
-			const { blockhash, lastValidBlockHeight } =
-				await connection.getLatestBlockhash();
-			tx.recentBlockhash = blockhash;
-			tx.feePayer = publicKey;
-
-			const signed = await signTransaction(tx);
-			const signature = await connection.sendRawTransaction(signed.serialize());
-			await connection.confirmTransaction({
-				signature,
-				blockhash,
-				lastValidBlockHeight,
+			const instruction = await closeSplitConfig(rpc, {
+				vault: split.vault,
+				authority: session.account.address,
 			});
 
-			return { signature };
+			clearInstructions();
+			addInstruction(instruction);
+			const sig = await prepareAndSend({ authority: session });
+
+			// Wait for confirmation before returning
+			await waitForConfirmation(rpc, sig);
+
+			return { signature: sig };
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: SPLITS_QUERY_KEY });
-		},
-	});
+		[rpc, session, addInstruction, prepareAndSend, clearInstructions],
+	);
+
+	return { mutate, isPending: isSending };
 }

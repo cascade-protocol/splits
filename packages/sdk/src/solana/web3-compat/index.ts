@@ -5,7 +5,15 @@
  * Implementation based on Solana Foundation's framework-kit.
  *
  * @see https://github.com/solana-foundation/framework-kit
+ *
+ * ## Transaction Size Limits
+ *
+ * Legacy transactions are limited to 1232 bytes. For split configs with more
+ * than ~11 recipients, use `VersionedTransaction` with `MessageV0.compile()`
+ * and fetch ALTs via `connection.getAddressLookupTable()`.
  */
+
+// biome-ignore-all lint/style/noRestrictedGlobals: Buffer is required for @solana/web3.js TransactionInstruction type compatibility
 
 import type { Address } from "@solana/kit";
 import {

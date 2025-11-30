@@ -1,18 +1,35 @@
-// Buffer polyfill - MUST be first, before any Solana imports
-import { Buffer } from "buffer";
-globalThis.Buffer = Buffer;
-
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "./index.css";
+import {
+	createClient,
+	autoDiscover,
+	phantom,
+	solflare,
+	backpack,
+} from "@solana/client";
+import { SolanaProvider } from "@solana/react-hooks";
 import App from "./App.tsx";
-import { AppProviders } from "./providers";
+import "./index.css";
+
+const client = createClient({
+	commitment: "confirmed",
+	endpoint:
+		import.meta.env.VITE_MAINNET_RPC || "https://api.mainnet-beta.solana.com",
+	websocketEndpoint:
+		import.meta.env.VITE_MAINNET_WS || "wss://api.mainnet-beta.solana.com",
+	walletConnectors: [
+		...phantom(),
+		...solflare(),
+		...backpack(),
+		...autoDiscover(),
+	],
+});
 
 // biome-ignore lint/style/noNonNullAssertion: Vite guarantees root element exists
 createRoot(document.getElementById("root")!).render(
 	<StrictMode>
-		<AppProviders>
+		<SolanaProvider client={client}>
 			<App />
-		</AppProviders>
+		</SolanaProvider>
 	</StrictMode>,
 );

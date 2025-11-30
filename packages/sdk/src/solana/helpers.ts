@@ -31,6 +31,22 @@ const addressEncoder = getAddressEncoder();
 const addressDecoder = getAddressDecoder();
 
 // =============================================================================
+// Browser-compatible utilities (no Node.js Buffer dependency)
+// =============================================================================
+
+/** Decode base64 string to Uint8Array (browser-native) */
+function decodeBase64(base64: string): Uint8Array {
+	const binary = atob(base64);
+	return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+}
+
+/** Read little-endian u64 from Uint8Array at offset */
+function readBigUInt64LE(data: Uint8Array, offset: number): bigint {
+	const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+	return view.getBigUint64(offset, true); // true = little-endian
+}
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -192,7 +208,7 @@ export async function getSplitConfigFromVault(
 		throw new VaultNotFoundError(vault);
 	}
 
-	const vaultData = Buffer.from(vaultInfo.value.data[0], "base64");
+	const vaultData = decodeBase64(vaultInfo.value.data[0]);
 
 	// Token account: mint (32) + owner (32) + amount (8) + ...
 	if (vaultData.length < 72) {
@@ -274,12 +290,12 @@ export async function getVaultBalance(
 		return 0n;
 	}
 
-	const data = Buffer.from(accountInfo.value.data[0], "base64");
+	const data = decodeBase64(accountInfo.value.data[0]);
 	if (data.length < 72) {
 		throw new InvalidTokenAccountError(vault);
 	}
 
-	return data.readBigUInt64LE(64);
+	return readBigUInt64LE(data, 64);
 }
 
 /**

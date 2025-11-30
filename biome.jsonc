@@ -32,7 +32,15 @@
 				"noLabelWithoutControl": "off"
 			},
 			"style": {
-				"useComponentExportOnlyModules": "off"
+				"useComponentExportOnlyModules": "off",
+				"noRestrictedGlobals": {
+					"level": "error",
+					"options": {
+						"deniedGlobals": {
+							"Buffer": "Buffer is a Node.js global. Use Uint8Array + atob() for browser compatibility."
+						}
+					}
+				}
 			}
 		}
 	},
