@@ -106,12 +106,10 @@ export function UpdateSplitDialog({
 		if (splitConfig && open) {
 			setError(null);
 			form.reset({
-				recipients: splitConfig.recipients
-					.slice(0, splitConfig.recipientCount)
-					.map((r) => ({
-						address: r.address as string,
-						share: bpsToShares(r.percentageBps),
-					})),
+				recipients: splitConfig.recipients.map((r) => ({
+					address: r.address as string,
+					share: bpsToShares(r.percentageBps),
+				})),
 			});
 		}
 	}, [splitConfig, open, form]);

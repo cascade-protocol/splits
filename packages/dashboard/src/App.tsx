@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@solana/react-hooks";
 import { toast } from "sonner";
+import type { Address } from "@solana/kit";
 import { RefreshCw } from "lucide-react";
 import { USDC_MINT, type Recipient } from "@cascade-fyi/splits-sdk";
 import {
-	useSplits,
+	useSplitsWithBalances,
 	useCreateSplit,
 	useExecuteSplit,
 	useUpdateSplit,
@@ -32,10 +33,16 @@ import { Toaster } from "./components/ui/sonner";
 import { openExternal } from "./lib/utils";
 
 export default function App() {
-	const { connected } = useWallet();
+	const wallet = useWallet();
+	const connected = wallet.status === "connected";
 
-	// Data fetching
-	const { data: splits = [], isLoading, error, refetch } = useSplits();
+	// Data fetching with real-time balance updates via WebSocket
+	const {
+		data: splits = [],
+		isLoading,
+		error,
+		refetch,
+	} = useSplitsWithBalances();
 
 	// Fetch creation timestamps (cached indefinitely - they never change)
 	const { timestamps } = useCreationTimestamps(splits);
@@ -69,7 +76,6 @@ export default function App() {
 		null,
 	);
 
-	// Stable execute callback - mutateAsync reference is stable from TanStack Query
 	const handleExecuteSplit = useCallback(
 		async (splitConfig: SplitWithBalance) => {
 			setExecutingVault(splitConfig.vault as string);
@@ -80,7 +86,7 @@ export default function App() {
 					toast.loading("Confirming transaction...", { id: toastId });
 				}, 2000); // Approximate time for wallet popup
 
-				const result = await executeSplitMutation.mutateAsync(splitConfig);
+				const result = await executeSplitMutation.mutate(splitConfig);
 				toast.success("Split executed!", {
 					id: toastId,
 					description: `Funds distributed. Signature: ${result.signature.slice(0, 8)}...`,
@@ -90,6 +96,7 @@ export default function App() {
 							openExternal(`https://solscan.io/tx/${result.signature}`),
 					},
 				});
+				refetch();
 			} catch (err) {
 				toast.error("Failed to execute split", {
 					id: toastId,
@@ -99,7 +106,7 @@ export default function App() {
 				setExecutingVault(null);
 			}
 		},
-		[executeSplitMutation.mutateAsync],
+		[executeSplitMutation.mutate, refetch],
 	);
 
 	// Callbacks for update/close actions
@@ -118,10 +125,7 @@ export default function App() {
 		splitConfig: SplitWithBalance,
 		recipients: Recipient[],
 	) => {
-		const result = await updateSplitMutation.mutateAsync({
-			split: splitConfig,
-			recipients,
-		});
+		const result = await updateSplitMutation.mutate(splitConfig, recipients);
 		toast.success("Recipients updated!", {
 			description: `Signature: ${result.signature.slice(0, 8)}...`,
 			action: {
@@ -130,10 +134,11 @@ export default function App() {
 					openExternal(`https://solscan.io/tx/${result.signature}`),
 			},
 		});
+		refetch();
 	};
 
 	const handleCloseSubmit = async (splitConfig: SplitWithBalance) => {
-		const result = await closeSplitMutation.mutateAsync(splitConfig);
+		const result = await closeSplitMutation.mutate(splitConfig);
 		toast.success("Split closed!", {
 			description: `Rent returned. Signature: ${result.signature.slice(0, 8)}...`,
 			action: {
@@ -142,6 +147,7 @@ export default function App() {
 					openExternal(`https://solscan.io/tx/${result.signature}`),
 			},
 		});
+		refetch();
 	};
 
 	// Split actions object for table columns
@@ -167,10 +173,10 @@ export default function App() {
 				toast.loading("Confirming transaction...", { id: toastId });
 			}, 2000);
 
-			const result = await createSplitMutation.mutateAsync({
+			const result = await createSplitMutation.mutate(
 				recipients,
-				token: USDC_MINT,
-			});
+				USDC_MINT as Address,
+			);
 			const vault = result.vault;
 			toast.success("Split created!", {
 				id: toastId,
@@ -185,6 +191,7 @@ export default function App() {
 						}
 					: undefined,
 			});
+			refetch();
 		} catch (err) {
 			toast.error("Failed to create split", {
 				id: toastId,
