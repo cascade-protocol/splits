@@ -46,6 +46,14 @@ contract SplitFactoryTest is BaseTest {
         new SplitFactory(address(implementation), address(0));
     }
 
+    function test_Constructor_RevertsOnNoCodeImplementation() public {
+        // Create an address with no code (just an EOA)
+        address noCodeAddr = makeAddr("noCodeImplementation");
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidImplementation.selector, noCodeAddr));
+        new SplitFactory(noCodeAddr, feeWallet);
+    }
+
     // =========================================================================
     // createSplitConfig Tests
     // =========================================================================
@@ -323,6 +331,26 @@ contract SplitFactoryTest is BaseTest {
         vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector, alice, protocolAuthority));
         vm.prank(alice);
         factory.transferProtocolAuthority(bob);
+    }
+
+    function test_TransferProtocolAuthority_CancelBySettingZero() public {
+        // Initiate transfer
+        vm.prank(protocolAuthority);
+        factory.transferProtocolAuthority(alice);
+        assertEq(factory.pendingAuthority(), alice);
+
+        // Cancel by setting to address(0)
+        vm.prank(protocolAuthority);
+        factory.transferProtocolAuthority(address(0));
+        assertEq(factory.pendingAuthority(), address(0));
+
+        // Now alice cannot accept
+        vm.expectRevert(NoPendingTransfer.selector);
+        vm.prank(alice);
+        factory.acceptProtocolAuthority();
+
+        // Authority remains unchanged
+        assertEq(factory.authority(), protocolAuthority);
     }
 
     // =========================================================================

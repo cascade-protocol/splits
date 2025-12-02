@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {SplitConfigImpl} from "../src/SplitConfigImpl.sol";
+import {SplitFactory} from "../src/SplitFactory.sol";
 import {Recipient} from "../src/Types.sol";
 import {BaseTest} from "./Base.t.sol";
 
@@ -57,6 +58,32 @@ contract SplitConfigImplTest is BaseTest {
         assertEq(split.getBalance(), 1000e6);
     }
 
+    function test_GetBalance_ReturnsZeroOnFailure() public {
+        // Create split with a token that has no balanceOf function (no code)
+        address noCodeToken = makeAddr("noCodeToken");
+
+        Recipient[] memory recipients = _twoRecipients();
+        bytes32 uniqueId = keccak256("no-code-token-test");
+        address splitAddr = factory.createSplitConfig(alice, noCodeToken, uniqueId, recipients);
+        SplitConfigImpl noCodeSplit = SplitConfigImpl(splitAddr);
+
+        // _getBalance should return 0 when staticcall fails (no code at address)
+        assertEq(noCodeSplit.getBalance(), 0);
+    }
+
+    function test_GetBalance_ReturnsZeroOnInvalidReturnData() public {
+        // Deploy a mock that returns invalid (too short) data
+        InvalidBalanceOfToken invalidToken = new InvalidBalanceOfToken();
+
+        Recipient[] memory recipients = _twoRecipients();
+        bytes32 uniqueId = keccak256("invalid-balance-test");
+        address splitAddr = factory.createSplitConfig(alice, address(invalidToken), uniqueId, recipients);
+        SplitConfigImpl invalidSplit = SplitConfigImpl(splitAddr);
+
+        // _getBalance should return 0 when return data is too short (< 32 bytes)
+        assertEq(invalidSplit.getBalance(), 0);
+    }
+
     function test_TotalUnclaimed_ReturnsZeroWhenEmpty() public view {
         assertEq(split.totalUnclaimed(), 0);
     }
@@ -88,6 +115,42 @@ contract SplitConfigImplTest is BaseTest {
         assertEq(pendingRecipientAmounts[0], 0);
         assertEq(pendingRecipientAmounts[1], 0);
         assertEq(pendingProtocolAmount, 0);
+    }
+
+    function test_PreviewExecution_WithPendingUnclaimed() public {
+        _fundSplit(address(split), 1000e6);
+
+        // Mock alice and feeWallet transfers to fail
+        _mockTransferFail(alice);
+        _mockTransferFail(feeWallet);
+
+        split.executeSplit();
+
+        // Verify unclaimed exists (alice's 495e6 + protocol's 10e6)
+        assertEq(split.totalUnclaimed(), 505e6);
+
+        // Add more funds for preview
+        _fundSplit(address(split), 500e6);
+
+        // Preview should show both pending unclaimed AND new distribution
+        (
+            uint256[] memory amounts,
+            uint256 fee,
+            uint256 available,
+            uint256[] memory pendingRecipientAmounts,
+            uint256 pendingProtocolAmount
+        ) = split.previewExecution();
+
+        // New distribution from 500e6
+        assertEq(available, 500e6);
+        assertEq(amounts[0], 247_500_000); // 49.5% of 500e6 = 247.5e6
+        assertEq(amounts[1], 247_500_000); // 49.5% of 500e6 = 247.5e6
+        assertEq(fee, 5e6); // 1% of 500e6 = 5e6
+
+        // Pending unclaimed from failed transfers
+        assertEq(pendingRecipientAmounts[0], 495e6); // alice's unclaimed
+        assertEq(pendingRecipientAmounts[1], 0); // bob had no failure
+        assertEq(pendingProtocolAmount, 10e6); // protocol's unclaimed
     }
 
     // =========================================================================
@@ -562,5 +625,84 @@ contract SplitConfigImplTest is BaseTest {
             total += stored[i].percentageBps;
         }
         assertEq(total, 9900);
+    }
+
+    // =========================================================================
+    // Reentrancy Protection Tests
+    // =========================================================================
+
+    function test_Reentrancy_ExecuteSplitBlocked() public {
+        // Deploy malicious token that attempts reentrancy
+        ReentrantToken maliciousToken = new ReentrantToken();
+
+        // Create split with malicious token
+        Recipient[] memory recipients = _twoRecipients();
+        bytes32 uniqueId = keccak256("reentrancy-test");
+
+        // Deploy new factory with implementation for this token
+        SplitFactory testFactory = new SplitFactory(address(implementation), feeWallet);
+        address splitAddr = testFactory.createSplitConfig(alice, address(maliciousToken), uniqueId, recipients);
+        SplitConfigImpl reentrantSplit = SplitConfigImpl(splitAddr);
+
+        // Configure malicious token to attempt reentrancy
+        maliciousToken.setSplitToAttack(splitAddr);
+        maliciousToken.mint(splitAddr, 1000e18);
+
+        // Execute should complete without reentrancy succeeding
+        // The reentrancy guard uses Solady's selector 0xab143c06
+        reentrantSplit.executeSplit();
+
+        // Verify the attack was blocked - check that reentrancy attempt counter is > 0
+        // but funds were only distributed once
+        assertGt(maliciousToken.reentrancyAttempts(), 0, "Attack should have been attempted");
+
+        // Balance should be 0 after successful execution (not doubled/tripled from reentrancy)
+        assertEq(maliciousToken.balanceOf(splitAddr), 0, "Split should be empty");
+    }
+}
+
+/// @notice Malicious ERC20 that attempts reentrancy during transfer
+contract ReentrantToken {
+    mapping(address => uint256) public balanceOf;
+    address public splitToAttack;
+    uint256 public reentrancyAttempts;
+
+    function setSplitToAttack(address split) external {
+        splitToAttack = split;
+    }
+
+    function mint(address to, uint256 amount) external {
+        balanceOf[to] += amount;
+    }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        balanceOf[msg.sender] -= amount;
+        balanceOf[to] += amount;
+
+        // Attempt reentrancy when called from the split
+        if (msg.sender == splitToAttack && splitToAttack != address(0)) {
+            reentrancyAttempts++;
+            // Try to re-enter executeSplit - should fail silently due to reentrancy guard
+            try SplitConfigImpl(splitToAttack).executeSplit() {
+                // If we get here, reentrancy protection failed!
+                revert("Reentrancy attack succeeded - this should not happen");
+            } catch {
+                // Expected: reentrancy guard blocks the call
+            }
+        }
+
+        return true;
+    }
+}
+
+/// @notice Token mock that returns invalid (too short) data from balanceOf
+contract InvalidBalanceOfToken {
+    // Returns only 16 bytes instead of 32 - triggers data.length < 32 check
+    fallback() external {
+        // Return exactly 16 bytes (less than the required 32 for uint256)
+        assembly {
+            mstore(0x00, 0x00000000000000000000000000001000)
+            return(0x10, 0x10) // Return 16 bytes starting at offset 0x10
+        }
     }
 }
