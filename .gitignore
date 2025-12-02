@@ -8,7 +8,7 @@ test-ledger
 dist
 *.log
 docker-target
-.claude/*local.json
+**/.claude/*local.json
 .vscode/settings.json
 .env
 tmp

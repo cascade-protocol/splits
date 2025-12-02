@@ -3,22 +3,25 @@
  *
  * @example
  * ```typescript
- * import { executeSplit, getSplitConfigFromVault } from '@cascade-fyi/splits-sdk/solana';
+ * import {
+ *   executeSplit,
+ *   executeAndConfirmSplit,
+ *   isCascadeSplit,
+ * } from '@cascade-fyi/splits-sdk/solana';
  *
- * // Execute a split
- * const result = await executeSplit(rpc, vault, executor);
- * if (result.ok) {
- *   await sendTransaction(result.instruction);
+ * // Check if vault is a split
+ * if (await isCascadeSplit(rpc, vault)) {
+ *   // Low-level: get instruction to sign yourself
+ *   const result = await executeSplit(rpc, vault, executor);
+ *
+ *   // High-level: execute and confirm in one call
+ *   const result = await executeAndConfirmSplit(rpc, rpcSubscriptions, vault, signer);
  * }
- *
- * // Read split config
- * const config = await getSplitConfigFromVault(rpc, vault);
- * console.log(config.recipients); // [{ address, share, percentageBps }]
  * ```
  */
 
 // =============================================================================
-// Instructions
+// Instructions (build transactions)
 // =============================================================================
 
 export {
@@ -31,6 +34,16 @@ export {
 } from "./instructions.js";
 
 // =============================================================================
+// Execute (high-level transaction helpers)
+// =============================================================================
+
+export {
+	executeAndConfirmSplit,
+	type ExecuteAndConfirmOptions,
+	type ExecuteAndConfirmResult,
+} from "./execute.js";
+
+// =============================================================================
 // Read & Helpers
 // =============================================================================
 
@@ -39,7 +52,12 @@ export {
 	getSplitConfigFromVault,
 	getProtocolConfig,
 	getVaultBalance,
+	// Split detection (cached)
 	isCascadeSplit,
+	invalidateSplitCache,
+	clearSplitCache,
+	// Protocol config cache
+	invalidateProtocolConfigCache,
 	// PDA derivation
 	deriveSplitConfig,
 	deriveVault,

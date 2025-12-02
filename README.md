@@ -4,6 +4,8 @@ Non-custodial payment splitting protocol for Solana. Automatically distribute in
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Solana](https://img.shields.io/badge/Solana-Mainnet-green.svg)](https://solana.com)
+[![npm](https://img.shields.io/npm/v/@cascade-fyi/splits-sdk.svg)](https://www.npmjs.com/package/@cascade-fyi/splits-sdk)
+[![Verified Build](https://img.shields.io/badge/Verified-OtterSec-brightgreen.svg)](https://verify.osec.io/status/SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB)
 
 **Program ID:** `SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB`
 
@@ -103,22 +105,44 @@ See [docs/benchmarks/compute_units.md](docs/benchmarks/compute_units.md) for ful
 
 ## Usage Example
 
+### Execute a Split (Facilitators)
+
 ```typescript
-import { createSplitConfig, executeSplit } from "@cascade-fyi/splits-sdk/solana";
+import { createSolanaRpc, createSolanaRpcSubscriptions } from "@solana/kit";
+import { executeAndConfirmSplit, isCascadeSplit } from "@cascade-fyi/splits-sdk/solana";
+
+const rpc = createSolanaRpc("https://api.mainnet-beta.solana.com");
+const rpcSubscriptions = createSolanaRpcSubscriptions("wss://api.mainnet-beta.solana.com");
+
+// Check if destination is a split vault
+if (await isCascadeSplit(rpc, vault)) {
+  const result = await executeAndConfirmSplit(rpc, rpcSubscriptions, vault, signer);
+
+  if (result.ok) {
+    console.log(`Split executed: ${result.signature}`);
+  } else {
+    console.error(`Failed: ${result.reason}`);
+  }
+}
+```
+
+### Create a Split (Merchants)
+
+```typescript
+import { createSplitConfig } from "@cascade-fyi/splits-sdk/solana";
 
 const { instruction, vault } = await createSplitConfig({
-  authority: wallet,
+  authority: myWallet,
   recipients: [
     { address: "Agent111111111111111111111111111111111111111", share: 90 },
     { address: "Marketplace1111111111111111111111111111111", share: 10 },
   ],
 });
 
-const result = await executeSplit(rpc, vault, executor);
-if (result.ok) {
-  await sendTransaction(result.instruction);
-}
+// Sign and send instruction, then share `vault` with payers
 ```
+
+See [SDK documentation](packages/sdk/README.md) for complete API reference.
 
 ## Architecture
 
@@ -131,7 +155,7 @@ if (result.ok) {
 **SplitConfig** (per-split)
 - Recipients, percentages, vault address
 - Seeds: `[b"split_config", authority, mint, unique_id]`
-- Zero-copy for optimal compute (~1,787 bytes fixed)
+- Zero-copy for optimal compute (1,832 bytes fixed)
 
 ### Instructions
 
@@ -157,9 +181,21 @@ No separate claim instruction needed - single interface for all operations.
 
 ## x402 Integration
 
-Use the vault address as your `payTo` destination. Facilitators send payments directly to the vault, and anyone can call `execute_split` to distribute funds to recipients.
+Cascade Splits integrates seamlessly with x402 payment facilitators:
 
-See [specification](docs/specification.md) for vault detection logic.
+```typescript
+import { isCascadeSplit, executeAndConfirmSplit } from "@cascade-fyi/splits-sdk/solana";
+
+// In your facilitator's settle handler:
+if (await isCascadeSplit(rpc, paymentDestination)) {
+  // It's a split vault - execute distribution after payment
+  await executeAndConfirmSplit(rpc, rpcSubscriptions, paymentDestination, signer);
+}
+```
+
+Use the vault address as your `payTo` destination. The SDK caches detection results for high-volume efficiency.
+
+See [specification](docs/specification.md) for complete integration guide.
 
 ## Development
 
@@ -174,7 +210,7 @@ See [specification](docs/specification.md) for vault detection logic.
 │   │   └── events.rs        # Event definitions
 │   ├── tests/               # Mollusk unit tests
 │   └── benches/             # Compute unit benchmarks
-├── sdk/                     # TypeScript SDK
+├── packages/sdk/            # TypeScript SDK
 └── docs/
     └── specification.md     # Full specification
 ```
@@ -184,6 +220,7 @@ See [specification](docs/specification.md) for vault detection logic.
 - Anchor 0.32.1
 - Solana SDK 2.2
 - Mollusk SVM 0.5.1 (testing)
+- @solana/kit ^5.0.0 (SDK)
 
 ### Building
 
@@ -198,6 +235,7 @@ pnpm build
 ## Documentation
 
 - [Full Specification](docs/specification.md) - Detailed protocol documentation
+- [SDK Documentation](packages/sdk/README.md) - TypeScript SDK reference
 - [Error Codes](docs/specification.md#error-codes) - All error codes and descriptions
 - [Events](docs/specification.md#events) - Event definitions for indexing
 
@@ -223,7 +261,8 @@ Apache License 2.0 - see [LICENSE](LICENSE) file.
 ## Links
 
 - **GitHub:** https://github.com/cascade-protocol/splits
-- **SDK:** `@cascade-fyi/splits-sdk`
+- **SDK:** [@cascade-fyi/splits-sdk](https://www.npmjs.com/package/@cascade-fyi/splits-sdk)
+- **Verification:** [OtterSec](https://verify.osec.io/status/SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB)
 - **Contact:** hello@cascade.fyi
 
 ---
