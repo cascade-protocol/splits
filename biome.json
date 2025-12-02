@@ -16,7 +16,9 @@
 			"!!**/dist",
 			"!**/idl.json",
 			"!packages/dashboard/src/components/ui",
-			"!packages/sdk/src/solana/generated"
+			"!packages/sdk/src/solana/generated",
+			"!packages/docs/.source",
+			"!packages/docs/.react-router"
 		]
 	},
 	"formatter": {
