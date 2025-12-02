@@ -37,6 +37,12 @@
 - Clean separation: `instructions.ts` (build) vs `execute.ts` (execute)
 - Added `@solana-program/compute-budget` dependency for priority fees
 
+## [0.7.1] - 2025-11-30
+
+### Fixed
+
+- Browser compatibility: replaced Node.js `Buffer` with native APIs
+
 ## [0.7.0] - 2025-11-29
 
 ### BREAKING CHANGES
@@ -166,7 +172,8 @@
 - Transaction building with compute budget support
 - Type-safe schemas with comprehensive validation
 
-[0.8.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.7.0...sdk@v0.8.0
+[0.8.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.7.1...sdk@v0.8.0
+[0.7.1]: https://github.com/cascade-protocol/splits/compare/sdk@v0.7.0...sdk@v0.7.1
 [0.7.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.6.0...sdk@v0.7.0
 [0.6.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.5.2...sdk@v0.6.0
 [0.5.2]: https://github.com/cascade-protocol/splits/compare/sdk@v0.5.1...sdk@v0.5.2
