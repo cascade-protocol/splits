@@ -109,6 +109,15 @@ export interface ProtocolConfig {
 	bump: number;
 }
 
+/**
+ * Vault balance and token program info
+ * @internal Used by executeAndConfirmSplit for Token-2022 auto-detection
+ */
+export interface VaultInfo {
+	balance: bigint;
+	tokenProgram: Address;
+}
+
 // =============================================================================
 // Address Encoding
 // =============================================================================
@@ -118,6 +127,53 @@ export interface ProtocolConfig {
  */
 export function decodeAddress(bytes: Uint8Array): Address {
 	return addressDecoder.decode(bytes);
+}
+
+// =============================================================================
+// Caches
+// =============================================================================
+
+/**
+ * Cache for isCascadeSplit results.
+ *
+ * Caching behavior:
+ * - Positive results (is a split): cached indefinitely
+ * - Negative results (existing account, not a split): cached indefinitely
+ * - Non-existent accounts: NOT cached (could be created as split later)
+ * - RPC errors: NOT cached (transient failures)
+ *
+ * In Node.js: persists for process lifetime (full benefit)
+ * In Browser: persists for page session (limited benefit)
+ */
+const splitCache = new Map<string, boolean>();
+
+/**
+ * Cached protocol config (rarely changes).
+ * Auto-invalidated on InvalidProtocolFeeRecipient error.
+ */
+let cachedProtocolConfig: ProtocolConfig | null = null;
+
+/**
+ * Invalidate cache entry for a specific vault.
+ * Call after closeSplitConfig if immediate re-detection is needed.
+ */
+export function invalidateSplitCache(vault: Address): void {
+	splitCache.delete(vault as string);
+}
+
+/**
+ * Clear entire split detection cache.
+ */
+export function clearSplitCache(): void {
+	splitCache.clear();
+}
+
+/**
+ * Invalidate protocol config cache.
+ * Called automatically on InvalidProtocolFeeRecipient error during execution.
+ */
+export function invalidateProtocolConfigCache(): void {
+	cachedProtocolConfig = null;
 }
 
 // =============================================================================
@@ -254,22 +310,30 @@ export async function getSplitConfigFromVault(
 }
 
 /**
- * Get protocol configuration
+ * Get protocol configuration.
+ *
+ * Results are cached for efficiency (protocol config rarely changes).
+ * Cache is auto-invalidated on InvalidProtocolFeeRecipient error.
  */
 export async function getProtocolConfig(
 	rpc: Rpc<SolanaRpcApi>,
 ): Promise<ProtocolConfig> {
+	if (cachedProtocolConfig) {
+		return cachedProtocolConfig;
+	}
+
 	const address = await deriveProtocolConfig();
 
 	try {
 		const account = await fetchProtocolConfig(rpc, address);
-		return {
+		cachedProtocolConfig = {
 			address,
 			authority: account.data.authority,
 			pendingAuthority: account.data.pendingAuthority,
 			feeWallet: account.data.feeWallet,
 			bump: account.data.bump,
 		};
+		return cachedProtocolConfig;
 	} catch {
 		throw new ProtocolNotInitializedError();
 	}
@@ -299,17 +363,72 @@ export async function getVaultBalance(
 }
 
 /**
- * Check if an address is a Cascade Split vault
+ * Get vault balance and token program in a single RPC call.
+ * Returns null if vault doesn't exist.
+ * @internal Used by executeAndConfirmSplit for Token-2022 auto-detection
+ */
+export async function getVaultBalanceAndOwner(
+	rpc: Rpc<SolanaRpcApi>,
+	vault: Address,
+): Promise<VaultInfo | null> {
+	const accountInfo = await rpc
+		.getAccountInfo(vault, { encoding: "base64" })
+		.send();
+
+	if (!accountInfo.value) {
+		return null;
+	}
+
+	const data = decodeBase64(accountInfo.value.data[0]);
+	if (data.length < 72) {
+		return null; // Invalid token account
+	}
+
+	const balance = readBigUInt64LE(data, 64);
+	const tokenProgram = accountInfo.value.owner as Address;
+
+	return { balance, tokenProgram };
+}
+
+/**
+ * Check if an address is a Cascade Split vault.
+ *
+ * Results are cached for efficiency:
+ * - Positive results (is a split): cached indefinitely
+ * - Negative results (existing account, not a split): cached indefinitely
+ * - Non-existent accounts: NOT cached (could be created later)
+ * - RPC errors: NOT cached (transient failures)
  */
 export async function isCascadeSplit(
 	rpc: Rpc<SolanaRpcApi>,
 	vault: Address,
 ): Promise<boolean> {
+	const key = vault as string;
+	const cached = splitCache.get(key);
+
+	if (cached !== undefined) {
+		return cached;
+	}
+
 	try {
 		await getSplitConfigFromVault(rpc, vault);
+		splitCache.set(key, true);
 		return true;
-	} catch {
-		return false;
+	} catch (e) {
+		if (e instanceof VaultNotFoundError) {
+			// Account doesn't exist - might be created as split later
+			return false; // DON'T CACHE
+		}
+		if (
+			e instanceof InvalidTokenAccountError ||
+			e instanceof SplitConfigNotFoundError
+		) {
+			// Account exists but definitively not a split - safe to cache
+			splitCache.set(key, false);
+			return false;
+		}
+		// Unknown error (RPC failure, etc.) - don't cache, propagate
+		throw e;
 	}
 }
 

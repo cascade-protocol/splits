@@ -36,6 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive account validation
 - Zero-copy serialization for CU efficiency
 
-[Unreleased]: https://github.com/cascade-protocol/splits/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/cascade-protocol/splits/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/cascade-protocol/splits/releases/tag/v0.2.0
+[Unreleased]: https://github.com/cascade-protocol/splits/compare/solana-program@v0.3.0...HEAD
+[0.3.0]: https://github.com/cascade-protocol/splits/compare/solana-program@v0.2.0...solana-program@v0.3.0
+[0.2.0]: https://github.com/cascade-protocol/splits/releases/tag/solana-program@v0.2.0

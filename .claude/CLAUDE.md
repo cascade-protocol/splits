@@ -53,7 +53,7 @@ User Payment → Vault (ATA owned by SplitConfig PDA)
 - Split Config: `["split_config", authority, mint, unique_id]` - 1,832 bytes
 - Vault: ATA with split_config as owner
 
-## SDK
+## splits-sdk
 
 ```typescript
 // Types, constants, conversion helpers
@@ -74,11 +74,11 @@ Instruction builders use Codama-generated encoders. Account order matters for re
 
 **CRITICAL:** Update ALL versions before building. Missing any causes metadata inconsistencies.
 
-1. **Program Version** (`programs/cascade-splits/Cargo.toml`)
+1. **solana-program Version** (`programs/cascade-splits/Cargo.toml`)
    - Minor bump (0.X.0): new features, behavior changes
    - Patch bump (0.0.X): bug fixes only
 
-2. **CHANGELOG** (`programs/cascade-splits/CHANGELOG.md`)
+2. **solana-program CHANGELOG** (`programs/cascade-splits/CHANGELOG.md`)
    - Follow [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format
    - Valid categories: Added, Changed, Deprecated, Removed, Fixed, Security
    - Move `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD` on release
@@ -89,7 +89,8 @@ Instruction builders use Codama-generated encoders. Account order matters for re
    - Update `**Version:** X.Y` (top)
    - Update `**Last Updated:** YYYY-MM-DD` (bottom)
 
-4. **SDK Version** (`packages/sdk/package.json`) - ONLY if SDK API changes
+4. **splits-sdk Version** (`packages/sdk/package.json`) - ONLY if splits-sdk API changes
+   - Update splits-sdk CHANGELOG (`packages/sdk/CHANGELOG.md`)
    - Skip if only on-chain validation changed
 
 5. **Commit Version Updates** (conventional commits)
@@ -112,8 +113,8 @@ DEPLOYER="~/.config/solana/deployer.json"
 # 1. Pre-flight checks - formatting, linting & tests
 cargo fmt --all --check || { echo "Error: Run 'cargo fmt --all'"; exit 1; }
 cargo clippy --all-targets --all-features -- -D warnings || { echo "Error: Fix clippy warnings"; exit 1; }
-pnpm -w check || { echo "Error: Fix formatting/linting in TypeScript"; exit 1; }
-pnpm -w test:all || { echo "Error: Fix failing tests"; exit 1; }
+pnpm check || { echo "Error: Fix formatting/linting in TypeScript"; exit 1; }
+pnpm test:all || { echo "Error: Fix failing tests"; exit 1; }
 
 # 2. Pre-flight checks - git & balances
 git diff --quiet || { echo "Error: Uncommitted changes"; exit 1; }
@@ -144,7 +145,7 @@ anchor test --skip-build --skip-deploy --provider.cluster devnet
 
 # 8. Commit to git (devnet validated, ready for mainnet)
 git add -A
-git commit -m "chore: release v${VERSION}"
+git commit -m "chore(solana-program): release v${VERSION}"
 
 # 9. Upgrade mainnet (SAME exact verifiable binary)
 anchor upgrade target/verifiable/cascade_splits.so \
@@ -156,7 +157,7 @@ anchor upgrade target/verifiable/cascade_splits.so \
 anchor test --skip-build --skip-deploy --provider.cluster mainnet
 
 # 11. Tag and push (mainnet validated, ready for production)
-git tag "solana-program/v${VERSION}"
+git tag "solana-program@v${VERSION}"
 git push origin main --tags
 
 # 12. Verify build + upload PDA + submit remote job
@@ -185,13 +186,18 @@ Verify at: `https://verify.osec.io/status/SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwA
 
 # 2. Create GitHub release from CHANGELOG
 python3 scripts/extract-changelog.py "$VERSION" programs/cascade-splits/CHANGELOG.md > /tmp/release-notes.md
-gh release create "solana-program/v${VERSION}" --title "Solana Program v${VERSION}" --notes-file /tmp/release-notes.md --verify-tag
+gh release create "solana-program@v${VERSION}" --title "solana-program v${VERSION}" --notes-file /tmp/release-notes.md --verify-tag
 
-# 3. Publish SDK to npm (if SDK version changed)
-cd packages/sdk
-pnpm build && pnpm test:sdk  # Ensure SDK builds and tests pass
-pnpm publish
-cd ../..
+# 3. Publish splits-sdk to npm (if splits-sdk version changed)
+pnpm --filter @cascade-fyi/splits-sdk build
+pnpm --filter @cascade-fyi/splits-sdk test
+pnpm --filter @cascade-fyi/splits-sdk publish
+
+# 4. Tag and release splits-sdk
+python3 scripts/extract-changelog.py "$SDK_VERSION" packages/sdk/CHANGELOG.md > /tmp/sdk-release-notes.md
+git tag "sdk@v${SDK_VERSION}"
+git push origin "sdk@v${SDK_VERSION}"
+gh release create "sdk@v${SDK_VERSION}" --title "splits-sdk v${SDK_VERSION}" --notes-file /tmp/sdk-release-notes.md
 ```
 
 **CHANGELOG Maintenance:**
@@ -202,15 +208,11 @@ cd ../..
 
 ## Testing
 
-| Layer | Location | Framework | Command |
-|-------|----------|-----------|---------|
-| Unit | `programs/*/src/*.rs` | `#[cfg(test)]` | `cargo test --lib` |
-| Instruction | `programs/*/tests/` | Mollusk | `cargo test` |
-| SDK | `sdk/tests/` | Vitest + LiteSVM | `pnpm test:sdk` |
-| Smoke | `tests/` | Vitest + Anchor | `pnpm test` |
-
-```bash
-pnpm test:all    # Run everything
-```
+| Layer | Command | Description |
+|-------|---------|-------------|
+| Rust | `pnpm test:rust` | Mollusk instruction tests |
+| splits-sdk | `pnpm test:sdk` | Vitest + LiteSVM |
+| Integration | `pnpm test` | Anchor + localnet |
+| All | `pnpm test:all` | Everything |
 
 **Principle:** Mollusk tests all errors. Smoke tests only Token-2022 CPI and real network behavior.

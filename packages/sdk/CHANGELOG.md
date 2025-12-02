@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.8.0] - 2025-12-02
+
+### Added
+
+- **`executeAndConfirmSplit()`** - High-level helper that builds, signs, sends, and confirms split execution in one call
+  - `ExecuteAndConfirmOptions` - Configuration for minimum balance threshold, commitment, abort signal, and compute budget
+  - `ExecuteAndConfirmResult` - Discriminated union for type-safe result handling
+  - `minBalance` option for micropayment batching - skip execution if vault balance below threshold
+  - `abortSignal` option for timeout/cancellation support - matches `@solana/kit` patterns
+  - `computeUnitLimit` and `computeUnitPrice` options for priority fee support during network congestion
+  - `programErrorCode` in error results for debugging on-chain failures
+  - Auto-detects Token-2022 from vault account owner (no manual tokenProgram needed)
+  - Uses WebSocket-based confirmation via `@solana/kit`'s `sendAndConfirmTransactionFactory` (no polling)
+
+- **`isCascadeSplit()` caching** - Automatic caching of split detection results for RPC efficiency
+  - Positive results cached indefinitely (vault is a split)
+  - Negative results cached for existing accounts (can't become a split)
+  - Non-existent accounts NOT cached (could be created as split later)
+  - RPC errors NOT cached (transient failures should retry)
+  - ~75% reduction in RPC calls for high-volume facilitators
+
+- **Cache control functions**
+  - `invalidateSplitCache(vault)` - Clear cache for specific vault
+  - `clearSplitCache()` - Clear entire split detection cache
+  - `invalidateProtocolConfigCache()` - Clear protocol config cache
+
+- **Protocol config caching** - Automatic caching with self-healing on fee_wallet changes
+  - Cached after first fetch, saves 1 RPC per `executeSplit`
+  - Auto-invalidates and retries on `InvalidProtocolFeeRecipient` error
+  - Zero coordination needed when protocol changes fee_wallet
+
+### Internal
+
+- New `execute.ts` module for transaction execution helpers
+- Clean separation: `instructions.ts` (build) vs `execute.ts` (execute)
+- Added `@solana-program/compute-budget` dependency for priority fees
+
+## [0.7.1] - 2025-11-30
+
+### Fixed
+
+- Browser compatibility: replaced Node.js `Buffer` with native APIs
+
 ## [0.7.0] - 2025-11-29
 
 ### BREAKING CHANGES
@@ -128,3 +171,15 @@
 - Read-only methods for split config and vault balance
 - Transaction building with compute budget support
 - Type-safe schemas with comprehensive validation
+
+[0.8.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.7.1...sdk@v0.8.0
+[0.7.1]: https://github.com/cascade-protocol/splits/compare/sdk@v0.7.0...sdk@v0.7.1
+[0.7.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.6.0...sdk@v0.7.0
+[0.6.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.5.2...sdk@v0.6.0
+[0.5.2]: https://github.com/cascade-protocol/splits/compare/sdk@v0.5.1...sdk@v0.5.2
+[0.5.1]: https://github.com/cascade-protocol/splits/compare/sdk@v0.5.0...sdk@v0.5.1
+[0.5.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.4.0...sdk@v0.5.0
+[0.4.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.3.1...sdk@v0.4.0
+[0.3.1]: https://github.com/cascade-protocol/splits/compare/sdk@v0.3.0...sdk@v0.3.1
+[0.3.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.2.0...sdk@v0.3.0
+[0.2.0]: https://github.com/cascade-protocol/splits/releases/tag/sdk@v0.2.0

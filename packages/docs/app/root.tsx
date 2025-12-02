@@ -38,7 +38,8 @@ export function meta(_args: Route.MetaArgs) {
 		{ property: "og:title", content: "Cascade Docs" },
 		{
 			property: "og:description",
-			content: "Documentation for Cascade Splits - permissionless payment splitting on Solana",
+			content:
+				"Documentation for Cascade Splits - permissionless payment splitting on Solana",
 		},
 		{ property: "og:image", content: "https://cascade.fyi/og-image.png" },
 		{ name: "twitter:card", content: "summary_large_image" },
@@ -46,7 +47,8 @@ export function meta(_args: Route.MetaArgs) {
 		{ name: "twitter:title", content: "Cascade Docs" },
 		{
 			name: "twitter:description",
-			content: "Documentation for Cascade Splits - permissionless payment splitting on Solana",
+			content:
+				"Documentation for Cascade Splits - permissionless payment splitting on Solana",
 		},
 		{ name: "twitter:image", content: "https://cascade.fyi/og-image.png" },
 	];
