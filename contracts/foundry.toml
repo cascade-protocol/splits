@@ -77,7 +77,7 @@ ignore = ["script/**"]  # Ignore style lints in deployment scripts
 
 # Block explorer verification (Etherscan V2 API - unified for all chains)
 # See: https://docs.etherscan.io/v2-migration
-# To add a new chain: add entry with chain ID from https://chainlist.org
+# Single API key works for all chains with --verifier etherscan
 [etherscan]
-base = { key = "${ETHERSCAN_API_KEY}", url = "https://api.etherscan.io/v2/api", chain = 8453 }
-base_sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api.etherscan.io/v2/api", chain = 84532 }
+base = { key = "${ETHERSCAN_API_KEY}" }
+base_sepolia = { key = "${ETHERSCAN_API_KEY}" }

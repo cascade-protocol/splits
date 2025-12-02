@@ -11,6 +11,15 @@ Cascade Splits automatically distributes incoming payments to multiple recipient
 
 See the [full specification](../docs/specification-evm.md) for detailed documentation.
 
+## Deployed Contracts
+
+Deterministic addresses (same on ALL EVM chains via CREATE2):
+
+| Contract | Address | Base Sepolia |
+|----------|---------|--------------|
+| SplitConfigImpl | `0xF9ad695ecc76c4b8E13655365b318d54E4131EA6` | [View](https://sepolia.basescan.org/address/0xF9ad695ecc76c4b8E13655365b318d54E4131EA6) |
+| SplitFactory | `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7` | [View](https://sepolia.basescan.org/address/0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7) |
+
 ## Quick Start
 
 ```bash
@@ -73,6 +82,22 @@ contracts/
 | 20 | 276k | 567k |
 
 Run `forge test --gas-report` for detailed breakdown.
+
+## Known Limitations
+
+**Protocol Constraints:**
+- **Max 20 recipients** per split (enforced by `MAX_RECIPIENTS`)
+- **Single token per split** - cannot mix tokens in one split
+- **Immutable splits** - recipients cannot be changed after creation
+
+**Token Behavior:**
+- **Blacklisted addresses** (USDC/USDT OFAC compliance) - transfers fail silently, funds stored as unclaimed until address is cleared or fee wallet updated
+- **Fee-on-transfer tokens** - work correctly but recipients receive less than the nominal percentage (the fee is taken during transfer)
+- **Pausable tokens** - if token is paused, all transfers fail and funds are stored as unclaimed until unpaused
+
+**Execution Notes:**
+- **Fee wallet is dynamic** - `previewExecution()` shows current fee wallet, but if authority updates it before `executeSplit()`, fee goes to the NEW wallet
+- **Permissionless execution** - anyone can call `executeSplit()`, caller pays gas but doesn't receive any funds
 
 ## Dependencies
 

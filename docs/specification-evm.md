@@ -1454,17 +1454,17 @@ forge script script/Deploy.s.sol --rpc-url bnb --broadcast --verify
 
 | Contract | Address |
 |----------|---------|
-| SplitConfigImpl | `0xF9ad695ecc76c4b8E13655365b318d54E4131EA6` |
-| SplitFactory | `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7` |
+| SplitConfigImpl | [`0xF9ad695ecc76c4b8E13655365b318d54E4131EA6`](https://sepolia.basescan.org/address/0xF9ad695ecc76c4b8E13655365b318d54E4131EA6) |
+| SplitFactory | [`0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7`](https://sepolia.basescan.org/address/0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7) |
 
 These addresses are derived via CREATE2 using Arachnid's deterministic deployer and are identical on all supported networks.
 
 #### Deployment Status
 
-| Network | Status |
-|---------|--------|
-| Base Sepolia | Pending |
-| Base Mainnet | Pending |
+| Network | Status | Explorer |
+|---------|--------|----------|
+| Base Sepolia | Deployed | [View on BaseScan](https://sepolia.basescan.org/address/0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7) |
+| Base Mainnet | Pending | - |
 
 #### Future Chains (Planned)
 
