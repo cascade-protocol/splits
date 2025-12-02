@@ -7,24 +7,36 @@ import {Recipient} from "../src/Types.sol";
 import {Test, console} from "forge-std/Test.sol";
 
 /// @title ForkTest
-/// @notice Fork tests against real Base Sepolia USDC
+/// @notice Fork tests to validate DEPLOYED contracts against real Base USDC/USDT
 /// @dev Run with: forge test --match-contract ForkTest --fork-url base_sepolia -vvv
+///              or: forge test --match-contract ForkTest --fork-url base -vvv
 ///
-/// These tests can run in two modes:
-/// 1. Deploy fresh contracts (default) - for development
-/// 2. Use deployed contracts - set USE_DEPLOYED=true env var
+/// These tests REQUIRE deployed contracts. They will SKIP if:
+/// 1. Not running on a Base fork (Sepolia or Mainnet)
+/// 2. Contracts not deployed at expected CREATE2 addresses
 ///
-/// Example:
-///   USE_DEPLOYED=true forge test --match-contract ForkTest --fork-url base_sepolia
+/// This validates the ACTUAL deployment works with real tokens, not fresh code.
 ///
 contract ForkTest is Test {
+    // Chain IDs
+    uint256 constant BASE_SEPOLIA_CHAINID = 84_532;
+    uint256 constant BASE_MAINNET_CHAINID = 8453;
+
     // Base Sepolia USDC (Circle's official testnet USDC)
     // Source: https://developers.circle.com/stablecoins/docs/usdc-on-test-networks
-    address constant USDC_BASE_SEPOLIA = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
+    address constant USDC_SEPOLIA = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
+
+    // Base Mainnet USDC (Circle's official USDC)
+    // Source: https://developers.circle.com/stablecoins/docs/usdc-on-main-networks
+    address constant USDC_MAINNET = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
 
     // Base Sepolia USDT (non-standard ERC20 - no return value on transfer)
     // Source: https://sepolia.basescan.org/address/0xd7e9C75C6C05FdE929cAc19bb887892de78819B7
-    address constant USDT_BASE_SEPOLIA = 0xd7e9C75C6C05FdE929cAc19bb887892de78819B7;
+    address constant USDT_SEPOLIA = 0xd7e9C75C6C05FdE929cAc19bb887892de78819B7;
+
+    // Base Mainnet USDT (non-standard ERC20 - no return value on transfer)
+    // Source: https://basescan.org/token/0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2
+    address constant USDT_MAINNET = 0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2;
 
     // Deployed contract addresses (deterministic via CREATE2)
     address constant DEPLOYED_FACTORY = 0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7;
@@ -43,43 +55,68 @@ contract ForkTest is Test {
     uint256 private _testNonce;
 
     function setUp() public {
-        // Skip if not running fork test
-        if (block.chainid != 84_532) {
+        // Skip if not on Base fork or contracts not deployed
+        if (!_isBaseFork() || !_isDeployed()) {
             return;
         }
 
-        deployer = makeAddr("deployer");
-        feeWallet = makeAddr("feeWallet");
+        // Use DEPLOYED contracts - no fresh deployment
+        factory = SplitFactory(DEPLOYED_FACTORY);
+        implementation = SplitConfigImpl(DEPLOYED_IMPL);
+
+        // Get actual deployed config
+        feeWallet = factory.feeWallet();
+        deployer = factory.authority();
+
+        // Test addresses (fresh for each test run)
         alice = makeAddr("alice");
         bob = makeAddr("bob");
         charlie = makeAddr("charlie");
 
-        // Check if we should use deployed contracts
-        bool useDeployed = vm.envOr("USE_DEPLOYED", false);
-
-        if (useDeployed) {
-            // Use actually deployed contracts
-            factory = SplitFactory(DEPLOYED_FACTORY);
-            implementation = SplitConfigImpl(DEPLOYED_IMPL);
-            // Update feeWallet to match deployed config
-            feeWallet = factory.feeWallet();
-            deployer = factory.authority();
-            console.log("Using deployed factory:", DEPLOYED_FACTORY);
-        } else {
-            // Deploy fresh contracts for testing
-            implementation = new SplitConfigImpl();
-            factory = new SplitFactory(address(implementation), feeWallet, deployer);
-            console.log("Deployed fresh factory:", address(factory));
-        }
+        console.log("Using deployed factory:", DEPLOYED_FACTORY);
+        console.log("  Authority:", deployer);
+        console.log("  Fee Wallet:", feeWallet);
     }
 
-    /// @notice Skip modifier for fork tests
+    /// @notice Skip modifier for fork tests - requires BOTH fork AND deployment
     modifier onlyFork() {
-        if (block.chainid != 84_532) {
-            console.log("Skipping fork test - not on Base Sepolia (chainid:", block.chainid, ")");
-            return;
+        if (!_isBaseFork()) {
+            console.log("Skipping: not on Base fork (chainid:", block.chainid, ")");
+            vm.skip(true);
+        }
+        if (!_isDeployed()) {
+            console.log("Skipping: contracts not deployed on this chain");
+            console.log("  Expected factory:", DEPLOYED_FACTORY);
+            console.log("  Expected impl:", DEPLOYED_IMPL);
+            vm.skip(true);
         }
         _;
+    }
+
+    /// @notice Check if running on Base fork (Sepolia or Mainnet)
+    function _isBaseFork() internal view returns (bool) {
+        return block.chainid == BASE_SEPOLIA_CHAINID || block.chainid == BASE_MAINNET_CHAINID;
+    }
+
+    /// @notice Check if contracts are deployed at expected CREATE2 addresses
+    function _isDeployed() internal view returns (bool) {
+        return DEPLOYED_FACTORY.code.length > 0 && DEPLOYED_IMPL.code.length > 0;
+    }
+
+    /// @notice Get USDC address for current chain
+    function _getUsdc() internal view returns (address) {
+        if (block.chainid == BASE_MAINNET_CHAINID) {
+            return USDC_MAINNET;
+        }
+        return USDC_SEPOLIA;
+    }
+
+    /// @notice Get USDT address for current chain
+    function _getUsdt() internal view returns (address) {
+        if (block.chainid == BASE_MAINNET_CHAINID) {
+            return USDT_MAINNET;
+        }
+        return USDT_SEPOLIA;
     }
 
     /// @dev Generate unique ID for each test
@@ -99,10 +136,10 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("create-test");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
 
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
-        assertEq(splitConfig.token(), USDC_BASE_SEPOLIA);
+        assertEq(splitConfig.token(), _getUsdc());
         assertEq(splitConfig.getRecipientCount(), 2);
         assertTrue(splitConfig.isCascadeSplitConfig());
         assertEq(splitConfig.factory(), address(factory));
@@ -116,11 +153,14 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("execute-test");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
+        // Capture initial balances (fee wallet may have pre-existing balance)
+        uint256 feeWalletBefore = _usdcBalance(feeWallet);
+
         // Deal USDC to the split
-        deal(USDC_BASE_SEPOLIA, split, 1000e6);
+        deal(_getUsdc(), split, 1000e6);
         assertEq(splitConfig.getBalance(), 1000e6);
 
         // Execute
@@ -129,7 +169,7 @@ contract ForkTest is Test {
         // Verify distribution: 49.5% + 49.5% + 1% = 100%
         assertEq(_usdcBalance(alice), 495e6);
         assertEq(_usdcBalance(bob), 495e6);
-        assertEq(_usdcBalance(feeWallet), 10e6);
+        assertEq(_usdcBalance(feeWallet) - feeWalletBefore, 10e6, "Fee wallet should receive 1%");
         assertEq(splitConfig.getBalance(), 0);
 
         console.log("[OK] USDC distributed correctly");
@@ -141,10 +181,10 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("preview-test");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
-        deal(USDC_BASE_SEPOLIA, split, 1000e6);
+        deal(_getUsdc(), split, 1000e6);
 
         // Test view functions
         assertEq(splitConfig.getBalance(), 1000e6);
@@ -180,19 +220,22 @@ contract ForkTest is Test {
         recipients[0] = Recipient({addr: alice, percentageBps: 9900});
 
         bytes32 uniqueId = _uniqueId("single-recipient");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
         assertEq(splitConfig.getRecipientCount(), 1);
 
+        // Capture initial balance
+        uint256 feeWalletBefore = _usdcBalance(feeWallet);
+
         // Fund and execute
-        deal(USDC_BASE_SEPOLIA, split, 1000e6);
+        deal(_getUsdc(), split, 1000e6);
         splitConfig.executeSplit();
 
         // Single recipient gets 99%
         assertEq(_usdcBalance(alice), 990e6);
         // Protocol gets 1%
-        assertEq(_usdcBalance(feeWallet), 10e6);
+        assertEq(_usdcBalance(feeWallet) - feeWalletBefore, 10e6, "Fee wallet should receive 1%");
         assertEq(splitConfig.getBalance(), 0);
 
         console.log("[OK] Single recipient (99%) works correctly");
@@ -209,13 +252,16 @@ contract ForkTest is Test {
         }
 
         bytes32 uniqueId = _uniqueId("max-recipients");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
         assertEq(splitConfig.getRecipientCount(), 20);
 
+        // Capture initial balance
+        uint256 feeWalletBefore = _usdcBalance(feeWallet);
+
         // Fund and execute
-        deal(USDC_BASE_SEPOLIA, split, 10_000e6); // 10k USDC
+        deal(_getUsdc(), split, 10_000e6); // 10k USDC
         splitConfig.executeSplit();
 
         // Verify each recipient got 4.95% = 495 USDC
@@ -223,7 +269,7 @@ contract ForkTest is Test {
             assertEq(_usdcBalance(address(0x1000 + i)), 495e6);
         }
         // Protocol fee: 1% = 100 USDC
-        assertEq(_usdcBalance(feeWallet), 100e6);
+        assertEq(_usdcBalance(feeWallet) - feeWalletBefore, 100e6, "Fee wallet should receive 1%");
         assertEq(splitConfig.getBalance(), 0);
 
         console.log("[OK] Max recipients (20) works correctly");
@@ -235,7 +281,7 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("zero-balance");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
         // Execute with 0 balance - should not revert
@@ -253,25 +299,25 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("multiple-deposits");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
         // First deposit and execute
-        deal(USDC_BASE_SEPOLIA, split, 100e6);
+        deal(_getUsdc(), split, 100e6);
         splitConfig.executeSplit();
 
         assertEq(_usdcBalance(alice), 49_500_000); // 49.5 USDC
         assertEq(_usdcBalance(bob), 49_500_000);
 
         // Second deposit and execute
-        deal(USDC_BASE_SEPOLIA, split, 200e6);
+        deal(_getUsdc(), split, 200e6);
         splitConfig.executeSplit();
 
         assertEq(_usdcBalance(alice), 148_500_000); // 49.5 + 99 = 148.5 USDC
         assertEq(_usdcBalance(bob), 148_500_000);
 
         // Third deposit and execute
-        deal(USDC_BASE_SEPOLIA, split, 300e6);
+        deal(_getUsdc(), split, 300e6);
         splitConfig.executeSplit();
 
         assertEq(_usdcBalance(alice), 297_000_000); // 148.5 + 148.5 = 297 USDC
@@ -287,11 +333,14 @@ contract ForkTest is Test {
         recipients[2] = Recipient({addr: charlie, percentageBps: 3300}); // 33%
 
         bytes32 uniqueId = _uniqueId("dust-test");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
+        // Capture initial balance
+        uint256 feeWalletBefore = _usdcBalance(feeWallet);
+
         // Use amount that doesn't divide evenly (causes dust)
-        deal(USDC_BASE_SEPOLIA, split, 100e6); // 100 USDC
+        deal(_getUsdc(), split, 100e6); // 100 USDC
 
         splitConfig.executeSplit();
 
@@ -302,16 +351,16 @@ contract ForkTest is Test {
         uint256 aliceBalance = _usdcBalance(alice);
         uint256 bobBalance = _usdcBalance(bob);
         uint256 charlieBalance = _usdcBalance(charlie);
-        uint256 feeBalance = _usdcBalance(feeWallet);
+        uint256 feeDelta = _usdcBalance(feeWallet) - feeWalletBefore;
 
         // Verify total distributed matches input
-        assertEq(aliceBalance + bobBalance + charlieBalance + feeBalance, 100e6);
+        assertEq(aliceBalance + bobBalance + charlieBalance + feeDelta, 100e6, "Total should equal input");
 
         // Each recipient should get 33% of 100 USDC = 33 USDC
         assertEq(aliceBalance, 33e6);
         assertEq(bobBalance, 33e6);
         assertEq(charlieBalance, 33e6);
-        assertEq(feeBalance, 1e6);
+        assertEq(feeDelta, 1e6, "Fee wallet should receive 1%");
 
         console.log("[OK] Dust handling correct (no leftover in split)");
     }
@@ -324,10 +373,10 @@ contract ForkTest is Test {
         bytes32 uniqueId = _uniqueId("prediction-test");
 
         // Predict address
-        address predicted = factory.predictSplitAddress(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address predicted = factory.predictSplitAddress(alice, _getUsdc(), uniqueId, recipients);
 
         // Create split
-        address actual = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address actual = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
 
         assertEq(actual, predicted, "Address prediction mismatch");
 
@@ -340,10 +389,10 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("permissionless");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
-        deal(USDC_BASE_SEPOLIA, split, 1000e6);
+        deal(_getUsdc(), split, 1000e6);
 
         // Anyone can execute (charlie is not authority or recipient)
         vm.prank(charlie);
@@ -360,7 +409,7 @@ contract ForkTest is Test {
     // FACTORY FUNCTIONS
     // =========================================================================
 
-    function test_Fork_FactoryState() public view onlyFork {
+    function test_Fork_FactoryState() public onlyFork {
         // Verify factory configuration
         assertEq(factory.currentImplementation(), address(implementation));
         assertEq(factory.INITIAL_IMPLEMENTATION(), address(implementation));
@@ -380,11 +429,11 @@ contract ForkTest is Test {
         bytes32 uniqueId = _uniqueId("duplicate-test");
 
         // First creation succeeds
-        factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
 
         // Second creation with same params should revert
         vm.expectRevert();
-        factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
 
         console.log("[OK] Duplicate split correctly rejected");
     }
@@ -399,10 +448,10 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("usdt-create");
-        address split = factory.createSplitConfig(alice, USDT_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdt(), uniqueId, recipients);
 
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
-        assertEq(splitConfig.token(), USDT_BASE_SEPOLIA);
+        assertEq(splitConfig.token(), _getUsdt());
         assertEq(splitConfig.getRecipientCount(), 2);
 
         console.log("[OK] USDT Split created at:", split);
@@ -414,11 +463,11 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("usdt-execute");
-        address split = factory.createSplitConfig(alice, USDT_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdt(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
         // Deal USDT to the split
-        deal(USDT_BASE_SEPOLIA, split, 1000e6);
+        deal(_getUsdt(), split, 1000e6);
         assertEq(splitConfig.getBalance(), 1000e6);
 
         // Execute - this tests non-standard ERC20 transfer handling
@@ -440,11 +489,11 @@ contract ForkTest is Test {
         recipients[2] = Recipient({addr: charlie, percentageBps: 3300});
 
         bytes32 uniqueId = _uniqueId("usdt-multiple");
-        address split = factory.createSplitConfig(alice, USDT_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdt(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
         // First execution
-        deal(USDT_BASE_SEPOLIA, split, 100e6);
+        deal(_getUsdt(), split, 100e6);
         splitConfig.executeSplit();
 
         assertEq(_usdtBalance(alice), 33e6);
@@ -452,7 +501,7 @@ contract ForkTest is Test {
         assertEq(_usdtBalance(charlie), 33e6);
 
         // Second execution
-        deal(USDT_BASE_SEPOLIA, split, 200e6);
+        deal(_getUsdt(), split, 200e6);
         splitConfig.executeSplit();
 
         assertEq(_usdtBalance(alice), 99e6); // 33 + 66
@@ -474,15 +523,16 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("blacklist-recipient");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
-        deal(USDC_BASE_SEPOLIA, split, 1000e6);
+        // Capture initial balance
+        uint256 feeWalletBefore = _usdcBalance(feeWallet);
+
+        deal(_getUsdc(), split, 1000e6);
 
         // Mock alice as blacklisted - transfer will return false
-        vm.mockCall(
-            USDC_BASE_SEPOLIA, abi.encodeWithSignature("transfer(address,uint256)", alice, 495e6), abi.encode(false)
-        );
+        vm.mockCall(_getUsdc(), abi.encodeWithSignature("transfer(address,uint256)", alice, 495e6), abi.encode(false));
 
         splitConfig.executeSplit();
 
@@ -491,7 +541,7 @@ contract ForkTest is Test {
         // Bob should have received his share
         assertEq(_usdcBalance(bob), 495e6, "Bob should receive his share");
         // Fee wallet should have received fee
-        assertEq(_usdcBalance(feeWallet), 10e6, "Fee wallet should receive fee");
+        assertEq(_usdcBalance(feeWallet) - feeWalletBefore, 10e6, "Fee wallet should receive fee");
 
         // Clear mock and retry - should succeed now
         vm.clearMockedCalls();
@@ -513,14 +563,14 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("blacklist-feewallet");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
-        deal(USDC_BASE_SEPOLIA, split, 1000e6);
+        deal(_getUsdc(), split, 1000e6);
 
         // Mock fee wallet as blacklisted
         vm.mockCall(
-            USDC_BASE_SEPOLIA, abi.encodeWithSignature("transfer(address,uint256)", feeWallet, 10e6), abi.encode(false)
+            _getUsdc(), abi.encodeWithSignature("transfer(address,uint256)", feeWallet, 10e6), abi.encode(false)
         );
 
         splitConfig.executeSplit();
@@ -556,11 +606,11 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 oldId = _uniqueId("old-split");
-        address oldSplit = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, oldId, recipients);
+        address oldSplit = factory.createSplitConfig(alice, _getUsdc(), oldId, recipients);
         SplitConfigImpl oldSplitConfig = SplitConfigImpl(oldSplit);
 
         // Fund old split
-        deal(USDC_BASE_SEPOLIA, oldSplit, 1000e6);
+        deal(_getUsdc(), oldSplit, 1000e6);
 
         // Deploy and upgrade to new implementation
         SplitConfigImpl newImpl = new SplitConfigImpl();
@@ -569,11 +619,11 @@ contract ForkTest is Test {
 
         // Create new split with new implementation
         bytes32 newId = _uniqueId("new-split");
-        address newSplit = factory.createSplitConfig(bob, USDC_BASE_SEPOLIA, newId, recipients);
+        address newSplit = factory.createSplitConfig(bob, _getUsdc(), newId, recipients);
         SplitConfigImpl newSplitConfig = SplitConfigImpl(newSplit);
 
         // Fund new split
-        deal(USDC_BASE_SEPOLIA, newSplit, 2000e6);
+        deal(_getUsdc(), newSplit, 2000e6);
 
         // Execute OLD split - MUST still work
         oldSplitConfig.executeSplit();
@@ -606,12 +656,15 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("very-large-amount");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
+
+        // Capture initial balance
+        uint256 feeWalletBefore = _usdcBalance(feeWallet);
 
         // Fund with 1 billion USDC
         uint256 largeAmount = 1_000_000_000e6; // 1 billion USDC
-        deal(USDC_BASE_SEPOLIA, split, largeAmount);
+        deal(_getUsdc(), split, largeAmount);
 
         // Preview should work without overflow
         (uint256[] memory amounts, uint256 protocolFee, uint256 available,,) = splitConfig.previewExecution();
@@ -625,16 +678,15 @@ contract ForkTest is Test {
         splitConfig.executeSplit();
 
         // Verify distribution
+        uint256 feeDelta = _usdcBalance(feeWallet) - feeWalletBefore;
         assertEq(_usdcBalance(alice), 495_000_000e6, "Alice balance correct");
         assertEq(_usdcBalance(bob), 495_000_000e6, "Bob balance correct");
-        assertEq(_usdcBalance(feeWallet), 10_000_000e6, "Fee wallet balance correct");
+        assertEq(feeDelta, 10_000_000e6, "Fee wallet balance correct");
         assertEq(splitConfig.getBalance(), 0, "Split should be empty");
 
         // Verify total matches
         assertEq(
-            _usdcBalance(alice) + _usdcBalance(bob) + _usdcBalance(feeWallet),
-            largeAmount,
-            "Total distributed should equal input"
+            _usdcBalance(alice) + _usdcBalance(bob) + feeDelta, largeAmount, "Total distributed should equal input"
         );
 
         console.log("[OK] Very large amount (1B USDC): no overflow, correct distribution");
@@ -648,10 +700,10 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("concurrent-exec");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
-        deal(USDC_BASE_SEPOLIA, split, 1000e6);
+        deal(_getUsdc(), split, 1000e6);
 
         // First caller executes
         vm.prank(charlie);
@@ -692,13 +744,16 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("token-paused");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
-        deal(USDC_BASE_SEPOLIA, split, 1000e6);
+        // Capture initial balance
+        uint256 feeWalletBefore = _usdcBalance(feeWallet);
+
+        deal(_getUsdc(), split, 1000e6);
 
         // Mock all transfers to fail (simulating paused token)
-        vm.mockCall(USDC_BASE_SEPOLIA, abi.encodeWithSignature("transfer(address,uint256)"), abi.encode(false));
+        vm.mockCall(_getUsdc(), abi.encodeWithSignature("transfer(address,uint256)"), abi.encode(false));
 
         splitConfig.executeSplit();
 
@@ -713,7 +768,7 @@ contract ForkTest is Test {
         // All funds should now be distributed
         assertEq(_usdcBalance(alice), 495e6, "Alice should receive after unpause");
         assertEq(_usdcBalance(bob), 495e6, "Bob should receive after unpause");
-        assertEq(_usdcBalance(feeWallet), 10e6, "Fee wallet should receive after unpause");
+        assertEq(_usdcBalance(feeWallet) - feeWalletBefore, 10e6, "Fee wallet should receive after unpause");
         assertEq(splitConfig.totalUnclaimed(), 0, "No unclaimed after recovery");
 
         console.log("[OK] Token pause: all to unclaimed, recovered after unpause");
@@ -726,15 +781,16 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("feewallet-midflight");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
-        deal(USDC_BASE_SEPOLIA, split, 1000e6);
+        deal(_getUsdc(), split, 1000e6);
 
         // User calls preview - sees feeWallet will receive
         (,, uint256 available,,) = splitConfig.previewExecution();
         assertEq(available, 1000e6, "Preview shows correct available");
         address originalFeeWallet = factory.feeWallet();
+        uint256 originalFeeWalletBefore = _usdcBalance(originalFeeWallet);
 
         // Authority updates fee wallet before user executes
         address newFeeWallet = makeAddr("newFeeWalletMidFlight");
@@ -744,8 +800,12 @@ contract ForkTest is Test {
         // User executes - fee goes to NEW wallet
         splitConfig.executeSplit();
 
-        // Original fee wallet should have nothing
-        assertEq(_usdcBalance(originalFeeWallet), 0, "Original fee wallet should be empty");
+        // Original fee wallet should not have received anything new
+        assertEq(
+            _usdcBalance(originalFeeWallet) - originalFeeWalletBefore,
+            0,
+            "Original fee wallet should not receive new funds"
+        );
         // New fee wallet should have the fee
         assertEq(_usdcBalance(newFeeWallet), 10e6, "New fee wallet should receive fee");
         // Recipients should have their shares
@@ -768,13 +828,16 @@ contract ForkTest is Test {
 
         // Test with USDC but using 18-decimal-like amounts to verify math scaling
         bytes32 uniqueId = _uniqueId("different-decimals");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
+
+        // Capture initial balance
+        uint256 feeWalletBefore = _usdcBalance(feeWallet);
 
         // Use a very precise amount that would reveal decimal issues
         // 123,456,789.123456 USDC
         uint256 preciseAmount = 123_456_789_123_456;
-        deal(USDC_BASE_SEPOLIA, split, preciseAmount);
+        deal(_getUsdc(), split, preciseAmount);
 
         splitConfig.executeSplit();
 
@@ -786,15 +849,14 @@ contract ForkTest is Test {
 
         // Protocol gets remainder
         uint256 expectedProtocol = preciseAmount - (expectedPerRecipient * 2);
-        assertEq(_usdcBalance(feeWallet), expectedProtocol, "Protocol gets remainder");
+        uint256 feeDelta = _usdcBalance(feeWallet) - feeWalletBefore;
+        assertEq(feeDelta, expectedProtocol, "Protocol gets remainder");
 
         // Verify no dust left
         assertEq(splitConfig.getBalance(), 0, "Split should be empty");
 
         // Verify total matches
-        assertEq(
-            _usdcBalance(alice) + _usdcBalance(bob) + _usdcBalance(feeWallet), preciseAmount, "Total should equal input"
-        );
+        assertEq(_usdcBalance(alice) + _usdcBalance(bob) + feeDelta, preciseAmount, "Total should equal input");
 
         console.log("[OK] Different decimals/precision: math is correct");
     }
@@ -845,7 +907,7 @@ contract ForkTest is Test {
         recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = _uniqueId("detection-test");
-        address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address split = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
         SplitConfigImpl splitConfig = SplitConfigImpl(split);
 
         // Quick detection - isCascadeSplitConfig()
@@ -880,13 +942,13 @@ contract ForkTest is Test {
         bytes32 uniqueId = _uniqueId("prefund-test");
 
         // Predict address BEFORE deployment
-        address predicted = factory.predictSplitAddress(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address predicted = factory.predictSplitAddress(alice, _getUsdc(), uniqueId, recipients);
 
         // Pre-fund the predicted address (before split exists!)
-        deal(USDC_BASE_SEPOLIA, predicted, 1000e6);
+        deal(_getUsdc(), predicted, 1000e6);
 
         // Now deploy the split
-        address actual = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
+        address actual = factory.createSplitConfig(alice, _getUsdc(), uniqueId, recipients);
 
         // Verify addresses match
         assertEq(actual, predicted, "Deployed address should match prediction");
@@ -917,7 +979,7 @@ contract ForkTest is Test {
         address account
     ) internal view returns (uint256) {
         (bool success, bytes memory data) =
-            USDC_BASE_SEPOLIA.staticcall(abi.encodeWithSignature("balanceOf(address)", account));
+            _getUsdc().staticcall(abi.encodeWithSignature("balanceOf(address)", account));
         require(success, "balanceOf failed");
         return abi.decode(data, (uint256));
     }
@@ -927,7 +989,7 @@ contract ForkTest is Test {
         address account
     ) internal view returns (uint256) {
         (bool success, bytes memory data) =
-            USDT_BASE_SEPOLIA.staticcall(abi.encodeWithSignature("balanceOf(address)", account));
+            _getUsdt().staticcall(abi.encodeWithSignature("balanceOf(address)", account));
         require(success, "balanceOf failed");
         return abi.decode(data, (uint256));
     }
