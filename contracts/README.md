@@ -20,11 +20,16 @@ forge build
 # Test
 forge test
 
-# Test with gas report
-forge test --gas-report
+# Lint
+forge lint
 
 # Format
 forge fmt
+
+# Local E2E validation (requires Anvil running)
+anvil &
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  forge script script/LocalValidation.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
 ```
 
 ## Project Structure
@@ -39,10 +44,13 @@ contracts/
 │   ├── SplitFactory.sol         # Factory contract
 │   └── SplitConfigImpl.sol      # Split implementation
 ├── test/
+│   ├── Base.t.sol               # Shared test harness
 │   ├── SplitFactory.t.sol       # Factory tests
-│   └── SplitConfigImpl.t.sol    # Split tests
+│   ├── SplitConfigImpl.t.sol    # Split tests
+│   └── Fork.t.sol               # Fork tests (Base Sepolia)
 ├── script/
-│   └── Deploy.s.sol             # Deployment scripts
+│   ├── Deploy.s.sol             # Production deployment
+│   └── LocalValidation.s.sol    # Local E2E validation
 └── lib/
     ├── forge-std/               # Foundry testing library
     └── solady/                  # LibClone + utilities
@@ -64,7 +72,7 @@ contracts/
 See `foundry.toml` for compiler settings. Key configurations:
 
 - Solidity 0.8.30
-- EVM version: Cancun (for transient storage)
+- EVM version: Prague (Base L2 compatible via Pectra upgrade)
 - Optimizer: 1,000,000 runs (optimized for runtime)
 
 ## Deployment

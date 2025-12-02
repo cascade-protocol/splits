@@ -99,10 +99,8 @@ abstract contract BaseTest is Test {
     /// @notice Create max recipients (20 x 4.95%)
     function _maxRecipients() internal pure returns (Recipient[] memory) {
         Recipient[] memory r = new Recipient[](20);
-        for (uint256 i; i < 20; i++) {
-            // Use deterministic addresses
-            // forge-lint: disable-next-line(unsafe-typecast, named-struct-fields)
-            r[i] = Recipient({addr: address(uint160(0x1000 + i)), percentageBps: 495}); // 4.95% each = 99%
+        for (uint160 i; i < 20; i++) {
+            r[i] = Recipient({addr: address(0x1000 + i), percentageBps: 495}); // 4.95% each = 99%
         }
         return r;
     }

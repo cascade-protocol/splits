@@ -128,9 +128,8 @@ contract SplitFactoryTest is BaseTest {
 
     function test_CreateSplitConfig_RevertsOnTooManyRecipients() public {
         Recipient[] memory recipients = new Recipient[](21);
-        for (uint256 i; i < 21; i++) {
-            // forge-lint: disable-next-line(unsafe-typecast)
-            recipients[i] = Recipient({addr: address(uint160(0x1000 + i)), percentageBps: 471}); // ~4.71% each
+        for (uint160 i; i < 21; i++) {
+            recipients[i] = Recipient({addr: address(0x1000 + i), percentageBps: 471}); // ~4.71% each
         }
         bytes32 uniqueId = keccak256("test-split-6");
 

@@ -233,9 +233,8 @@ contract SplitConfigImplTest is BaseTest {
         SplitConfigImpl(splitAddr).executeSplit();
 
         // Each recipient gets 4.95% = 495e6
-        for (uint256 i; i < 20; i++) {
-            // forge-lint: disable-next-line(unsafe-typecast)
-            assertEq(_balance(address(uint160(0x1000 + i))), 495e6);
+        for (uint160 i; i < 20; i++) {
+            assertEq(_balance(address(0x1000 + i)), 495e6);
         }
         // Protocol gets 1% = 100e6
         assertEq(_balance(feeWallet), 100e6);
@@ -517,9 +516,8 @@ contract SplitConfigImplTest is BaseTest {
     function test_Dust_ManyRecipientsSmallAmount() public {
         // Create split with 5 recipients at 19.8% each = 99%
         Recipient[] memory recipients = new Recipient[](5);
-        for (uint256 i; i < 5; i++) {
-            // forge-lint: disable-next-line(unsafe-typecast)
-            recipients[i] = Recipient({addr: address(uint160(0x2000 + i)), percentageBps: 1980}); // 19.8%
+        for (uint160 i; i < 5; i++) {
+            recipients[i] = Recipient({addr: address(0x2000 + i), percentageBps: 1980}); // 19.8%
         }
         bytes32 uniqueId = keccak256("dust-many-recipients");
         address splitAddr = factory.createSplitConfig(alice, address(token), uniqueId, recipients);
@@ -529,9 +527,8 @@ contract SplitConfigImplTest is BaseTest {
         SplitConfigImpl(splitAddr).executeSplit();
 
         // All recipients get 0, protocol gets all 4
-        for (uint256 i; i < 5; i++) {
-            // forge-lint: disable-next-line(unsafe-typecast)
-            assertEq(_balance(address(uint160(0x2000 + i))), 0);
+        for (uint160 i; i < 5; i++) {
+            assertEq(_balance(address(0x2000 + i)), 0);
         }
         assertEq(_balance(feeWallet), 4);
     }
