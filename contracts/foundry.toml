@@ -69,7 +69,7 @@ localhost = "http://127.0.0.1:8545"
 [lint]
 ignore = ["script/**"]  # Ignore style lints in deployment scripts
 
-# Block explorer verification
+# Block explorer verification (Etherscan V2 API - unified for all chains)
 [etherscan]
-base = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.org/api" }
-base_sepolia = { key = "${BASESCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api" }
+base = { key = "${ETHERSCAN_API_KEY}", url = "https://api.etherscan.io/v2/api", chain = 8453 }
+base_sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api.etherscan.io/v2/api", chain = 84532 }
