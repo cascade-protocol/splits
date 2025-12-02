@@ -285,7 +285,7 @@ contract SplitFactoryTest is BaseTest {
     }
 
     function test_AcceptProtocolAuthority_RevertsOnNoPending() public {
-        vm.expectRevert(abi.encodeWithSelector(Unauthorized.selector, alice, address(0)));
+        vm.expectRevert(NoPendingTransfer.selector);
         vm.prank(alice);
         factory.acceptProtocolAuthority();
     }

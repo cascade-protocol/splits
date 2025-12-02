@@ -255,6 +255,10 @@ contract SplitFactory {
     address public pendingAuthority;
 
     constructor(address initialImplementation_, address feeWallet_) {
+        if (initialImplementation_ == address(0)) revert ZeroAddress(0);
+        if (initialImplementation_.code.length == 0) revert InvalidImplementation(initialImplementation_);
+        if (feeWallet_ == address(0)) revert ZeroAddress(1);
+
         initialImplementation = initialImplementation_;
         currentImplementation = initialImplementation_;
         feeWallet = feeWallet_;
@@ -296,7 +300,8 @@ modifier onlyAuthority() {
 ### Interfaces
 
 ```solidity
-/// @notice Factory interface for SplitConfig to read protocol configuration
+/// @notice Minimal factory interface for SplitConfig to read protocol configuration
+/// @dev Full interface includes createSplitConfig() and predictSplitAddress()
 interface ISplitFactory {
     function feeWallet() external view returns (address);
     function currentImplementation() external view returns (address);
@@ -504,8 +509,8 @@ Completes authority transfer. Must be called by pending authority.
 
 ```solidity
 function acceptProtocolAuthority() external {
-    if (msg.sender != pendingAuthority) revert Unauthorized(msg.sender, pendingAuthority);
     if (pendingAuthority == address(0)) revert NoPendingTransfer();
+    if (msg.sender != pendingAuthority) revert Unauthorized(msg.sender, pendingAuthority);
     address oldAuthority = authority;
     authority = pendingAuthority;
     pendingAuthority = address(0);

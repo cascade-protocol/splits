@@ -28,4 +28,5 @@ error SplitAlreadyExists(address predicted);
 /// @dev Implementation address has no deployed code
 error InvalidImplementation(address implementation);
 
-// Note: Reentrancy error is provided by Solady's ReentrancyGuardTransient
+// Note: Reentrancy error (selector 0xab143c06) is inherited from Solady's ReentrancyGuardTransient
+// SDK consumers can catch it with: error Reentrancy();

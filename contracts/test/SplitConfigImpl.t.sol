@@ -371,4 +371,196 @@ contract SplitConfigImplTest is BaseTest {
         assertTrue(_balance(alice) > aliceAfterFirst || amount2 < 3);
         assertTrue(_balance(bob) > bobAfterFirst || amount2 < 3);
     }
+
+    // =========================================================================
+    // Retry Phase Tests (TransferFailed on retry)
+    // =========================================================================
+
+    function test_RetryPhase_EmitsTransferFailedOnPersistentFailure() public {
+        _fundSplit(address(split), 1000e6);
+
+        // First execution: alice fails
+        _mockTransferFail(alice);
+        split.executeSplit();
+
+        // Verify alice has unclaimed
+        assertEq(split.totalUnclaimed(), 495e6);
+
+        // Fund more and execute again WITHOUT clearing mock
+        // This tests that the retry also emits TransferFailed
+        _fundSplit(address(split), 1000e6);
+
+        vm.expectEmit(true, true, true, true);
+        emit SplitConfigImpl.TransferFailed(alice, 495e6, false); // Retry failure
+
+        split.executeSplit();
+
+        // Alice's unclaimed should now be doubled (old 495 + new 495)
+        assertEq(split.totalUnclaimed(), 990e6);
+    }
+
+    function test_RetryPhase_ProtocolFeeEmitsTransferFailedOnPersistentFailure() public {
+        _fundSplit(address(split), 1000e6);
+
+        // First execution: feeWallet fails
+        _mockTransferFail(feeWallet);
+        split.executeSplit();
+
+        // Verify protocol has unclaimed
+        assertEq(split.totalUnclaimed(), 10e6);
+
+        // Execute again WITHOUT clearing mock - retry should emit TransferFailed
+        vm.expectEmit(true, true, true, true);
+        emit SplitConfigImpl.TransferFailed(feeWallet, 10e6, true); // isProtocol = true
+
+        split.executeSplit();
+    }
+
+    // =========================================================================
+    // Dust & Small Amount Tests
+    // =========================================================================
+
+    function test_Dust_VerySmallAmount_AllToProtocol() public {
+        // Test spec example: 4 wei split among recipients at 49.5% each
+        // floor(4 * 4950 / 10000) = floor(1.98) = 1 each
+        // Recipients: 1 + 1 = 2, Protocol: 4 - 2 = 2
+
+        _fundSplit(address(split), 4);
+        split.executeSplit();
+
+        assertEq(_balance(alice), 1); // floor(4 * 4950 / 10000) = 1
+        assertEq(_balance(bob), 1); // floor(4 * 4950 / 10000) = 1
+        assertEq(_balance(feeWallet), 2); // remainder
+    }
+
+    function test_Dust_TinyAmountZeroToRecipients() public {
+        // 1 wei: floor(1 * 4950 / 10000) = 0 for each recipient
+        // Protocol gets entire amount
+
+        _fundSplit(address(split), 1);
+        split.executeSplit();
+
+        assertEq(_balance(alice), 0);
+        assertEq(_balance(bob), 0);
+        assertEq(_balance(feeWallet), 1);
+    }
+
+    function test_Dust_ManyRecipientsSmallAmount() public {
+        // Create split with 5 recipients at 19.8% each = 99%
+        Recipient[] memory recipients = new Recipient[](5);
+        for (uint256 i; i < 5; i++) {
+            recipients[i] = Recipient(address(uint160(0x2000 + i)), 1980); // 19.8%
+        }
+        bytes32 uniqueId = keccak256("dust-many-recipients");
+        address splitAddr = factory.createSplitConfig(alice, address(token), uniqueId, recipients);
+
+        // 4 wei among 5 recipients: floor(4 * 1980 / 10000) = 0 each
+        token.mint(splitAddr, 4);
+        SplitConfigImpl(splitAddr).executeSplit();
+
+        // All recipients get 0, protocol gets all 4
+        for (uint256 i; i < 5; i++) {
+            assertEq(_balance(address(uint160(0x2000 + i))), 0);
+        }
+        assertEq(_balance(feeWallet), 4);
+    }
+
+    function testFuzz_Dust_ProtocolGetsRemainder(uint256 amount) public {
+        // For any amount, protocol should get at least 1% (due to remainder calculation)
+        amount = bound(amount, 100, 1e24); // At least 100 base units for meaningful test
+
+        _fundSplit(address(split), amount);
+        split.executeSplit();
+
+        uint256 aliceShare = _balance(alice);
+        uint256 bobShare = _balance(bob);
+        uint256 protocolShare = _balance(feeWallet);
+
+        // Total should equal input
+        assertEq(aliceShare + bobShare + protocolShare, amount);
+
+        // Protocol should get at least 1% (remainder always >= 1%)
+        assertGe(protocolShare, amount / 100);
+    }
+
+    // =========================================================================
+    // Invariant Tests
+    // =========================================================================
+
+    function test_Invariant_BalanceGteUnclaimed() public {
+        _fundSplit(address(split), 1000e6);
+
+        // Mock alice's transfer to fail
+        _mockTransferFail(alice);
+        split.executeSplit();
+
+        // Invariant: balance >= totalUnclaimed
+        assertGe(split.getBalance(), split.totalUnclaimed());
+
+        // Add more funds
+        _fundSplit(address(split), 500e6);
+
+        // Still holds
+        assertGe(split.getBalance(), split.totalUnclaimed());
+
+        // Execute again (retry still fails)
+        split.executeSplit();
+
+        // Still holds
+        assertGe(split.getBalance(), split.totalUnclaimed());
+    }
+
+    function test_Invariant_BitmapSyncWithMapping() public {
+        _fundSplit(address(split), 1000e6);
+
+        // Mock alice's transfer to fail
+        _mockTransferFail(alice);
+        split.executeSplit();
+
+        // Unclaimed should be > 0
+        uint256 unclaimed = split.totalUnclaimed();
+        assertGt(unclaimed, 0);
+
+        // Clear mock and retry
+        _clearMocks();
+        split.executeSplit();
+
+        // After clearing, unclaimed should be 0
+        assertEq(split.totalUnclaimed(), 0);
+    }
+
+    function testFuzz_Invariant_RecipientsSum99Percent(uint8 recipientCount, uint256 seed) public {
+        recipientCount = uint8(bound(recipientCount, 1, 20));
+
+        // Generate random recipients that sum to 9900
+        Recipient[] memory recipients = new Recipient[](recipientCount);
+        uint256 remaining = 9900;
+
+        for (uint256 i; i < recipientCount; i++) {
+            address addr = address(uint160(uint256(keccak256(abi.encode(seed, i, "addr")))));
+            vm.assume(addr != address(0));
+
+            uint16 bps;
+            if (i == recipientCount - 1) {
+                bps = uint16(remaining);
+            } else {
+                uint256 maxBps = remaining - (recipientCount - i - 1);
+                bps = uint16(bound(uint256(keccak256(abi.encode(seed, i, "bps"))), 1, maxBps));
+                remaining -= bps;
+            }
+            recipients[i] = Recipient(addr, bps);
+        }
+
+        bytes32 uniqueId = keccak256(abi.encode(seed, "invariant-test"));
+        address splitAddr = factory.createSplitConfig(alice, address(token), uniqueId, recipients);
+        SplitConfigImpl testSplit = SplitConfigImpl(splitAddr);
+
+        // Verify invariant: recipients sum to 9900
+        Recipient[] memory stored = testSplit.getRecipients();
+        uint256 total;
+        for (uint256 i; i < stored.length; i++) {
+            total += stored[i].percentageBps;
+        }
+        assertEq(total, 9900);
+    }
 }

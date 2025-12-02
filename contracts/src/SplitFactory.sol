@@ -196,8 +196,8 @@ contract SplitFactory is ISplitFactory {
 
     /// @notice Completes authority transfer (must be called by pending authority)
     function acceptProtocolAuthority() external {
-        if (msg.sender != pendingAuthority) revert Unauthorized(msg.sender, pendingAuthority);
         if (pendingAuthority == address(0)) revert NoPendingTransfer();
+        if (msg.sender != pendingAuthority) revert Unauthorized(msg.sender, pendingAuthority);
         address oldAuthority = authority;
         authority = pendingAuthority;
         pendingAuthority = address(0);

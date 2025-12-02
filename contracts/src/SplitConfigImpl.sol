@@ -267,6 +267,9 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
                     _unclaimedBitmap &= ~(1 << i);
                     cleared += amount;
                     emit UnclaimedCleared(to, amount, isProtocol);
+                } else {
+                    // Retry failed again - emit for monitoring/indexing
+                    emit TransferFailed(to, amount, isProtocol);
                 }
             }
             unchecked {
