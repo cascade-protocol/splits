@@ -70,13 +70,24 @@ contract SplitConfigImplTest is BaseTest {
     function test_PreviewExecution_MatchesActualExecution() public {
         _fundSplit(address(split), 1000e6);
 
-        (uint256[] memory amounts, uint256 fee, uint256 available) = split.previewExecution();
+        (
+            uint256[] memory amounts,
+            uint256 fee,
+            uint256 available,
+            uint256[] memory pendingRecipientAmounts,
+            uint256 pendingProtocolAmount
+        ) = split.previewExecution();
 
         assertEq(available, 1000e6);
         assertEq(amounts.length, 2);
         assertEq(amounts[0], 495e6); // 49.5%
         assertEq(amounts[1], 495e6); // 49.5%
         assertEq(fee, 10e6); // 1% (remainder)
+        // No pending unclaimed
+        assertEq(pendingRecipientAmounts.length, 2);
+        assertEq(pendingRecipientAmounts[0], 0);
+        assertEq(pendingRecipientAmounts[1], 0);
+        assertEq(pendingProtocolAmount, 0);
     }
 
     // =========================================================================
@@ -279,6 +290,53 @@ contract SplitConfigImplTest is BaseTest {
         emit SplitConfigImpl.TransferFailed(alice, 495e6, false);
 
         split.executeSplit();
+    }
+
+    function test_UnclaimedCleared_EmitsEvent() public {
+        _fundSplit(address(split), 1000e6);
+
+        // Mock alice's transfer to fail
+        _mockTransferFail(alice);
+        split.executeSplit();
+
+        // Verify unclaimed exists
+        assertEq(split.totalUnclaimed(), 495e6);
+
+        // Clear mock and retry - should emit UnclaimedCleared
+        _clearMocks();
+
+        vm.expectEmit(true, true, true, true);
+        emit SplitConfigImpl.UnclaimedCleared(alice, 495e6, false);
+
+        split.executeSplit();
+
+        // Verify unclaimed is cleared
+        assertEq(split.totalUnclaimed(), 0);
+    }
+
+    function test_UnclaimedCleared_ProtocolFee_EmitsEvent() public {
+        _fundSplit(address(split), 1000e6);
+
+        // Mock feeWallet transfer to fail
+        _mockTransferFail(feeWallet);
+        split.executeSplit();
+
+        // Verify unclaimed exists
+        assertEq(split.totalUnclaimed(), 10e6);
+
+        // Update fee wallet and clear mock
+        address newFeeWallet = makeAddr("newFeeWallet");
+        vm.prank(protocolAuthority);
+        factory.updateProtocolConfig(newFeeWallet);
+        _clearMocks();
+
+        vm.expectEmit(true, true, true, true);
+        emit SplitConfigImpl.UnclaimedCleared(newFeeWallet, 10e6, true);
+
+        split.executeSplit();
+
+        // Verify unclaimed is cleared
+        assertEq(split.totalUnclaimed(), 0);
     }
 
     // =========================================================================

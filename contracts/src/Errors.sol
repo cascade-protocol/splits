@@ -28,5 +28,4 @@ error SplitAlreadyExists(address predicted);
 /// @dev Implementation address has no deployed code
 error InvalidImplementation(address implementation);
 
-/// @dev Reentrant call detected
-error Reentrancy();
+// Note: Reentrancy error is provided by Solady's ReentrancyGuardTransient

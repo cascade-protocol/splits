@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.30;
 
-import {Reentrancy} from "./Errors.sol";
+import {ReentrancyGuardTransient} from "solady/utils/ReentrancyGuardTransient.sol";
+
 import {Recipient} from "./Types.sol";
 import {ISplitFactory} from "./interfaces/ISplitFactory.sol";
 
 /// @title SplitConfigImpl
 /// @notice Implementation contract for Cascade Split configurations
 /// @dev Deployed as EIP-1167 clones with immutable args encoded in bytecode
-contract SplitConfigImpl {
+contract SplitConfigImpl is ReentrancyGuardTransient {
     // =========================================================================
     // Constants
     // =========================================================================
 
-    /// @notice Bitmap index for protocol fee (recipients use 0-19)
+    /// @notice Bitmap index for protocol fee
+    /// @dev Must equal MAX_RECIPIENTS (20). Recipients use indices 0-19.
     uint256 public constant PROTOCOL_INDEX = 20;
 
     /// @notice Basis points divisor
@@ -54,20 +56,16 @@ contract SplitConfigImpl {
     /// @notice Emitted when a transfer fails
     event TransferFailed(address indexed recipient, uint256 amount, bool isProtocol);
 
+    /// @notice Emitted when previously unclaimed funds are successfully delivered
+    event UnclaimedCleared(address indexed recipient, uint256 amount, bool isProtocol);
+
     // =========================================================================
-    // Modifiers
+    // Solady ReentrancyGuardTransient Override
     // =========================================================================
 
-    /// @dev Transient storage reentrancy guard (EIP-1153)
-    modifier nonReentrant() {
-        assembly {
-            if tload(0) { revert(0, 0) }
-            tstore(0, 1)
-        }
-        _;
-        assembly {
-            tstore(0, 0)
-        }
+    /// @dev Always use transient storage for reentrancy guard (Base L2 supports EIP-1153)
+    function _useTransientReentrancyGuardOnlyOnMainnet() internal pure override returns (bool) {
+        return false;
     }
 
     // =========================================================================
@@ -171,20 +169,46 @@ contract SplitConfigImpl {
         return abi.decode(data, (uint256));
     }
 
-    /// @notice Preview what executeSplit would distribute without executing
-    /// @return recipientAmounts Amount each recipient would receive
-    /// @return protocolFee Amount protocol would receive (1% + dust)
-    /// @return available Total amount being distributed
+    /// @notice Preview complete execution outcome including pending unclaimed
+    /// @return recipientAmounts Amount each recipient would receive from new funds
+    /// @return protocolFee Amount protocol would receive from new funds (1% + dust)
+    /// @return available Total new funds being distributed
+    /// @return pendingRecipientAmounts Unclaimed amounts per recipient that would be retried
+    /// @return pendingProtocolAmount Unclaimed protocol fee that would be retried
     function previewExecution()
         public
         view
-        returns (uint256[] memory recipientAmounts, uint256 protocolFee, uint256 available)
+        returns (
+            uint256[] memory recipientAmounts,
+            uint256 protocolFee,
+            uint256 available,
+            uint256[] memory pendingRecipientAmounts,
+            uint256 pendingProtocolAmount
+        )
     {
         uint256 count = getRecipientCount();
         recipientAmounts = new uint256[](count);
+        pendingRecipientAmounts = new uint256[](count);
 
+        // Calculate pending unclaimed amounts
+        uint256 bitmap = _unclaimedBitmap;
+        if (bitmap != 0) {
+            for (uint256 i; i < count;) {
+                if (bitmap & (1 << i) != 0) {
+                    pendingRecipientAmounts[i] = _unclaimedByIndex[i];
+                }
+                unchecked {
+                    ++i;
+                }
+            }
+            if (bitmap & (1 << PROTOCOL_INDEX) != 0) {
+                pendingProtocolAmount = _unclaimedByIndex[PROTOCOL_INDEX];
+            }
+        }
+
+        // Calculate new distribution
         available = pendingAmount();
-        if (available == 0) return (recipientAmounts, 0, 0);
+        if (available == 0) return (recipientAmounts, 0, 0, pendingRecipientAmounts, pendingProtocolAmount);
 
         uint256 distributed;
         for (uint256 i; i < count;) {
@@ -235,12 +259,14 @@ contract SplitConfigImpl {
         for (uint256 i; i < 21;) {
             if (bitmap & (1 << i) != 0) {
                 uint256 amount = _unclaimedByIndex[i];
-                address to = i == PROTOCOL_INDEX ? feeWalletAddr : _getRecipientAddress(i);
+                bool isProtocol = i == PROTOCOL_INDEX;
+                address to = isProtocol ? feeWalletAddr : _getRecipientAddress(i);
 
-                if (_attemptTransfer(tokenAddr, to, amount)) {
+                if (_trySafeTransfer(tokenAddr, to, amount)) {
                     _unclaimedByIndex[i] = 0;
                     _unclaimedBitmap &= ~(1 << i);
                     cleared += amount;
+                    emit UnclaimedCleared(to, amount, isProtocol);
                 }
             }
             unchecked {
@@ -297,12 +323,6 @@ contract SplitConfigImpl {
         (addr,) = _getRecipient(index);
     }
 
-    /// @dev Attempts a transfer without recording unclaimed on failure
-    function _attemptTransfer(address tokenAddr, address to, uint256 amount) internal returns (bool) {
-        (bool ok, bytes memory data) = tokenAddr.call(abi.encodeWithSignature("transfer(address,uint256)", to, amount));
-        return ok && (data.length == 0 || abi.decode(data, (bool)));
-    }
-
     // =========================================================================
     // Internal Functions
     // =========================================================================
@@ -318,6 +338,40 @@ contract SplitConfigImpl {
         }
     }
 
+    /// @dev Attempts ERC20 transfer without reverting. Returns success status.
+    /// @dev Follows Solady's SafeTransferLib pattern for robust token handling.
+    /// @param tokenAddr The ERC20 token address
+    /// @param to Recipient address
+    /// @param amount Amount to transfer
+    /// @return success True if transfer succeeded
+    function _trySafeTransfer(address tokenAddr, address to, uint256 amount) internal returns (bool success) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            // Store transfer(address,uint256) selector and arguments
+            mstore(0x14, to) // Store `to` at offset 0x14 (right-padded in 32 bytes)
+            mstore(0x34, amount) // Store `amount` at offset 0x34
+            mstore(0x00, 0xa9059cbb000000000000000000000000) // transfer(address,uint256) selector
+
+            // Call token.transfer(to, amount)
+            // calldata starts at 0x10 (selector at 0x10-0x14, to at 0x14-0x34, amount at 0x34-0x54)
+            success := call(gas(), tokenAddr, 0, 0x10, 0x44, 0x00, 0x20)
+
+            // Check return value:
+            // - If call failed (success=0), check if it's because there's no code at tokenAddr
+            // - If call succeeded, check return data:
+            //   - No return data (USDT style): success
+            //   - Return data == true: success
+            //   - Return data == false or other: failure
+            if iszero(and(eq(mload(0x00), 1), success)) {
+                // Success if: call succeeded AND (no code at token OR returndata is empty OR returned true)
+                success := lt(or(iszero(extcodesize(tokenAddr)), returndatasize()), success)
+            }
+
+            // Restore the part of the free memory pointer that was overwritten
+            mstore(0x34, 0)
+        }
+    }
+
     /// @dev Attempts transfer with self-healing fallback
     /// @param tokenAddr The ERC20 token address
     /// @param to Recipient address
@@ -330,11 +384,10 @@ contract SplitConfigImpl {
         uint256 amount,
         uint256 index
     ) internal returns (bool success) {
-        (bool ok, bytes memory data) = tokenAddr.call(abi.encodeWithSignature("transfer(address,uint256)", to, amount));
-
-        success = ok && (data.length == 0 || abi.decode(data, (bool)));
+        success = _trySafeTransfer(tokenAddr, to, amount);
 
         if (!success) {
+            // Record as unclaimed for retry on next execution
             _unclaimedByIndex[index] += amount;
             _unclaimedBitmap |= (1 << index);
             emit TransferFailed(to, amount, index == PROTOCOL_INDEX);

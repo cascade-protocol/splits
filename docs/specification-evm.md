@@ -123,6 +123,20 @@ If a recipient transfer fails during execution:
 
 **Note:** With very small distributions or low-decimal tokens, small-percentage recipients may receive 0 due to floor division. This is expected behavior.
 
+### Dust and Minimum Amounts
+
+There is no minimum execution amount. For very small distributions, floor division may result in some recipients receiving 0:
+
+```
+Example: 4 wei split among 5 recipients at 19.8% each
+- Each recipient: floor(4 × 1980 / 10000) = 0 wei
+- Protocol receives: 4 wei (entire amount as remainder)
+```
+
+This is intentional—the protocol collects dust that would otherwise be unallocatable. For practical use with USDC (6 decimals), amounts below ~$0.01 may result in some recipients receiving 0.
+
+**Integrator guidance:** Avoid sending amounts smaller than `recipientCount × 100` base units to ensure all recipients receive non-zero shares.
+
 ### Naming Parity
 
 All function names aligned with Solana implementation (camelCase for EVM):
@@ -201,6 +215,20 @@ If a recipient is **permanently** blocklisted (e.g., OFAC sanctions):
 
 This is intentional. The alternative—allowing authority to redirect funds—creates a trust assumption that contradicts the permissionless design.
 
+### Handling Problematic Recipients
+
+If a recipient becomes permanently unable to receive (blocklisted, lost keys, etc.), the recommended recovery pattern is:
+
+1. **Existing split:** Continue operating. Other recipients receive their shares normally. Problematic recipient's share accumulates as unclaimed.
+
+2. **Migration:** Authority creates new split with corrected recipients.
+
+3. **Update integration:** Change `payTo` address in x402 resource server configuration.
+
+4. **Old split:** Funds remain indefinitely. No recovery mechanism by design—this prevents authority from redirecting funds that belong to the original recipient.
+
+Adding complexity for recipient removal would introduce trust assumptions that contradict the permissionless design. The migration pattern is simpler and maintains the immutability guarantee.
+
 ### Monitoring Transfer Failures
 
 The `SplitExecuted` event includes transfer status for each recipient. Integrators should monitor for:
@@ -241,6 +269,8 @@ contract SplitFactory {
 - `currentImplementation`: Used for new splits, can be upgraded by protocol authority
 - Existing splits are unaffected by upgrades (their implementation is baked into clone bytecode)
 - Enables safe bug fixes: deploy new implementation, new splits use it, old splits unchanged
+
+**Note:** Implementation upgrades are currently instant (no timelock). This is intentional during active development for rapid iteration. Additional safeguards (timelock, multi-sig) may be added before production deployment.
 
 **No registry mapping:** Split addresses are deterministic via CREATE2. Discovery uses `SplitConfigCreated` events indexed by subgraphs. On-chain verification recomputes CREATE2 address from known parameters.
 
@@ -376,18 +406,35 @@ function createSplitConfig(
 ```
 
 **Parameters:**
-- `authority`: Address that owns the split (can be any address, not just caller—enables sponsored creation)
+- `authority`: Creator/namespace address for the split (see Authority Field below)
 - `token`: ERC20 token address (e.g., USDC)
 - `uniqueId`: Unique identifier (enables multiple splits per authority/token pair)
 - `recipients`: Array of recipients with percentage allocations (must sum to 9900 bps)
 
 **Returns:** Deployed split clone address
 
+**Authority Field:**
+
+The `authority` address serves as a namespace and identifier, NOT a control mechanism:
+
+| Purpose | Description |
+|---------|-------------|
+| **CREATE2 namespace** | Ensures address uniqueness per creator (`salt = keccak256(authority, token, uniqueId)`) |
+| **Event indexing** | Allows filtering splits by creator in subgraphs via `SplitConfigCreated` event |
+| **Semantic ownership** | Identifies who configured the split for off-chain coordination |
+
+**Authority has NO on-chain privileges** for deployed splits. Splits are fully immutable and permissionlessly executable. The authority cannot:
+- Modify recipients or percentages
+- Withdraw or redirect funds
+- Pause, close, or disable the split
+
+`address(0)` is allowed as authority for "communal" splits with no attributed creator. This is useful for trustless configurations where no single party should be identified as the owner.
+
 **Validation:**
 - 1-20 recipients
 - Total exactly 9900 bps (99%)
 - No duplicate recipients
-- No zero addresses
+- No zero addresses (for recipients)
 - No zero percentages
 - Split with same params must not already exist
 
@@ -491,7 +538,7 @@ Distributes available balance to recipients and protocol. Automatically retries 
 | `totalUnclaimed()` | `uint256` | Sum of all unclaimed amounts |
 | `hasPendingFunds()` | `bool` | True if balance > unclaimed |
 | `pendingAmount()` | `uint256` | Amount available for next execution |
-| `previewExecution()` | `(uint256[], uint256, uint256)` | Preview distribution (recipient amounts, protocol fee, available) |
+| `previewExecution()` | `(uint256[], uint256, uint256, uint256[], uint256)` | Preview complete execution (new distribution + pending unclaimed) |
 | `getBalance()` | `uint256` | Total token balance held |
 | `isCascadeSplitConfig()` | `bool` | Always returns true (for detection) |
 
@@ -510,21 +557,45 @@ function totalUnclaimed() public view returns (uint256 total) {
         unchecked { i++; }
     }
 }
+```
 
-/// @notice Preview what executeSplit would distribute without executing
-/// @return recipientAmounts Amount each recipient would receive
-/// @return protocolFee Amount protocol would receive (1% + dust)
-/// @return available Total amount being distributed
+**Design note:** `totalUnclaimed()` iterates over the bitmap rather than caching the sum in storage. This trades higher read cost (up to 21 SLOADs in worst case) for lower write cost on the happy path where transfers succeed. Since failures are rare and `totalUnclaimed()` is called once per `executeSplit()`, caching would add 5,000 gas per failure/clear event to save reads that rarely happen.
+
+```solidity
+/// @notice Preview complete execution outcome including pending unclaimed
+/// @return recipientAmounts Amount each recipient would receive from new funds
+/// @return protocolFee Amount protocol would receive from new funds (1% + dust)
+/// @return available Total new funds being distributed
+/// @return pendingRecipientAmounts Unclaimed amounts per recipient that would be retried
+/// @return pendingProtocolAmount Unclaimed protocol fee that would be retried
 function previewExecution() public view returns (
     uint256[] memory recipientAmounts,
     uint256 protocolFee,
-    uint256 available
+    uint256 available,
+    uint256[] memory pendingRecipientAmounts,
+    uint256 pendingProtocolAmount
 ) {
     uint256 count = getRecipientCount();
     recipientAmounts = new uint256[](count);
+    pendingRecipientAmounts = new uint256[](count);
 
+    // Calculate pending unclaimed amounts
+    uint256 bitmap = _unclaimedBitmap;
+    if (bitmap != 0) {
+        for (uint256 i; i < count; ) {
+            if (bitmap & (1 << i) != 0) {
+                pendingRecipientAmounts[i] = _unclaimedByIndex[i];
+            }
+            unchecked { i++; }
+        }
+        if (bitmap & (1 << PROTOCOL_INDEX) != 0) {
+            pendingProtocolAmount = _unclaimedByIndex[PROTOCOL_INDEX];
+        }
+    }
+
+    // Calculate new distribution
     available = IERC20(token()).balanceOf(address(this)) - totalUnclaimed();
-    if (available == 0) return (recipientAmounts, 0, 0);
+    if (available == 0) return (recipientAmounts, 0, 0, pendingRecipientAmounts, pendingProtocolAmount);
 
     uint256 distributed;
     for (uint256 i; i < count; ) {
@@ -561,6 +632,18 @@ function previewExecution() public view returns (
 - Step 2 runs before step 4: unclaimed retries happen first
 - Step 4b uses subtraction, not multiplication: protocol gets exact remainder including dust
 - All transfers use self-healing wrapper: failures don't revert, they record as unclaimed
+
+### Transaction Atomicity
+
+All state changes in `executeSplit()` are atomic with the EVM transaction:
+
+1. **Partial execution rollback:** If the transaction reverts mid-execution (e.g., out of gas after some transfers), ALL state changes are rolled back, including bitmap modifications, unclaimed mapping updates, and ERC20 transfers (reverted in token contract).
+
+2. **External call isolation:** ERC20 `transfer()` calls only modify state in the token contract (balance mappings). They do not execute arbitrary code on recipient addresses for standard ERC20 tokens.
+
+3. **No cross-transaction state leakage:** Each `executeSplit()` call is independent. A failed call leaves state unchanged, and the next call starts fresh.
+
+**Note:** This guarantee relies on standard ERC20 behavior. Tokens with transfer hooks (ERC777) could introduce additional complexity—see [Gas Griefing](#gas-griefing) section.
 
 ---
 
@@ -687,6 +770,22 @@ Cascade Splits aligns with x402 v2's modular architecture:
 **Fee-on-Transfer Tokens (PAXG, STA):**
 Supported. Recipients receive their proportional share minus transfer fees at each hop. The split percentages remain accurate relative to each other. No code changes required.
 
+**Unclaimed retry behavior with fee-on-transfer tokens:** When a transfer fails and is stored as unclaimed, the retry on subsequent `executeSplit()` calls transfers the **stored amount**, not the net amount after fees:
+
+```
+Initial execution:
+  - Split receives 990 tokens (1000 sent, 1% fee taken on deposit)
+  - Recipient A's share: 495 tokens
+  - Transfer to A fails → stored as unclaimed[0] = 495
+
+Retry execution:
+  - executeSplit() retries transfer of 495 to A
+  - Fee-on-transfer takes 1% → A receives 490 tokens
+  - unclaimed[0] cleared to 0
+```
+
+Recipients of fee-on-transfer tokens may receive slightly less than their stored unclaimed amount on retry due to the additional transfer fee. This is inherent to fee-on-transfer token mechanics and cannot be avoided without protocol-level subsidization.
+
 **Rebasing Tokens (stETH, OHM, AMPL):**
 Balance changes without transfers. Unclaimed accounting breaks. **Explicitly exclude.**
 
@@ -715,6 +814,8 @@ bytes memory data = abi.encodePacked(factory, authority, token, uniqueId, recipi
 // Address depends on implementation, data, salt, AND factory
 address = LibClone.predictDeterministicAddress(implementation, data, salt, factory);
 ```
+
+**Note:** The salt does not include `factory` because the CREATE2 formula already incorporates the deployer address—adding it to the salt would be redundant.
 
 **Important:** Changing any parameter (including recipients) produces a different address. To compute the address off-chain, you need all parameters including the full recipient list.
 
@@ -750,6 +851,7 @@ CREATE2 address depends on factory address. Deploy factory via deterministic dep
 | `SplitConfigCreated` | New split deployed (includes full recipient list for indexing) |
 | `SplitExecuted` | Funds distributed (includes per-recipient status) |
 | `TransferFailed` | Individual transfer failed (recipient stored as unclaimed) |
+| `UnclaimedCleared` | Previously unclaimed funds successfully delivered |
 
 ### Factory Event Signatures
 
@@ -812,6 +914,40 @@ event TransferFailed(
 - Identify undeployed smart wallets (prompt user action)
 - Track compliance issues with regulated tokens
 
+### UnclaimedCleared Details
+
+Emitted when a previously unclaimed transfer succeeds on retry:
+
+```solidity
+event UnclaimedCleared(
+    address indexed recipient,
+    uint256 amount,
+    bool isProtocol                // True if protocol fee was cleared
+);
+```
+
+**Monitoring use cases:**
+- Track successful fund recovery after temporary failures
+- Audit trail for all fund movements (complements TransferFailed)
+- Debugging integrations (correlate with previous TransferFailed events)
+
+### Event Emission Order
+
+Events in `executeSplit()` are emitted in the following order:
+
+1. **Unclaimed retry phase** (if bitmap != 0):
+   - `UnclaimedCleared(recipient, amount, isProtocol)` for each successful retry
+   - `TransferFailed(recipient, amount, isProtocol)` for each retry that fails again
+
+2. **New distribution phase** (if available > 0):
+   - `TransferFailed(recipient, amount, false)` for each recipient transfer that fails
+   - `TransferFailed(feeWallet, amount, true)` if protocol fee transfer fails
+
+3. **Summary event** (always emitted):
+   - `SplitExecuted(totalAmount, protocolFee, unclaimedCleared, newUnclaimed)`
+
+**Rationale:** `UnclaimedCleared` and `TransferFailed` events are emitted immediately when retries/transfers occur, providing a complete audit trail. `SplitExecuted` is emitted last with aggregated data for efficient querying.
+
 ---
 
 ## Error Definitions
@@ -858,7 +994,7 @@ error Reentrancy();
 
 ### Implemented Protections
 
-- ReentrancyGuard on `executeSplit` only (transient storage via EIP-1153)
+- ReentrancyGuard on `executeSplit` only (Solady's `ReentrancyGuardTransient` via EIP-1153)
 - Self-healing transfer wrapper (catches failures, records as unclaimed—see Audit Considerations)
 - Overflow protection (Solidity 0.8+)
 - Two-step protocol authority transfer (prevents accidental transfers)
@@ -870,16 +1006,33 @@ error Reentrancy();
 
 ### Not Implemented (by design)
 
-- Pausability (split contracts are immutable, factory can stop creating new splits if needed)
+- Pausability (see rationale below)
 - Per-split upgrades (existing splits use fixed implementation, trust-minimized)
 - Time locks (unnecessary—no high-stakes parameter changes in splits)
 - Close/reclaim (no rent on EVM)
 - Native ETH support (ERC20 only—simplifies implementation, USDC is primary use case)
 
+**No Pause Mechanism Rationale:**
+
+The factory and split contracts have no pause functionality:
+
+- **Splits are immutable** — No parameter changes after creation
+- **Funds are isolated** — Each split holds its own funds, factory has none
+- **Bug mitigation** — Deploy new implementation; existing splits unaffected
+- **Trust minimization** — No authority can halt user operations
+- **Gas efficiency** — No pause check (+2,100 gas) on every `createSplitConfig`
+
+If a critical vulnerability is discovered:
+1. Upgrade factory implementation (new splits use fixed code)
+2. Existing splits continue operating (immutable, no migration path needed)
+3. Users can create new splits with fixed implementation
+
+This follows the pattern of other simple, audited protocols (Safe, Uniswap v3 core) that prioritize immutability over pausability.
+
 ### Audit Considerations
 
 **Reentrancy:**
-- Transient storage guard prevents same-tx reentrancy
+- Solady's `ReentrancyGuardTransient` prevents same-tx reentrancy (uses slot `0x929eee149b4bd21268`)
 - CEI pattern followed: bitmap updated before external calls
 - Only `executeSplit` needs guard (only state-changing function with external calls)
 
@@ -923,20 +1076,37 @@ address feeWallet = ISplitFactory(factory()).feeWallet();
 | `SafeERC20.safeTransfer()` | Reverts entire tx | All recipients blocked |
 | Manual `call()` | Returns false | Failed recipient stored as unclaimed, others paid |
 
-We use low-level `call()` to catch failures and continue:
+We use assembly-based transfer following Solady's `trySafeTransferFrom` pattern (adapted for `transfer`):
 
 ```solidity
+/// @dev Attempts ERC20 transfer without reverting. Returns success status.
+/// Follows Solady's SafeTransferLib pattern for robust token handling.
+function _trySafeTransfer(address token, address to, uint256 amount)
+    private
+    returns (bool success)
+{
+    /// @solidity memory-safe-assembly
+    assembly {
+        mstore(0x14, to) // Store the `to` argument.
+        mstore(0x34, amount) // Store the `amount` argument.
+        mstore(0x00, 0xa9059cbb000000000000000000000000) // `transfer(address,uint256)`.
+        success := call(gas(), token, 0, 0x10, 0x44, 0x00, 0x20)
+        if iszero(and(eq(mload(0x00), 1), success)) {
+            // Success if: call succeeded AND (no code at token OR returndata is empty)
+            success := lt(or(iszero(extcodesize(token)), returndatasize()), success)
+        }
+        mstore(0x34, 0) // Restore the part of the free memory pointer that was overwritten.
+    }
+}
+
+/// @dev Transfer with self-healing fallback. Records failures as unclaimed.
 function _safeTransferWithFallback(
-    IERC20 token,
+    address token,
     address to,
     uint256 amount,
     uint256 index
 ) private returns (bool success) {
-    (bool ok, bytes memory data) = address(token).call(
-        abi.encodeCall(IERC20.transfer, (to, amount))
-    );
-
-    success = ok && (data.length == 0 || abi.decode(data, (bool)));
+    success = _trySafeTransfer(token, to, amount);
 
     if (!success) {
         // Record as unclaimed for retry on next execution
@@ -947,10 +1117,12 @@ function _safeTransferWithFallback(
 }
 ```
 
-This pattern:
-- Handles USDT (no return value) via `data.length == 0` check
-- Catches reverts (blocklisted addresses, paused tokens)
-- Records failures in unclaimed state instead of reverting entire execution
+**Why assembly-based pattern:**
+- Matches Solady's battle-tested `trySafeTransferFrom` implementation
+- Handles USDT (no return value) via `returndatasize()` check
+- Handles malformed return data (won't revert on garbage—checks for exact `1`)
+- Includes `extcodesize` check for safety edge cases
+- Catches reverts (blocklisted addresses, paused tokens) without reverting
 - Allows other recipients to receive funds even when one transfer fails
 
 **CREATE2 determinism:**
@@ -1115,24 +1287,23 @@ evm_version = "cancun"    # Required for transient storage (Base L2)
 
 ### Transient Storage ReentrancyGuard
 
-Use EIP-1153 transient storage for reentrancy protection. Saves ~9,800 gas per `executeSplit` call compared to traditional storage-based guards.
+Use Solady's `ReentrancyGuardTransient` for reentrancy protection via EIP-1153. Saves ~9,800 gas per `executeSplit` call compared to traditional storage-based guards.
 
 ```solidity
-// Gas-optimal: direct TLOAD/TSTORE assembly (~100 gas each)
-// Slot 0 is used for reentrancy flag (0 = not entered, 1 = entered)
-modifier nonReentrant() {
-    assembly {
-        if tload(0) { revert(0, 0) }  // Already entered → revert
-        tstore(0, 1)                   // Mark as entered
-    }
-    _;
-    assembly {
-        tstore(0, 0)                   // Clear on exit
+import {ReentrancyGuardTransient} from "solady/utils/ReentrancyGuardTransient.sol";
+
+contract SplitConfigImpl is ReentrancyGuardTransient {
+    function executeSplit() external nonReentrant {
+        // ...
     }
 }
 ```
 
-**Why assembly over Solidity syntax:** The `uint256 private transient` syntax works but generates slightly more bytecode. Direct `tload`/`tstore` is maximally gas-efficient and explicit about slot usage.
+**Why Solady over custom assembly:**
+- Battle-tested implementation with known slot allocation
+- Inheritance-safe (uses pseudo-random slot `0x929eee149b4bd21268`, not slot 0)
+- Consistent with project's existing Solady dependency (LibClone)
+- Less custom code to audit
 
 ### Lazy Unclaimed Bitmap
 
@@ -1256,13 +1427,17 @@ contract Deploy is Script {
 ```
 
 ```bash
-# Deploy to multiple chains (same address each time)
+# Deploy to Base (primary chain)
 forge script script/Deploy.s.sol --rpc-url base --broadcast --verify
-forge script script/Deploy.s.sol --rpc-url arbitrum --broadcast --verify
-forge script script/Deploy.s.sol --rpc-url optimism --broadcast --verify
+
+# Future: Deploy to additional chains (same address via deterministic deployment)
+forge script script/Deploy.s.sol --rpc-url polygon --broadcast --verify
+forge script script/Deploy.s.sol --rpc-url bnb --broadcast --verify
 ```
 
 ### Contract Addresses
+
+#### Base (Primary)
 
 | Network | Contract | Address |
 |---------|----------|---------|
@@ -1270,6 +1445,30 @@ forge script script/Deploy.s.sol --rpc-url optimism --broadcast --verify
 | Base Mainnet | SplitConfigImpl | TBD |
 | Base Sepolia | SplitFactory | TBD |
 | Base Sepolia | SplitConfigImpl | TBD |
+
+#### Future Chains (Planned)
+
+| Network | Status | Notes |
+|---------|--------|-------|
+| Polygon | Planned | Same address via deterministic deployment |
+| BNB Chain | Planned | Same address via deterministic deployment |
+
+### Multi-Chain Deployment Strategy
+
+Factory and implementation are deployed to the **same address on all chains** using CREATE2 via the deterministic deployment proxy.
+
+**Deployment requirements:**
+1. Same deployer private key
+2. Same contract bytecode (including constructor args)
+3. Same salt
+
+**Cross-chain considerations:**
+
+| Consideration | Handling |
+|---------------|----------|
+| **Token addresses differ** | USDC has different addresses per chain. Splits are token-specific. |
+| **Pre-deployment deposits** | If user sends to predicted address before deployment, funds are accessible after deployment (CREATE2 address is deterministic). |
+| **Chain-specific features** | Base-specific features (if any) documented separately. |
 
 **Note:** Same salt + same bytecode = same address across all EVM chains (except zkSync Era which uses different CREATE2 formula).
 
@@ -1302,12 +1501,35 @@ uint16 public constant PROTOCOL_FEE_BPS = 100;        // 1%
 uint16 public constant REQUIRED_SPLIT_TOTAL = 9900;   // 99%
 uint8 public constant MIN_RECIPIENTS = 1;
 uint8 public constant MAX_RECIPIENTS = 20;
-uint256 public constant PROTOCOL_INDEX = 20;          // Bitmap index for protocol fee
+uint256 public constant PROTOCOL_INDEX = MAX_RECIPIENTS;  // Bitmap index for protocol fee (20)
 ```
 
 **PROTOCOL_INDEX explained:** Recipients use indices 0-19 (up to 20 recipients). Index 20 is reserved for protocol fee unclaimed tracking. This allows a single 21-bit bitmap to track unclaimed status for all parties:
 - Bits 0-19: Recipients (one bit per possible recipient slot)
 - Bit 20: Protocol fee wallet
+
+**Design note:** Protocol index is placed after recipients (index 20) rather than before (index 0) to enable natural array indexing where `recipients[i]` maps directly to bitmap bit `i`. This avoids off-by-one errors and simplifies loop logic.
+
+### Recipient Limits
+
+**Maximum:** 20 recipients per split
+
+**Rationale:**
+- Bounds execution gas to predictable maximum (~150,000 gas for 20 transfers)
+- Clone bytecode stays compact (<600 bytes immutable data)
+- Covers 99%+ of x402 micropayment use cases (typically 2-5 recipients)
+- Bitmap fits cleanly in single storage slot (21 bits for recipients + protocol)
+
+**Duplicate validation:** O(n²) comparison is used for duplicate detection. For 20 recipients, this is ~190 comparisons (~38,000 gas worst case). This is acceptable because:
+- Split creation is a one-time cost
+- Most splits have 2-5 recipients
+- On L2, the absolute cost is negligible (~$0.0001)
+
+**Note:** The limit is defined as a constant. Changing it requires a new factory deployment.
+
+**Comparison with industry:**
+- 0xSplits v2: No hard cap (gas limits dictate practical maximum)
+- Cascade Splits: Explicit cap for predictable gas costs and simpler UX
 
 ---
 
@@ -1315,6 +1537,7 @@ uint256 public constant PROTOCOL_INDEX = 20;          // Bitmap index for protoc
 
 ### Core Dependencies
 - [Solady LibClone](https://github.com/Vectorized/solady/blob/main/src/utils/LibClone.sol) - Clones with immutable args (factory + reading)
+- [Solady ReentrancyGuardTransient](https://github.com/Vectorized/solady/blob/main/src/utils/ReentrancyGuardTransient.sol) - Gas-efficient reentrancy protection via EIP-1153
 
 **Note:** We do NOT use SafeERC20 for self-healing transfers—it reverts on failure. See [Audit Considerations](#self-healing-transfer-wrapper-why-not-safeerc20) for the manual `call()` pattern we use instead.
 
@@ -1338,4 +1561,4 @@ uint256 public constant PROTOCOL_INDEX = 20;          // Bitmap index for protoc
 
 ---
 
-**Last Updated:** 2025-11-29
+**Last Updated:** 2025-12-02
