@@ -1,0 +1,24 @@
+# Compiler files
+cache/
+out/
+
+# Broadcast logs
+broadcast/
+
+# Docs (auto-generated)
+docs/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Gas snapshots (can be noisy in PRs)
+.gas-snapshot
+
+# Coverage
+lcov.info
+coverage/
+
+# Node modules (if using npm for scripts)
+node_modules/

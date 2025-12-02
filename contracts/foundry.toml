@@ -1,0 +1,83 @@
+# Cascade Splits EVM - Foundry Configuration
+# Requires: Foundry 1.5.0+ (install: foundryup -v 1.5.0)
+# See: https://book.getfoundry.sh/reference/config/
+
+[profile.default]
+# Project structure
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+
+# Compiler settings (per specification)
+solc = "0.8.30"
+evm_version = "prague"          # Base L2 compatible (Pectra upgrade May 2025), includes EIP-1153 transient storage
+optimizer = true
+optimizer_runs = 1_000_000      # Optimize for runtime (executeSplit called frequently)
+via_ir = false                  # Disable IR for faster compilation during dev
+
+# Deterministic deployment (same address across all EVM chains)
+# See: https://getfoundry.sh/guides/deterministic-deployments-using-create2/
+bytecode_hash = "none"          # Exclude metadata hash from bytecode
+cbor_metadata = false           # Exclude CBOR metadata
+always_use_create_2_factory = true  # Use Arachnid's deployer (0x4e59b44847b379578588920cA78FbF26c0B4956C)
+
+# Testing
+verbosity = 2
+fuzz.runs = 256
+fuzz.seed = "0x00000000000000000000000000000000000000000000000000000063617363"
+invariant.runs = 256
+invariant.depth = 50
+
+# Gas reporting
+gas_reports = ["SplitFactory", "SplitConfigImpl"]
+
+# Formatting
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+multiline_func_header = "params_first"
+quote_style = "double"
+number_underscore = "thousands"
+sort_imports = true
+
+# CI profile - extensive fuzzing
+[profile.ci]
+fuzz.runs = 10_000
+fuzz.seed = "0x00000000000000000000000000000000000000000000000000000deadbeef"
+invariant.runs = 1_000
+invariant.depth = 100
+verbosity = 3
+
+# Production profile - maximum optimization
+[profile.production]
+optimizer = true
+optimizer_runs = 1_000_000
+via_ir = true                   # Enable IR for better optimization (inherits bytecode_hash/cbor_metadata from default)
+
+# Local development - fast iteration
+[profile.local]
+optimizer = false
+fuzz.runs = 100
+invariant.runs = 50
+
+# RPC endpoints
+# To add a new chain: add RPC_URL to .env, then add entry here
+[rpc_endpoints]
+base = "${BASE_RPC_URL}"
+base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
+localhost = "http://127.0.0.1:8545"
+
+# Linting
+[lint]
+ignore = ["script/**"]  # Ignore style lints in deployment scripts
+
+# Block explorer verification (Etherscan V2 API - unified for all chains)
+# See: https://docs.etherscan.io/v2-migration
+# Single API key works for all chains with --verifier etherscan
+[etherscan]
+base = { key = "${ETHERSCAN_API_KEY}" }
+base_sepolia = { key = "${ETHERSCAN_API_KEY}" }
