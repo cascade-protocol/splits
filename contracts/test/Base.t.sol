@@ -63,9 +63,8 @@ abstract contract BaseTest is Test {
         // Deploy implementation
         implementation = new SplitConfigImpl();
 
-        // Deploy factory as protocol authority
-        vm.prank(protocolAuthority);
-        factory = new SplitFactory(address(implementation), feeWallet);
+        // Deploy factory with explicit authority (required for CREATE2 compatibility)
+        factory = new SplitFactory(address(implementation), feeWallet, protocolAuthority);
     }
 
     // =========================================================================

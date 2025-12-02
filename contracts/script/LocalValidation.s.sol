@@ -8,33 +8,33 @@ import {Script, console} from "forge-std/Script.sol";
 import {MockERC20} from "solady/../test/utils/mocks/MockERC20.sol";
 
 /// @title LocalValidation
-/// @notice Comprehensive local net validation script
+/// @notice Comprehensive local validation script (pure simulation - no RPC needed)
+/// @dev Uses vm.startPrank for deterministic simulation without broadcasting
+///
+/// Usage:
+///   forge script script/LocalValidation.s.sol
+///
 contract LocalValidation is Script {
     // Contracts
     SplitConfigImpl public implementation;
     SplitFactory public factory;
     MockERC20 public usdc;
 
-    // Addresses
-    address public deployer;
-    address public alice;
-    address public bob;
-    address public charlie;
+    // Addresses (all hardcoded for deterministic simulation)
+    address public deployer = address(0xDEAD);
+    address public alice = address(0xA11CE);
+    address public bob = address(0xB0B);
+    address public charlie = address(0xC4A711E);
 
     // Constants
     uint256 constant AMOUNT = 1000e6; // 1000 USDC
 
     function run() external {
-        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
-        deployer = vm.addr(deployerKey);
-        alice = address(0xA11CE);
-        bob = address(0xB0B);
-        charlie = address(0xC4A711E);
-
         console.log("=== LOCAL VALIDATION TEST SUITE ===");
         console.log("Deployer:", deployer);
 
-        vm.startBroadcast(deployerKey);
+        // Use prank for pure simulation (no RPC, no private key needed)
+        vm.startPrank(deployer);
 
         // Phase 1: Deploy all contracts
         _phase1Deploy();
@@ -51,7 +51,7 @@ contract LocalValidation is Script {
         // Phase 5: Edge cases
         _phase5EdgeCases();
 
-        vm.stopBroadcast();
+        vm.stopPrank();
 
         console.log("\n=== ALL TESTS PASSED ===");
     }
@@ -67,8 +67,8 @@ contract LocalValidation is Script {
         implementation = new SplitConfigImpl();
         console.log("SplitConfigImpl:", address(implementation));
 
-        // Deploy factory
-        factory = new SplitFactory(address(implementation), deployer);
+        // Deploy factory (deployer is both feeWallet and authority)
+        factory = new SplitFactory(address(implementation), deployer, deployer);
         console.log("SplitFactory:", address(factory));
 
         // Verify factory state

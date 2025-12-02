@@ -6,90 +6,103 @@ import {SplitFactory} from "../src/SplitFactory.sol";
 import {Script, console} from "forge-std/Script.sol";
 
 /// @title Deploy
-/// @notice Deployment script for Cascade Splits EVM contracts
-/// @dev Uses CREATE2 via deterministic deployment for consistent addresses across chains
+/// @notice Deterministic deployment script for Cascade Splits EVM contracts
+/// @dev Deploys to the SAME addresses on ALL EVM chains using CREATE2.
+///
+///      Uses Arachnid's deterministic deployer (0x4e59b44847b379578588920cA78FbF26c0B4956C)
+///      which exists on all major EVM chains. Combined with foundry.toml settings:
+///      - bytecode_hash = "none"
+///      - cbor_metadata = false
+///      - always_use_create_2_factory = true
+///
+/// DETERMINISTIC ADDRESSES (same on ALL networks):
+///   SplitConfigImpl: 0xF9ad695ecc76c4b8E13655365b318d54E4131EA6
+///   SplitFactory:    0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7
 ///
 /// Usage:
-///   # Dry run (no broadcast)
-///   forge script script/Deploy.s.sol:Deploy --rpc-url base_sepolia
+///   forge script script/Deploy.s.sol --rpc-url base_sepolia --broadcast --verify
 ///
-///   # Deploy to Base Sepolia with verification
-///   forge script script/Deploy.s.sol:Deploy --rpc-url base_sepolia --broadcast --verify
+/// Environment variables:
+///   - PRIVATE_KEY: Deployer private key (must have ETH for gas)
+///   - ETHERSCAN_API_KEY: For contract verification
 ///
-///   # Deploy to Base Mainnet with verification
-///   forge script script/Deploy.s.sol:Deploy --rpc-url base --broadcast --verify
-///
-/// Environment variables required:
-///   - PRIVATE_KEY: Deployer private key
-///   - FEE_WALLET: Protocol fee wallet address
-///   - BASESCAN_API_KEY: For contract verification (optional but recommended)
+/// For local testing, use LocalValidation.s.sol instead.
 ///
 contract Deploy is Script {
-    /// @notice Salt for deterministic deployment
+    // =========================================================================
+    // DETERMINISTIC DEPLOYMENT CONSTANTS
+    // DO NOT CHANGE - these values determine the final addresses
+    // =========================================================================
+
+    /// @notice Salt for deterministic CREATE2 deployment
     bytes32 public constant SALT = keccak256("cascade-splits-v1");
 
-    function run() external {
-        // Load environment variables
-        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
-        address feeWallet = vm.envAddress("FEE_WALLET");
+    /// @notice Initial authority (hardcoded for same address everywhere)
+    /// @dev Can be transferred post-deployment via SplitFactory.transferProtocolAuthority()
+    address public constant INITIAL_AUTHORITY = 0xf1EDbaF36b4C76baA06D418F018E327Add62eb02;
 
-        console.log("=== Deployment Configuration ===");
-        console.log("Deployer:", vm.addr(deployerKey));
-        console.log("Fee Wallet:", feeWallet);
-        console.log("Chain ID:", block.chainid);
+    /// @notice Initial fee wallet (hardcoded for same address everywhere)
+    /// @dev Can be updated post-deployment via SplitFactory.updateProtocolConfig()
+    address public constant INITIAL_FEE_WALLET = 0xf1EDbaF36b4C76baA06D418F018E327Add62eb02;
 
-        vm.startBroadcast(deployerKey);
+    // =========================================================================
+    // EXPECTED ADDRESSES (for verification)
+    // =========================================================================
 
-        // 1. Deploy implementation
-        SplitConfigImpl impl = new SplitConfigImpl{salt: SALT}();
-        console.log("\nSplitConfigImpl deployed to:", address(impl));
+    address public constant EXPECTED_IMPL = 0xF9ad695ecc76c4b8E13655365b318d54E4131EA6;
+    address public constant EXPECTED_FACTORY = 0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7;
 
-        // 2. Deploy factory
-        SplitFactory factory = new SplitFactory{salt: SALT}(address(impl), feeWallet);
-        console.log("SplitFactory deployed to:", address(factory));
-
-        vm.stopBroadcast();
-
-        // Verification info
-        console.log("\n=== Deployment Summary ===");
-        console.log("SplitConfigImpl:", address(impl));
-        console.log("SplitFactory:", address(factory));
-        console.log("Authority:", factory.authority());
-        console.log("Fee Wallet:", factory.feeWallet());
-
-        // Manual verification commands (if --verify flag wasn't used)
-        console.log("\n=== Manual Verification Commands ===");
-        console.log(
-            "forge verify-contract", address(impl), "src/SplitConfigImpl.sol:SplitConfigImpl --chain-id", block.chainid
-        );
-        console.log(
-            "forge verify-contract", address(factory), "src/SplitFactory.sol:SplitFactory --chain-id", block.chainid
-        );
-    }
-}
-
-/// @title DeployTestnet
-/// @notice Testnet deployment with mock fee wallet
-contract DeployTestnet is Script {
-    bytes32 public constant SALT = keccak256("cascade-splits-testnet-v1");
+    // =========================================================================
+    // DEPLOYMENT
+    // =========================================================================
 
     function run() external {
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerKey);
 
-        console.log("Deploying to testnet...");
+        console.log("=== Cascade Splits Deployment ===");
+        console.log("Chain ID:", block.chainid);
         console.log("Deployer:", deployer);
+        console.log("");
+        console.log("Expected addresses:");
+        console.log("  SplitConfigImpl:", EXPECTED_IMPL);
+        console.log("  SplitFactory:", EXPECTED_FACTORY);
+        console.log("");
 
         vm.startBroadcast(deployerKey);
 
         // Deploy implementation
         SplitConfigImpl impl = new SplitConfigImpl{salt: SALT}();
-        console.log("SplitConfigImpl:", address(impl));
+        require(address(impl) == EXPECTED_IMPL, "SplitConfigImpl address mismatch!");
+        console.log("[OK] SplitConfigImpl:", address(impl));
 
-        // Deploy factory (deployer is both authority and fee wallet for testing)
-        SplitFactory factory = new SplitFactory{salt: SALT}(address(impl), deployer);
-        console.log("SplitFactory:", address(factory));
+        // Deploy factory (authority passed explicitly for CREATE2 compatibility)
+        SplitFactory factory = new SplitFactory{salt: SALT}(address(impl), INITIAL_FEE_WALLET, INITIAL_AUTHORITY);
+        require(address(factory) == EXPECTED_FACTORY, "SplitFactory address mismatch!");
+        console.log("[OK] SplitFactory:", address(factory));
 
         vm.stopBroadcast();
+
+        // Log final state
+        console.log("");
+        console.log("=== Deployment Complete ===");
+        console.log("Authority:", factory.authority());
+        console.log("Fee Wallet:", factory.feeWallet());
+        console.log("Implementation:", factory.currentImplementation());
+    }
+
+    /// @notice Preview addresses without deploying
+    function predictAddresses() external pure {
+        console.log("=== Cascade Splits Deterministic Addresses ===");
+        console.log("");
+        console.log("These addresses are IDENTICAL on all EVM chains:");
+        console.log("  SplitConfigImpl:", EXPECTED_IMPL);
+        console.log("  SplitFactory:", EXPECTED_FACTORY);
+        console.log("");
+        console.log("Initial Authority:", INITIAL_AUTHORITY);
+        console.log("(Transferable via SplitFactory.transferProtocolAuthority)");
+        console.log("");
+        console.log("Initial Fee Wallet:", INITIAL_FEE_WALLET);
+        console.log("(Updateable via SplitFactory.updateProtocolConfig)");
     }
 }

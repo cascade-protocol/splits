@@ -31,19 +31,25 @@ contract SplitFactoryTest is BaseTest {
     }
 
     function test_Constructor_EmitsEvent() public {
+        address newAuthority = makeAddr("newAuthority");
         vm.expectEmit(true, true, false, false);
-        emit SplitFactory.ProtocolConfigCreated(address(this), feeWallet);
-        new SplitFactory(address(implementation), feeWallet);
+        emit SplitFactory.ProtocolConfigCreated(newAuthority, feeWallet);
+        new SplitFactory(address(implementation), feeWallet, newAuthority);
     }
 
     function test_Constructor_RevertsOnZeroImplementation() public {
         vm.expectRevert(abi.encodeWithSelector(ZeroAddress.selector, 0));
-        new SplitFactory(address(0), feeWallet);
+        new SplitFactory(address(0), feeWallet, protocolAuthority);
     }
 
     function test_Constructor_RevertsOnZeroFeeWallet() public {
         vm.expectRevert(abi.encodeWithSelector(ZeroAddress.selector, 1));
-        new SplitFactory(address(implementation), address(0));
+        new SplitFactory(address(implementation), address(0), protocolAuthority);
+    }
+
+    function test_Constructor_RevertsOnZeroAuthority() public {
+        vm.expectRevert(abi.encodeWithSelector(ZeroAddress.selector, 2));
+        new SplitFactory(address(implementation), feeWallet, address(0));
     }
 
     function test_Constructor_RevertsOnNoCodeImplementation() public {
@@ -51,7 +57,7 @@ contract SplitFactoryTest is BaseTest {
         address noCodeAddr = makeAddr("noCodeImplementation");
 
         vm.expectRevert(abi.encodeWithSelector(InvalidImplementation.selector, noCodeAddr));
-        new SplitFactory(noCodeAddr, feeWallet);
+        new SplitFactory(noCodeAddr, feeWallet, protocolAuthority);
     }
 
     // =========================================================================

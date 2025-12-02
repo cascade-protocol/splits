@@ -106,23 +106,26 @@ contract SplitFactory is ISplitFactory {
     // Constructor
     // =========================================================================
 
-    /// @notice Deploys the factory with initial implementation and fee wallet
+    /// @notice Deploys the factory with initial implementation, fee wallet, and authority
     /// @param initialImplementation_ The initial SplitConfigImpl address
     /// @param feeWallet_ The protocol fee wallet address
+    /// @param authority_ The protocol authority address (required for deterministic CREATE2 deployment)
     constructor(
         address initialImplementation_,
-        address feeWallet_
+        address feeWallet_,
+        address authority_
     ) {
         if (initialImplementation_ == address(0)) revert ZeroAddress(0);
         if (initialImplementation_.code.length == 0) revert InvalidImplementation(initialImplementation_);
         if (feeWallet_ == address(0)) revert ZeroAddress(1);
+        if (authority_ == address(0)) revert ZeroAddress(2);
 
         INITIAL_IMPLEMENTATION = initialImplementation_;
         currentImplementation = INITIAL_IMPLEMENTATION;
         feeWallet = feeWallet_;
-        authority = msg.sender;
+        authority = authority_;
 
-        emit ProtocolConfigCreated(msg.sender, feeWallet_);
+        emit ProtocolConfigCreated(authority_, feeWallet_);
     }
 
     // =========================================================================

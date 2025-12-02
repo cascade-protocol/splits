@@ -1,4 +1,5 @@
 # Cascade Splits EVM - Foundry Configuration
+# Requires: Foundry 1.5.0+ (install: foundryup -v 1.5.0)
 # See: https://book.getfoundry.sh/reference/config/
 
 [profile.default]
@@ -15,6 +16,12 @@ evm_version = "prague"          # Base L2 compatible (Pectra upgrade May 2025), 
 optimizer = true
 optimizer_runs = 1_000_000      # Optimize for runtime (executeSplit called frequently)
 via_ir = false                  # Disable IR for faster compilation during dev
+
+# Deterministic deployment (same address across all EVM chains)
+# See: https://getfoundry.sh/guides/deterministic-deployments-using-create2/
+bytecode_hash = "none"          # Exclude metadata hash from bytecode
+cbor_metadata = false           # Exclude CBOR metadata
+always_use_create_2_factory = true  # Use Arachnid's deployer (0x4e59b44847b379578588920cA78FbF26c0B4956C)
 
 # Testing
 verbosity = 2
@@ -49,9 +56,7 @@ verbosity = 3
 [profile.production]
 optimizer = true
 optimizer_runs = 1_000_000
-via_ir = true                   # Enable IR for better optimization
-bytecode_hash = "none"          # Smaller bytecode
-cbor_metadata = false
+via_ir = true                   # Enable IR for better optimization (inherits bytecode_hash/cbor_metadata from default)
 
 # Local development - fast iteration
 [profile.local]
@@ -60,6 +65,7 @@ fuzz.runs = 100
 invariant.runs = 50
 
 # RPC endpoints
+# To add a new chain: add RPC_URL to .env, then add entry here
 [rpc_endpoints]
 base = "${BASE_RPC_URL}"
 base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
@@ -70,6 +76,8 @@ localhost = "http://127.0.0.1:8545"
 ignore = ["script/**"]  # Ignore style lints in deployment scripts
 
 # Block explorer verification (Etherscan V2 API - unified for all chains)
+# See: https://docs.etherscan.io/v2-migration
+# To add a new chain: add entry with chain ID from https://chainlist.org
 [etherscan]
 base = { key = "${ETHERSCAN_API_KEY}", url = "https://api.etherscan.io/v2/api", chain = 8453 }
 base_sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api.etherscan.io/v2/api", chain = 84532 }

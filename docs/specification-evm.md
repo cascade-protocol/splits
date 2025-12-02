@@ -254,16 +254,17 @@ contract SplitFactory {
     address public authority;
     address public pendingAuthority;
 
-    constructor(address initialImplementation_, address feeWallet_) {
+    constructor(address initialImplementation_, address feeWallet_, address authority_) {
         if (initialImplementation_ == address(0)) revert ZeroAddress(0);
         if (initialImplementation_.code.length == 0) revert InvalidImplementation(initialImplementation_);
         if (feeWallet_ == address(0)) revert ZeroAddress(1);
+        if (authority_ == address(0)) revert ZeroAddress(2);
 
         initialImplementation = initialImplementation_;
         currentImplementation = initialImplementation_;
         feeWallet = feeWallet_;
-        authority = msg.sender;  // Deployer becomes initial authority
-        emit ProtocolConfigCreated(msg.sender, feeWallet_);
+        authority = authority_;  // Explicit authority for CREATE2 determinism
+        emit ProtocolConfigCreated(authority_, feeWallet_);
     }
 }
 ```
@@ -1160,9 +1161,16 @@ Optimized for high-throughput micropayments where `executeSplit` is called frequ
 | **Lazy unclaimed bitmap** | None | -11% | View functions slightly complex |
 | **Combined** | -71% | -89% | See above |
 
-**Projected costs on Base L2** (0.001 Gwei, 5 recipients):
-- Split creation: ~83,000 gas ($0.00025)
-- Split execution: ~2,100 gas ($0.000006)
+**Measured gas costs:**
+
+| Recipients | `createSplitConfig` | `executeSplit` |
+|------------|---------------------|----------------|
+| 2 | 93k | 91k |
+| 5 | 117k | 170k |
+| 10 | 163k | 303k |
+| 20 | 276k | 567k |
+
+Gas scales linearly with recipient count due to ERC20 transfers and bytecode encoding.
 
 ### Clones with Immutable Args
 
@@ -1442,14 +1450,21 @@ forge script script/Deploy.s.sol --rpc-url bnb --broadcast --verify
 
 ### Contract Addresses
 
-#### Base (Primary)
+**Deterministic addresses (same on ALL EVM chains):**
 
-| Network | Contract | Address |
-|---------|----------|---------|
-| Base Mainnet | SplitFactory | TBD |
-| Base Mainnet | SplitConfigImpl | TBD |
-| Base Sepolia | SplitFactory | TBD |
-| Base Sepolia | SplitConfigImpl | TBD |
+| Contract | Address |
+|----------|---------|
+| SplitConfigImpl | `0xF9ad695ecc76c4b8E13655365b318d54E4131EA6` |
+| SplitFactory | `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7` |
+
+These addresses are derived via CREATE2 using Arachnid's deterministic deployer and are identical on all supported networks.
+
+#### Deployment Status
+
+| Network | Status |
+|---------|--------|
+| Base Sepolia | Pending |
+| Base Mainnet | Pending |
 
 #### Future Chains (Planned)
 

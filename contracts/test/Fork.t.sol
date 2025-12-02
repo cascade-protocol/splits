@@ -34,11 +34,9 @@ contract ForkTest is Test {
         alice = makeAddr("alice");
         bob = makeAddr("bob");
 
-        // Deploy contracts
-        vm.startPrank(deployer);
+        // Deploy contracts (authority passed explicitly for CREATE2 compatibility)
         implementation = new SplitConfigImpl();
-        factory = new SplitFactory(address(implementation), feeWallet);
-        vm.stopPrank();
+        factory = new SplitFactory(address(implementation), feeWallet, deployer);
     }
 
     /// @notice Skip modifier for fork tests

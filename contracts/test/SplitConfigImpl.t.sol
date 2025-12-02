@@ -653,7 +653,7 @@ contract SplitConfigImplTest is BaseTest {
         bytes32 uniqueId = keccak256("reentrancy-test");
 
         // Deploy new factory with implementation for this token
-        SplitFactory testFactory = new SplitFactory(address(implementation), feeWallet);
+        SplitFactory testFactory = new SplitFactory(address(implementation), feeWallet, address(this));
         address splitAddr = testFactory.createSplitConfig(alice, address(maliciousToken), uniqueId, recipients);
         SplitConfigImpl reentrantSplit = SplitConfigImpl(splitAddr);
 

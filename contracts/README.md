@@ -63,6 +63,17 @@ contracts/
 - **Transient Storage**: EIP-1153 reentrancy guard (~200 gas vs ~5000)
 - **Deterministic Addresses**: CREATE2 for predictable deployment
 
+## Gas Costs
+
+| Recipients | `createSplitConfig` | `executeSplit` |
+|------------|---------------------|----------------|
+| 2 | 93k | 91k |
+| 5 | 117k | 170k |
+| 10 | 163k | 303k |
+| 20 | 276k | 567k |
+
+Run `forge test --gas-report` for detailed breakdown.
+
 ## Dependencies
 
 - [Solady](https://github.com/Vectorized/solady) - LibClone for minimal proxies with immutable args
