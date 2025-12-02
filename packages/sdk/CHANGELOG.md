@@ -166,13 +166,13 @@
 - Transaction building with compute budget support
 - Type-safe schemas with comprehensive validation
 
-[0.8.0]: https://github.com/cascade-protocol/splits/compare/sdk/v0.7.0...sdk/v0.8.0
-[0.7.0]: https://github.com/cascade-protocol/splits/compare/sdk/v0.6.0...sdk/v0.7.0
-[0.6.0]: https://github.com/cascade-protocol/splits/compare/sdk/v0.5.2...sdk/v0.6.0
-[0.5.2]: https://github.com/cascade-protocol/splits/compare/sdk/v0.5.1...sdk/v0.5.2
-[0.5.1]: https://github.com/cascade-protocol/splits/compare/sdk/v0.5.0...sdk/v0.5.1
-[0.5.0]: https://github.com/cascade-protocol/splits/compare/sdk/v0.4.0...sdk/v0.5.0
-[0.4.0]: https://github.com/cascade-protocol/splits/compare/sdk/v0.3.1...sdk/v0.4.0
-[0.3.1]: https://github.com/cascade-protocol/splits/compare/sdk/v0.3.0...sdk/v0.3.1
-[0.3.0]: https://github.com/cascade-protocol/splits/compare/sdk/v0.2.0...sdk/v0.3.0
-[0.2.0]: https://github.com/cascade-protocol/splits/releases/tag/sdk/v0.2.0
+[0.8.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.7.0...sdk@v0.8.0
+[0.7.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.6.0...sdk@v0.7.0
+[0.6.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.5.2...sdk@v0.6.0
+[0.5.2]: https://github.com/cascade-protocol/splits/compare/sdk@v0.5.1...sdk@v0.5.2
+[0.5.1]: https://github.com/cascade-protocol/splits/compare/sdk@v0.5.0...sdk@v0.5.1
+[0.5.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.4.0...sdk@v0.5.0
+[0.4.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.3.1...sdk@v0.4.0
+[0.3.1]: https://github.com/cascade-protocol/splits/compare/sdk@v0.3.0...sdk@v0.3.1
+[0.3.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.2.0...sdk@v0.3.0
+[0.2.0]: https://github.com/cascade-protocol/splits/releases/tag/sdk@v0.2.0
