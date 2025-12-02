@@ -15,10 +15,10 @@ See the [full specification](../docs/specification-evm.md) for detailed document
 
 Deterministic addresses (same on ALL EVM chains via CREATE2):
 
-| Contract | Address | Base Sepolia |
-|----------|---------|--------------|
-| SplitConfigImpl | `0xF9ad695ecc76c4b8E13655365b318d54E4131EA6` | [View](https://sepolia.basescan.org/address/0xF9ad695ecc76c4b8E13655365b318d54E4131EA6) |
-| SplitFactory | `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7` | [View](https://sepolia.basescan.org/address/0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7) |
+| Contract | Address | Base Mainnet | Base Sepolia |
+|----------|---------|--------------|--------------|
+| SplitConfigImpl | `0xF9ad695ecc76c4b8E13655365b318d54E4131EA6` | [View](https://basescan.org/address/0xF9ad695ecc76c4b8E13655365b318d54E4131EA6) | [View](https://sepolia.basescan.org/address/0xF9ad695ecc76c4b8E13655365b318d54E4131EA6) |
+| SplitFactory | `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7` | [View](https://basescan.org/address/0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7) | [View](https://sepolia.basescan.org/address/0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7) |
 
 ## Quick Start
 

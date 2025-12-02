@@ -1452,10 +1452,10 @@ forge script script/Deploy.s.sol --rpc-url bnb --broadcast --verify
 
 **Deterministic addresses (same on ALL EVM chains):**
 
-| Contract | Address |
-|----------|---------|
-| SplitConfigImpl | [`0xF9ad695ecc76c4b8E13655365b318d54E4131EA6`](https://sepolia.basescan.org/address/0xF9ad695ecc76c4b8E13655365b318d54E4131EA6) |
-| SplitFactory | [`0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7`](https://sepolia.basescan.org/address/0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7) |
+| Contract | Address | Base Mainnet | Base Sepolia |
+|----------|---------|--------------|--------------|
+| SplitConfigImpl | `0xF9ad695ecc76c4b8E13655365b318d54E4131EA6` | [View](https://basescan.org/address/0xF9ad695ecc76c4b8E13655365b318d54E4131EA6) | [View](https://sepolia.basescan.org/address/0xF9ad695ecc76c4b8E13655365b318d54E4131EA6) |
+| SplitFactory | `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7` | [View](https://basescan.org/address/0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7) | [View](https://sepolia.basescan.org/address/0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7) |
 
 These addresses are derived via CREATE2 using Arachnid's deterministic deployer and are identical on all supported networks.
 
@@ -1463,8 +1463,8 @@ These addresses are derived via CREATE2 using Arachnid's deterministic deployer 
 
 | Network | Status | Explorer |
 |---------|--------|----------|
+| Base Mainnet | Deployed | [View on BaseScan](https://basescan.org/address/0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7) |
 | Base Sepolia | Deployed | [View on BaseScan](https://sepolia.basescan.org/address/0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7) |
-| Base Mainnet | Pending | - |
 
 #### Future Chains (Planned)
 
