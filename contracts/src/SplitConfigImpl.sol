@@ -115,7 +115,7 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
         recipients = new Recipient[](count);
         for (uint256 i; i < count;) {
             (address addr, uint16 bps) = _getRecipient(i);
-            recipients[i] = Recipient(addr, bps);
+            recipients[i] = Recipient({addr: addr, percentageBps: bps});
             unchecked {
                 ++i;
             }
@@ -137,6 +137,7 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
         if (bitmap == 0) return 0;
 
         for (uint256 i; i < 21;) {
+            // forge-lint: disable-next-line(incorrect-shift)
             if (bitmap & (1 << i) != 0) {
                 total += _unclaimedByIndex[i];
             }
@@ -162,7 +163,9 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
     }
 
     /// @dev Internal balance check with cached token address
-    function _getBalance(address tokenAddr) internal view returns (uint256) {
+    function _getBalance(
+        address tokenAddr
+    ) internal view returns (uint256) {
         (bool success, bytes memory data) =
             tokenAddr.staticcall(abi.encodeWithSignature("balanceOf(address)", address(this)));
         if (!success || data.length < 32) return 0;
@@ -194,6 +197,7 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
         uint256 bitmap = _unclaimedBitmap;
         if (bitmap != 0) {
             for (uint256 i; i < count;) {
+                // forge-lint: disable-next-line(incorrect-shift)
                 if (bitmap & (1 << i) != 0) {
                     pendingRecipientAmounts[i] = _unclaimedByIndex[i];
                 }
@@ -201,6 +205,7 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
                     ++i;
                 }
             }
+            // forge-lint: disable-next-line(incorrect-shift)
             if (bitmap & (1 << PROTOCOL_INDEX) != 0) {
                 pendingProtocolAmount = _unclaimedByIndex[PROTOCOL_INDEX];
             }
@@ -252,11 +257,15 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
     /// @param tokenAddr Cached token address
     /// @param feeWalletAddr Cached fee wallet address
     /// @return cleared Total amount successfully cleared
-    function _clearPendingUnclaimed(address tokenAddr, address feeWalletAddr) internal returns (uint256 cleared) {
+    function _clearPendingUnclaimed(
+        address tokenAddr,
+        address feeWalletAddr
+    ) internal returns (uint256 cleared) {
         uint256 bitmap = _unclaimedBitmap;
         if (bitmap == 0) return 0;
 
         for (uint256 i; i < 21;) {
+            // forge-lint: disable-next-line(incorrect-shift)
             if (bitmap & (1 << i) != 0) {
                 uint256 amount = _unclaimedByIndex[i];
                 bool isProtocol = i == PROTOCOL_INDEX;
@@ -264,6 +273,7 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
 
                 if (_trySafeTransfer(tokenAddr, to, amount)) {
                     _unclaimedByIndex[i] = 0;
+                    // forge-lint: disable-next-line(incorrect-shift)
                     _unclaimedBitmap &= ~(1 << i);
                     cleared += amount;
                     emit UnclaimedCleared(to, amount, isProtocol);
@@ -322,7 +332,9 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
     }
 
     /// @dev Gets recipient address by index (for unclaimed clearing)
-    function _getRecipientAddress(uint256 index) internal view returns (address addr) {
+    function _getRecipientAddress(
+        uint256 index
+    ) internal view returns (address addr) {
         (addr,) = _getRecipient(index);
     }
 
@@ -331,7 +343,9 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
     // =========================================================================
 
     /// @dev Reads a recipient from clone bytecode
-    function _getRecipient(uint256 index) internal view returns (address addr, uint16 bps) {
+    function _getRecipient(
+        uint256 index
+    ) internal view returns (address addr, uint16 bps) {
         uint256 offset = _PROXY_PREFIX + _RECIPIENTS_OFFSET + (index * _RECIPIENT_SIZE);
         assembly {
             extcodecopy(address(), 0x00, offset, 0x20)
@@ -347,7 +361,11 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
     /// @param to Recipient address
     /// @param amount Amount to transfer
     /// @return success True if transfer succeeded
-    function _trySafeTransfer(address tokenAddr, address to, uint256 amount) internal returns (bool success) {
+    function _trySafeTransfer(
+        address tokenAddr,
+        address to,
+        uint256 amount
+    ) internal returns (bool success) {
         /// @solidity memory-safe-assembly
         assembly {
             // Store transfer(address,uint256) selector and arguments
@@ -392,6 +410,7 @@ contract SplitConfigImpl is ReentrancyGuardTransient {
         if (!success) {
             // Record as unclaimed for retry on next execution
             _unclaimedByIndex[index] += amount;
+            // forge-lint: disable-next-line(incorrect-shift)
             _unclaimedBitmap |= (1 << index);
             emit TransferFailed(to, amount, index == PROTOCOL_INDEX);
         }

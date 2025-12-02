@@ -52,8 +52,8 @@ contract ForkTest is Test {
 
     function test_Fork_CreateSplitWithRealUSDC() public onlyFork {
         Recipient[] memory recipients = new Recipient[](2);
-        recipients[0] = Recipient(alice, 4950);
-        recipients[1] = Recipient(bob, 4950);
+        recipients[0] = Recipient({addr: alice, percentageBps: 4950});
+        recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = keccak256(abi.encode(block.timestamp, "fork-test"));
 
@@ -71,8 +71,8 @@ contract ForkTest is Test {
     function test_Fork_ExecuteSplitWithRealUSDC() public onlyFork {
         // Create split
         Recipient[] memory recipients = new Recipient[](2);
-        recipients[0] = Recipient(alice, 4950);
-        recipients[1] = Recipient(bob, 4950);
+        recipients[0] = Recipient({addr: alice, percentageBps: 4950});
+        recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = keccak256(abi.encode(block.timestamp, "fork-exec-test"));
         address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
@@ -100,8 +100,8 @@ contract ForkTest is Test {
     function test_Fork_ViewFunctionsWithRealUSDC() public onlyFork {
         // Create split
         Recipient[] memory recipients = new Recipient[](2);
-        recipients[0] = Recipient(alice, 4950);
-        recipients[1] = Recipient(bob, 4950);
+        recipients[0] = Recipient({addr: alice, percentageBps: 4950});
+        recipients[1] = Recipient({addr: bob, percentageBps: 4950});
 
         bytes32 uniqueId = keccak256(abi.encode(block.timestamp, "fork-view-test"));
         address split = factory.createSplitConfig(alice, USDC_BASE_SEPOLIA, uniqueId, recipients);
@@ -133,7 +133,9 @@ contract ForkTest is Test {
     }
 
     /// @dev Helper to get USDC balance
-    function _usdcBalance(address account) internal view returns (uint256) {
+    function _usdcBalance(
+        address account
+    ) internal view returns (uint256) {
         (bool success, bytes memory data) =
             USDC_BASE_SEPOLIA.staticcall(abi.encodeWithSignature("balanceOf(address)", account));
         require(success, "balanceOf failed");

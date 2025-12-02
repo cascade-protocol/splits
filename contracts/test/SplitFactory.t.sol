@@ -25,7 +25,7 @@ contract SplitFactoryTest is BaseTest {
     function test_Constructor_SetsInitialValues() public view {
         assertEq(factory.authority(), protocolAuthority);
         assertEq(factory.feeWallet(), feeWallet);
-        assertEq(factory.initialImplementation(), address(implementation));
+        assertEq(factory.INITIAL_IMPLEMENTATION(), address(implementation));
         assertEq(factory.currentImplementation(), address(implementation));
         assertEq(factory.pendingAuthority(), address(0));
     }
@@ -129,7 +129,8 @@ contract SplitFactoryTest is BaseTest {
     function test_CreateSplitConfig_RevertsOnTooManyRecipients() public {
         Recipient[] memory recipients = new Recipient[](21);
         for (uint256 i; i < 21; i++) {
-            recipients[i] = Recipient(address(uint160(0x1000 + i)), 471); // ~4.71% each
+            // forge-lint: disable-next-line(unsafe-typecast)
+            recipients[i] = Recipient({addr: address(uint160(0x1000 + i)), percentageBps: 471}); // ~4.71% each
         }
         bytes32 uniqueId = keccak256("test-split-6");
 
@@ -139,8 +140,8 @@ contract SplitFactoryTest is BaseTest {
 
     function test_CreateSplitConfig_RevertsOnInvalidTotal() public {
         Recipient[] memory recipients = new Recipient[](2);
-        recipients[0] = Recipient(alice, 5000); // 50%
-        recipients[1] = Recipient(bob, 5000); // 50% = 100% total (should be 99%)
+        recipients[0] = Recipient({addr: alice, percentageBps: 5000}); // 50%
+        recipients[1] = Recipient({addr: bob, percentageBps: 5000}); // 50% = 100% total (should be 99%)
         bytes32 uniqueId = keccak256("test-split-7");
 
         vm.expectRevert(abi.encodeWithSelector(InvalidSplitTotal.selector, 10_000, 9900));
@@ -149,8 +150,8 @@ contract SplitFactoryTest is BaseTest {
 
     function test_CreateSplitConfig_RevertsOnDuplicateRecipient() public {
         Recipient[] memory recipients = new Recipient[](2);
-        recipients[0] = Recipient(alice, 4950);
-        recipients[1] = Recipient(alice, 4950); // Duplicate!
+        recipients[0] = Recipient({addr: alice, percentageBps: 4950});
+        recipients[1] = Recipient({addr: alice, percentageBps: 4950}); // Duplicate!
         bytes32 uniqueId = keccak256("test-split-8");
 
         vm.expectRevert(abi.encodeWithSelector(DuplicateRecipient.selector, alice, 0, 1));
@@ -159,8 +160,8 @@ contract SplitFactoryTest is BaseTest {
 
     function test_CreateSplitConfig_RevertsOnZeroAddress() public {
         Recipient[] memory recipients = new Recipient[](2);
-        recipients[0] = Recipient(address(0), 4950); // Zero address!
-        recipients[1] = Recipient(bob, 4950);
+        recipients[0] = Recipient({addr: address(0), percentageBps: 4950}); // Zero address!
+        recipients[1] = Recipient({addr: bob, percentageBps: 4950});
         bytes32 uniqueId = keccak256("test-split-9");
 
         vm.expectRevert(abi.encodeWithSelector(ZeroAddress.selector, 0));
@@ -169,8 +170,8 @@ contract SplitFactoryTest is BaseTest {
 
     function test_CreateSplitConfig_RevertsOnZeroPercentage() public {
         Recipient[] memory recipients = new Recipient[](2);
-        recipients[0] = Recipient(alice, 0); // Zero percentage!
-        recipients[1] = Recipient(bob, 9900);
+        recipients[0] = Recipient({addr: alice, percentageBps: 0}); // Zero percentage!
+        recipients[1] = Recipient({addr: bob, percentageBps: 9900});
         bytes32 uniqueId = keccak256("test-split-10");
 
         vm.expectRevert(abi.encodeWithSelector(ZeroPercentage.selector, 0));
@@ -365,7 +366,7 @@ contract SplitFactoryTest is BaseTest {
 
         assertEq(factory.currentImplementation(), address(newImpl));
         // Initial implementation remains unchanged
-        assertEq(factory.initialImplementation(), address(implementation));
+        assertEq(factory.INITIAL_IMPLEMENTATION(), address(implementation));
     }
 
     function test_UpgradeImplementation_EmitsEvent() public {
@@ -442,7 +443,9 @@ contract SplitFactoryTest is BaseTest {
     // Fuzz Tests
     // =========================================================================
 
-    function testFuzz_UpdateProtocolConfig(address newFeeWallet) public {
+    function testFuzz_UpdateProtocolConfig(
+        address newFeeWallet
+    ) public {
         vm.assume(newFeeWallet != address(0));
 
         vm.prank(protocolAuthority);
@@ -451,7 +454,10 @@ contract SplitFactoryTest is BaseTest {
         assertEq(factory.feeWallet(), newFeeWallet);
     }
 
-    function testFuzz_CreateSplitConfig_ValidRecipients(uint8 recipientCount, uint256 seed) public {
+    function testFuzz_CreateSplitConfig_ValidRecipients(
+        uint8 recipientCount,
+        uint256 seed
+    ) public {
         recipientCount = uint8(bound(recipientCount, 1, 20));
 
         // Generate random recipients that sum to 9900
@@ -459,20 +465,23 @@ contract SplitFactoryTest is BaseTest {
         uint256 remaining = 9900;
 
         for (uint256 i; i < recipientCount; i++) {
+            // forge-lint: disable-next-line(unsafe-typecast)
             address addr = address(uint160(uint256(keccak256(abi.encode(seed, i)))));
             vm.assume(addr != address(0));
 
             uint16 bps;
             if (i == recipientCount - 1) {
-                bps = uint16(remaining);
+                // forge-lint: disable-next-line(unsafe-typecast)
+                bps = uint16(remaining); // Safe: remaining starts at 9900 and only decreases
             } else {
                 // Random bps between 1 and remaining - (remaining recipients need at least 1 each)
                 uint256 maxBps = remaining - (recipientCount - i - 1);
+                // forge-lint: disable-next-line(unsafe-typecast)
                 bps = uint16(bound(uint256(keccak256(abi.encode(seed, i, "bps"))), 1, maxBps));
                 remaining -= bps;
             }
 
-            recipients[i] = Recipient(addr, bps);
+            recipients[i] = Recipient({addr: addr, percentageBps: bps});
         }
 
         bytes32 uniqueId = keccak256(abi.encode(seed, "uniqueId"));

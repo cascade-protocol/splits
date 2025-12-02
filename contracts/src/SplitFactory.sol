@@ -42,7 +42,7 @@ contract SplitFactory is ISplitFactory {
     // =========================================================================
 
     /// @notice Initial implementation address (set at deployment, never changes)
-    address public immutable initialImplementation;
+    address public immutable INITIAL_IMPLEMENTATION;
 
     // =========================================================================
     // Storage
@@ -93,8 +93,13 @@ contract SplitFactory is ISplitFactory {
     // =========================================================================
 
     modifier onlyAuthority() {
-        if (msg.sender != authority) revert Unauthorized(msg.sender, authority);
+        _checkAuthority();
         _;
+    }
+
+    /// @dev Checks that caller is the authority
+    function _checkAuthority() internal view {
+        if (msg.sender != authority) revert Unauthorized(msg.sender, authority);
     }
 
     // =========================================================================
@@ -104,13 +109,16 @@ contract SplitFactory is ISplitFactory {
     /// @notice Deploys the factory with initial implementation and fee wallet
     /// @param initialImplementation_ The initial SplitConfigImpl address
     /// @param feeWallet_ The protocol fee wallet address
-    constructor(address initialImplementation_, address feeWallet_) {
+    constructor(
+        address initialImplementation_,
+        address feeWallet_
+    ) {
         if (initialImplementation_ == address(0)) revert ZeroAddress(0);
         if (initialImplementation_.code.length == 0) revert InvalidImplementation(initialImplementation_);
         if (feeWallet_ == address(0)) revert ZeroAddress(1);
 
-        initialImplementation = initialImplementation_;
-        currentImplementation = initialImplementation_;
+        INITIAL_IMPLEMENTATION = initialImplementation_;
+        currentImplementation = INITIAL_IMPLEMENTATION;
         feeWallet = feeWallet_;
         authority = msg.sender;
 
@@ -170,7 +178,9 @@ contract SplitFactory is ISplitFactory {
 
     /// @notice Updates the protocol fee wallet
     /// @param newFeeWallet The new fee wallet address
-    function updateProtocolConfig(address newFeeWallet) external onlyAuthority {
+    function updateProtocolConfig(
+        address newFeeWallet
+    ) external onlyAuthority {
         if (newFeeWallet == address(0)) revert ZeroAddress(0);
         address oldFeeWallet = feeWallet;
         feeWallet = newFeeWallet;
@@ -179,7 +189,9 @@ contract SplitFactory is ISplitFactory {
 
     /// @notice Upgrades the implementation for future splits
     /// @param newImplementation The new implementation address
-    function upgradeImplementation(address newImplementation) external onlyAuthority {
+    function upgradeImplementation(
+        address newImplementation
+    ) external onlyAuthority {
         if (newImplementation == address(0)) revert ZeroAddress(0);
         if (newImplementation.code.length == 0) revert InvalidImplementation(newImplementation);
         address oldImplementation = currentImplementation;
@@ -189,7 +201,9 @@ contract SplitFactory is ISplitFactory {
 
     /// @notice Initiates two-step authority transfer
     /// @param newAuthority The proposed new authority (set to address(0) to cancel)
-    function transferProtocolAuthority(address newAuthority) external onlyAuthority {
+    function transferProtocolAuthority(
+        address newAuthority
+    ) external onlyAuthority {
         pendingAuthority = newAuthority;
         emit ProtocolAuthorityTransferProposed(authority, newAuthority);
     }
@@ -209,7 +223,9 @@ contract SplitFactory is ISplitFactory {
     // =========================================================================
 
     /// @dev Validates recipients array
-    function _validateRecipients(Recipient[] calldata recipients) internal pure {
+    function _validateRecipients(
+        Recipient[] calldata recipients
+    ) internal pure {
         uint256 count = recipients.length;
 
         // 1. Check count in [MIN_RECIPIENTS, MAX_RECIPIENTS]
@@ -281,7 +297,19 @@ contract SplitFactory is ISplitFactory {
     }
 
     /// @dev Computes salt for CREATE2
-    function _computeSalt(address authority_, address token, bytes32 uniqueId) internal pure returns (bytes32) {
-        return keccak256(abi.encode(authority_, token, uniqueId));
+    function _computeSalt(
+        address authority_,
+        address token,
+        bytes32 uniqueId
+    ) internal pure returns (bytes32 result) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            // Store authority, token, uniqueId in scratch space
+            mstore(0x00, authority_)
+            mstore(0x20, token)
+            mstore(0x40, uniqueId)
+            result := keccak256(0x00, 0x60)
+            mstore(0x40, 0x80) // Restore free memory pointer
+        }
     }
 }

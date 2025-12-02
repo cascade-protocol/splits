@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 import {SplitConfigImpl} from "../src/SplitConfigImpl.sol";
 import {SplitFactory} from "../src/SplitFactory.sol";
 import {Recipient} from "../src/Types.sol";
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 // Solady's MockERC20 - no need to reinvent the wheel
 import {MockERC20} from "solady/../test/utils/mocks/MockERC20.sol";
@@ -75,24 +75,24 @@ abstract contract BaseTest is Test {
     /// @notice Create a simple 2-recipient split (49.5% each)
     function _twoRecipients() internal view returns (Recipient[] memory) {
         Recipient[] memory r = new Recipient[](2);
-        r[0] = Recipient(alice, 4950);
-        r[1] = Recipient(bob, 4950);
+        r[0] = Recipient({addr: alice, percentageBps: 4950});
+        r[1] = Recipient({addr: bob, percentageBps: 4950});
         return r;
     }
 
     /// @notice Create a 3-recipient split (33% each)
     function _threeRecipients() internal view returns (Recipient[] memory) {
         Recipient[] memory r = new Recipient[](3);
-        r[0] = Recipient(alice, 3300);
-        r[1] = Recipient(bob, 3300);
-        r[2] = Recipient(charlie, 3300);
+        r[0] = Recipient({addr: alice, percentageBps: 3300});
+        r[1] = Recipient({addr: bob, percentageBps: 3300});
+        r[2] = Recipient({addr: charlie, percentageBps: 3300});
         return r;
     }
 
     /// @notice Create a single recipient (99%)
     function _singleRecipient() internal view returns (Recipient[] memory) {
         Recipient[] memory r = new Recipient[](1);
-        r[0] = Recipient(alice, 9900);
+        r[0] = Recipient({addr: alice, percentageBps: 9900});
         return r;
     }
 
@@ -101,7 +101,8 @@ abstract contract BaseTest is Test {
         Recipient[] memory r = new Recipient[](20);
         for (uint256 i; i < 20; i++) {
             // Use deterministic addresses
-            r[i] = Recipient(address(uint160(0x1000 + i)), 495); // 4.95% each = 99%
+            // forge-lint: disable-next-line(unsafe-typecast, named-struct-fields)
+            r[i] = Recipient({addr: address(uint160(0x1000 + i)), percentageBps: 495}); // 4.95% each = 99%
         }
         return r;
     }
@@ -114,7 +115,7 @@ abstract contract BaseTest is Test {
         require(addrs.length == bps.length, "Length mismatch");
         Recipient[] memory r = new Recipient[](addrs.length);
         for (uint256 i; i < addrs.length; i++) {
-            r[i] = Recipient(addrs[i], bps[i]);
+            r[i] = Recipient({addr: addrs[i], percentageBps: bps[i]});
         }
         return r;
     }
@@ -124,12 +125,17 @@ abstract contract BaseTest is Test {
     // =========================================================================
 
     /// @notice Fund a split contract with tokens
-    function _fundSplit(address split, uint256 amount) internal {
+    function _fundSplit(
+        address split,
+        uint256 amount
+    ) internal {
         token.mint(split, amount);
     }
 
     /// @notice Get token balance
-    function _balance(address account) internal view returns (uint256) {
+    function _balance(
+        address account
+    ) internal view returns (uint256) {
         return token.balanceOf(account);
     }
 
@@ -139,13 +145,17 @@ abstract contract BaseTest is Test {
 
     /// @notice Mock token transfer to always fail for a specific recipient
     /// @dev Use this to simulate blocklisted addresses
-    function _mockTransferFail(address recipient) internal {
+    function _mockTransferFail(
+        address recipient
+    ) internal {
         // Mock transfer(recipient, *) to return false
         vm.mockCall(address(token), abi.encodeWithSelector(token.transfer.selector, recipient), abi.encode(false));
     }
 
     /// @notice Mock token transfer to revert for a specific recipient
-    function _mockTransferRevert(address recipient) internal {
+    function _mockTransferRevert(
+        address recipient
+    ) internal {
         vm.mockCallRevert(address(token), abi.encodeWithSelector(token.transfer.selector, recipient), "Blocklisted");
     }
 
@@ -159,7 +169,9 @@ abstract contract BaseTest is Test {
     // =========================================================================
 
     /// @notice Assert that percentages sum to 9900
-    function _assertValidTotal(Recipient[] memory recipients) internal pure {
+    function _assertValidTotal(
+        Recipient[] memory recipients
+    ) internal pure {
         uint256 total;
         for (uint256 i; i < recipients.length; i++) {
             total += recipients[i].percentageBps;

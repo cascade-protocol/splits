@@ -11,7 +11,7 @@ script = "script"
 
 # Compiler settings (per specification)
 solc = "0.8.30"
-evm_version = "cancun"          # Base L2 compatible, includes EIP-1153 transient storage
+evm_version = "prague"          # Base L2 compatible (Pectra upgrade May 2025), includes EIP-1153 transient storage
 optimizer = true
 optimizer_runs = 1_000_000      # Optimize for runtime (executeSplit called frequently)
 via_ir = false                  # Disable IR for faster compilation during dev
@@ -64,6 +64,10 @@ invariant.runs = 50
 base = "${BASE_RPC_URL}"
 base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
 localhost = "http://127.0.0.1:8545"
+
+# Linting
+[lint]
+ignore = ["script/**"]  # Ignore style lints in deployment scripts
 
 # Block explorer verification
 [etherscan]

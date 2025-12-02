@@ -234,6 +234,7 @@ contract SplitConfigImplTest is BaseTest {
 
         // Each recipient gets 4.95% = 495e6
         for (uint256 i; i < 20; i++) {
+            // forge-lint: disable-next-line(unsafe-typecast)
             assertEq(_balance(address(uint160(0x1000 + i))), 495e6);
         }
         // Protocol gets 1% = 100e6
@@ -406,7 +407,9 @@ contract SplitConfigImplTest is BaseTest {
     // Fuzz Tests
     // =========================================================================
 
-    function testFuzz_ExecuteSplit_AnyAmount(uint256 amount) public {
+    function testFuzz_ExecuteSplit_AnyAmount(
+        uint256 amount
+    ) public {
         amount = bound(amount, 1, 1e24); // 1 wei to 1M tokens
 
         _fundSplit(address(split), amount);
@@ -417,7 +420,10 @@ contract SplitConfigImplTest is BaseTest {
         assertEq(totalDistributed, amount);
     }
 
-    function testFuzz_ExecuteSplit_MultipleDeposits(uint256 amount1, uint256 amount2) public {
+    function testFuzz_ExecuteSplit_MultipleDeposits(
+        uint256 amount1,
+        uint256 amount2
+    ) public {
         amount1 = bound(amount1, 1, 1e18);
         amount2 = bound(amount2, 1, 1e18);
 
@@ -512,7 +518,8 @@ contract SplitConfigImplTest is BaseTest {
         // Create split with 5 recipients at 19.8% each = 99%
         Recipient[] memory recipients = new Recipient[](5);
         for (uint256 i; i < 5; i++) {
-            recipients[i] = Recipient(address(uint160(0x2000 + i)), 1980); // 19.8%
+            // forge-lint: disable-next-line(unsafe-typecast)
+            recipients[i] = Recipient({addr: address(uint160(0x2000 + i)), percentageBps: 1980}); // 19.8%
         }
         bytes32 uniqueId = keccak256("dust-many-recipients");
         address splitAddr = factory.createSplitConfig(alice, address(token), uniqueId, recipients);
@@ -523,12 +530,15 @@ contract SplitConfigImplTest is BaseTest {
 
         // All recipients get 0, protocol gets all 4
         for (uint256 i; i < 5; i++) {
+            // forge-lint: disable-next-line(unsafe-typecast)
             assertEq(_balance(address(uint160(0x2000 + i))), 0);
         }
         assertEq(_balance(feeWallet), 4);
     }
 
-    function testFuzz_Dust_ProtocolGetsRemainder(uint256 amount) public {
+    function testFuzz_Dust_ProtocolGetsRemainder(
+        uint256 amount
+    ) public {
         // For any amount, protocol should get at least 1% (due to remainder calculation)
         amount = bound(amount, 100, 1e24); // At least 100 base units for meaningful test
 
@@ -592,7 +602,10 @@ contract SplitConfigImplTest is BaseTest {
         assertEq(split.totalUnclaimed(), 0);
     }
 
-    function testFuzz_Invariant_RecipientsSum99Percent(uint8 recipientCount, uint256 seed) public {
+    function testFuzz_Invariant_RecipientsSum99Percent(
+        uint8 recipientCount,
+        uint256 seed
+    ) public {
         recipientCount = uint8(bound(recipientCount, 1, 20));
 
         // Generate random recipients that sum to 9900
@@ -600,18 +613,21 @@ contract SplitConfigImplTest is BaseTest {
         uint256 remaining = 9900;
 
         for (uint256 i; i < recipientCount; i++) {
+            // forge-lint: disable-next-line(unsafe-typecast)
             address addr = address(uint160(uint256(keccak256(abi.encode(seed, i, "addr")))));
             vm.assume(addr != address(0));
 
             uint16 bps;
             if (i == recipientCount - 1) {
-                bps = uint16(remaining);
+                // forge-lint: disable-next-line(unsafe-typecast)
+                bps = uint16(remaining); // Safe: remaining starts at 9900 and only decreases
             } else {
                 uint256 maxBps = remaining - (recipientCount - i - 1);
+                // forge-lint: disable-next-line(unsafe-typecast)
                 bps = uint16(bound(uint256(keccak256(abi.encode(seed, i, "bps"))), 1, maxBps));
                 remaining -= bps;
             }
-            recipients[i] = Recipient(addr, bps);
+            recipients[i] = Recipient({addr: addr, percentageBps: bps});
         }
 
         bytes32 uniqueId = keccak256(abi.encode(seed, "invariant-test"));
@@ -667,15 +683,23 @@ contract ReentrantToken {
     address public splitToAttack;
     uint256 public reentrancyAttempts;
 
-    function setSplitToAttack(address split) external {
+    function setSplitToAttack(
+        address split
+    ) external {
         splitToAttack = split;
     }
 
-    function mint(address to, uint256 amount) external {
+    function mint(
+        address to,
+        uint256 amount
+    ) external {
         balanceOf[to] += amount;
     }
 
-    function transfer(address to, uint256 amount) external returns (bool) {
+    function transfer(
+        address to,
+        uint256 amount
+    ) external returns (bool) {
         balanceOf[msg.sender] -= amount;
         balanceOf[to] += amount;
 
