@@ -59,24 +59,22 @@ Two separate packages for Solana and EVM:
 
 ### @cascade-fyi/splits-sdk (Solana)
 
-Primary interface is `ensure` — idempotent create/update. See `packages/sdk/ARCHITECTURE.md` for design rationale.
+See `packages/sdk/ARCHITECTURE.md` for design rationale.
 
 ```typescript
-// HTTP-only (most servers) — no WebSocket required
-import { sendEnsureSplit, sendExecuteSplit, isCascadeSplit } from '@cascade-fyi/splits-sdk/solana';
+// Core module - instructions + helpers (kit-agnostic, works with any kit version >=2.0.0)
+import { executeSplit, isCascadeSplit, createSplitConfig } from '@cascade-fyi/splits-sdk/solana';
 
-// WebSocket available
-import { ensureSplitConfig, executeAndConfirmSplit } from '@cascade-fyi/splits-sdk/solana';
+// High-level client - WebSocket confirmation (requires kit@5.0)
+import { ensureSplitConfig, executeAndConfirmSplit } from '@cascade-fyi/splits-sdk/solana/client';
 
 // Browser with wallet-adapter
 import { createSplitsClient } from '@cascade-fyi/splits-sdk/solana/client';
 import { fromWalletAdapter } from '@cascade-fyi/splits-sdk/solana/web3-compat';
-
-// Low-level instruction builders (for custom tx building)
-import { createSplitConfig, executeSplit } from '@cascade-fyi/splits-sdk/solana';
 ```
 
-Result types use discriminated unions (`CREATED`, `UPDATED`, `BLOCKED`, `FAILED`), not exceptions.
+Core module returns instructions; transaction building is consumer's responsibility.
+High-level client uses discriminated unions (`CREATED`, `UPDATED`, `BLOCKED`, `FAILED`), not exceptions.
 
 ### @cascade-fyi/splits-sdk-evm (Base)
 

@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.10.0] - 2025-12-03
+
+### Changed
+- **BREAKING**: Removed HTTP-only transaction functions (`sendExecuteSplit`, `sendEnsureSplit`, `sendUpdateSplit`, `sendCloseSplit`)
+- **BREAKING**: `./solana` now exports only core functionality (instructions, helpers, types)
+- Core module (`./solana`) now works with any `@solana/kit` version (>=2.0.0)
+- High-level functions with WebSocket confirmation remain in `./solana/client` (requires kit@5.0)
+
+### Removed
+- `sendExecuteSplit` - use `executeSplit` instruction builder instead
+- `sendEnsureSplit` - use `createSplitConfig`/`updateSplitConfig` instruction builders instead
+- `sendUpdateSplit` - use `updateSplitConfig` instruction builder instead
+- `sendCloseSplit` - use `closeSplitConfig` instruction builder instead
+
+### Migration Guide
+
+Before (0.9.0):
+```typescript
+import { sendExecuteSplit } from '@cascade-fyi/splits-sdk/solana';
+await sendExecuteSplit(rpc, vault, signer);
+```
+
+After (0.10.0):
+```typescript
+import { executeSplit } from '@cascade-fyi/splits-sdk/solana';
+
+const result = await executeSplit(rpc, vault, executor);
+if (result.ok) {
+  // Build and send transaction using your preferred method
+  const tx = buildYourTransaction([result.instruction], signer);
+  await sendYourTransaction(tx);
+}
+```
+
+The SDK now provides instructions; transaction building is your responsibility.
+This enables compatibility with any @solana/kit version and signing flow.
+
 ## [0.9.0] - 2025-12-02
 
 ### Added
@@ -238,6 +275,7 @@
 - Transaction building with compute budget support
 - Type-safe schemas with comprehensive validation
 
+[0.10.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.9.0...sdk@v0.10.0
 [0.9.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.8.0...sdk@v0.9.0
 [0.8.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.7.1...sdk@v0.8.0
 [0.7.1]: https://github.com/cascade-protocol/splits/compare/sdk@v0.7.0...sdk@v0.7.1

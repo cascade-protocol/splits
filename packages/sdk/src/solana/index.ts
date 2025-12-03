@@ -1,103 +1,40 @@
 /**
- * Cascade Splits SDK - Solana Module
+ * Cascade Splits SDK - Solana Core Module
+ *
+ * This module exports kit-version-agnostic code that works with any @solana/kit version:
+ * - Instruction builders (return `Instruction` objects)
+ * - Helper functions (RPC reads, PDA derivation, split detection)
+ * - Types and constants
+ *
+ * Transaction building and sending is the consumer's responsibility, allowing
+ * integration with any kit version and signing flow.
+ *
+ * For high-level convenience with WebSocket confirmation (requires kit@5.0):
+ * - '@cascade-fyi/splits-sdk/solana/client'
  *
  * @example
  * ```typescript
  * import {
- *   ensureSplitConfig,
- *   executeAndConfirmSplit,
+ *   executeSplit,
  *   isCascadeSplit,
+ *   deriveSplitConfig,
  * } from '@cascade-fyi/splits-sdk/solana';
  *
- * // High-level: Idempotent create/update
- * const result = await ensureSplitConfig(rpc, rpcSub, signer, {
- *   recipients: [{ address: alice, share: 70 }, { address: bob, share: 29 }],
- * });
- *
- * // Check if vault is a split
+ * // Check if address is a split vault
  * if (await isCascadeSplit(rpc, vault)) {
- *   // Execute and confirm in one call
- *   await executeAndConfirmSplit(rpc, rpcSubscriptions, vault, signer);
+ *   // Build instruction
+ *   const result = await executeSplit(rpc, vault, executor);
+ *   if (result.ok) {
+ *     // Build and send transaction using YOUR kit version
+ *     const tx = buildTransaction([result.instruction], signer);
+ *     await sendTransaction(tx);
+ *   }
  * }
  * ```
  */
 
 // =============================================================================
-// HIGH-LEVEL (Idempotent, sends transactions)
-// =============================================================================
-
-export {
-	ensureSplitConfig,
-	type EnsureResult,
-	type EnsureBlockedReason,
-	type EnsureOptions,
-} from "./ensureSplitConfig.js";
-
-export {
-	closeSplit,
-	type CloseResult,
-	type CloseBlockedReason,
-	type CloseOptions,
-} from "./closeSplit.js";
-
-export {
-	updateSplit,
-	type UpdateResult,
-	type UpdateBlockedReason,
-	type UpdateOptions,
-} from "./updateSplit.js";
-
-// =============================================================================
-// ESTIMATION (Pure, no transactions)
-// =============================================================================
-
-export {
-	estimateSplitRent,
-	type EstimateResult,
-} from "./estimateSplitRent.js";
-
-// =============================================================================
-// EXECUTE (High-level)
-// =============================================================================
-
-export {
-	executeAndConfirmSplit,
-	type ExecuteResult,
-	type ExecuteOptions,
-	type ExecuteAndConfirmOptions,
-	type ExecuteAndConfirmResult,
-	type SkippedReason,
-	type FailedReason,
-} from "./execute.js";
-
-// =============================================================================
-// HTTP-ONLY (For facilitators/servers - no WebSocket required)
-// =============================================================================
-
-export {
-	sendExecuteSplit,
-	type SendExecuteSplitOptions,
-} from "./sendExecuteSplit.js";
-
-export {
-	sendEnsureSplit,
-	type SendEnsureSplitOptions,
-	type SendEnsureSplitParams,
-} from "./sendEnsureSplit.js";
-
-export {
-	sendUpdateSplit,
-	type SendUpdateSplitOptions,
-	type SendUpdateSplitParams,
-} from "./sendUpdateSplit.js";
-
-export {
-	sendCloseSplit,
-	type SendCloseSplitOptions,
-} from "./sendCloseSplit.js";
-
-// =============================================================================
-// INSTRUCTIONS (Low-level, returns Instruction)
+// INSTRUCTIONS (Low-level, returns Instruction - kit-agnostic)
 // =============================================================================
 
 export {
@@ -110,7 +47,7 @@ export {
 } from "./instructions.js";
 
 // =============================================================================
-// READ & HELPERS
+// HELPERS & READ FUNCTIONS
 // =============================================================================
 
 export {
@@ -148,3 +85,12 @@ export {
 	type ProtocolConfig,
 	type UnclaimedAmount,
 } from "./helpers.js";
+
+// =============================================================================
+// ESTIMATION (Pure calculation, no transactions)
+// =============================================================================
+
+export {
+	estimateSplitRent,
+	type EstimateResult,
+} from "./estimateSplitRent.js";

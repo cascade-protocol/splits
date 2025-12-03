@@ -109,25 +109,25 @@ See [docs/benchmarks/compute_units.md](docs/benchmarks/compute_units.md) for ful
 
 ```typescript
 import { createSolanaRpc } from "@solana/kit";
-import { sendExecuteSplit, isCascadeSplit } from "@cascade-fyi/splits-sdk/solana";
+import { executeSplit, isCascadeSplit } from "@cascade-fyi/splits-sdk/solana";
 
 const rpc = createSolanaRpc("https://api.mainnet-beta.solana.com");
 
 // Check if destination is a split vault
 if (await isCascadeSplit(rpc, vault)) {
-  const result = await sendExecuteSplit(rpc, vault, signer, {
-    minBalance: 1_000_000n, // Skip if < 1 USDC
-  });
+  const result = await executeSplit(rpc, vault, executor);
 
-  if (result.status === "EXECUTED") {
-    console.log(`Split executed: ${result.signature}`);
-  } else if (result.status === "SKIPPED") {
-    console.log(`Skipped: ${result.reason}`);
+  if (result.ok) {
+    // Build and send transaction using your preferred method
+    const tx = buildTransaction([result.instruction], signer);
+    await sendTransaction(tx);
+  } else {
+    console.log(`Cannot execute: ${result.reason}`);
   }
 }
 ```
 
-> **Note:** `sendExecuteSplit` uses HTTP polling for confirmation — no WebSocket required. For WebSocket-based confirmation, use `executeAndConfirmSplit` with `rpcSubscriptions`.
+> **Note:** The core module returns instructions — transaction building is your responsibility, enabling compatibility with any @solana/kit version. For high-level convenience with WebSocket confirmation, use `executeAndConfirmSplit` from `@cascade-fyi/splits-sdk/solana/client`.
 
 ### Create a Split (Merchants)
 
@@ -187,16 +187,20 @@ No separate claim instruction needed - single interface for all operations.
 Cascade Splits integrates seamlessly with x402 payment facilitators:
 
 ```typescript
-import { isCascadeSplit, sendExecuteSplit } from "@cascade-fyi/splits-sdk/solana";
+import { isCascadeSplit, executeSplit } from "@cascade-fyi/splits-sdk/solana";
 
 // In your facilitator's settle handler:
 if (await isCascadeSplit(rpc, paymentDestination)) {
   // It's a split vault - execute distribution after payment
-  await sendExecuteSplit(rpc, paymentDestination, signer);
+  const result = await executeSplit(rpc, paymentDestination, executor);
+  if (result.ok) {
+    // Build and send using your kit version
+    await sendTransaction([result.instruction], signer);
+  }
 }
 ```
 
-Use the **splitConfig address** (PDA) as your `payTo` destination — facilitators derive the vault ATA automatically. This makes `payTo` token-agnostic: same address works for USDC, USDT, or any supported token. The SDK caches detection results for high-volume efficiency. HTTP-only — no WebSocket required.
+Use the **splitConfig address** (PDA) as your `payTo` destination — facilitators derive the vault ATA automatically. This makes `payTo` token-agnostic: same address works for USDC, USDT, or any supported token. The SDK caches detection results for high-volume efficiency.
 
 See [specification](docs/specification.md) for complete integration guide.
 
