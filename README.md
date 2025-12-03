@@ -196,7 +196,7 @@ if (await isCascadeSplit(rpc, paymentDestination)) {
 }
 ```
 
-Use the vault address as your `payTo` destination. The SDK caches detection results for high-volume efficiency. HTTP-only — no WebSocket required.
+Use the **splitConfig address** (PDA) as your `payTo` destination — facilitators derive the vault ATA automatically. This makes `payTo` token-agnostic: same address works for USDC, USDT, or any supported token. The SDK caches detection results for high-volume efficiency. HTTP-only — no WebSocket required.
 
 See [specification](docs/specification.md) for complete integration guide.
 

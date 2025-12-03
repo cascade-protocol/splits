@@ -331,7 +331,7 @@ Authority updates recipient list while preserving the vault address.
 - No zero percentages
 - All recipient ATAs must exist
 
-**Use Case:** The vault address is the stable public interface that payers use. When business arrangements change (new partners, revised percentages), the authority can update the split without requiring payers to change their payment destination.
+**Use Case:** The splitConfig address (PDA) is the stable public interface for x402 payments—facilitators derive the vault ATA automatically. When business arrangements change (new partners, revised percentages), the authority can update the split without requiring payers to change their payment destination.
 
 **Design Decision:** Vault must be empty to ensure funds are always split according to the rules active when they were received.
 
@@ -363,9 +363,15 @@ The rent is refunded to the original `rent_payer`, not necessarily the authority
 
 ## x402 Integration
 
+### Merchant Configuration
+
+Set `payTo` to the **splitConfig address** (PDA), not the vault. Per [x402 SVM spec](https://github.com/coinbase/x402/blob/main/specs/schemes/exact/scheme_exact_svm.md), facilitators derive the destination: `ATA(owner=payTo, mint=asset)`.
+
+This makes `payTo` token-agnostic—same address works for USDC, USDT, or any supported token.
+
 ### Automatic Detection
 
-x402 facilitators (PayAI, Coinbase CDP) can detect split vaults by checking if payment destination is a token account owned by a SplitConfig PDA:
+After payment, facilitators can detect split vaults by checking if the derived destination is a token account owned by a SplitConfig PDA:
 
 ```typescript
 async function detectSplitVault(destination: PublicKey): Promise<SplitConfig | null> {

@@ -59,9 +59,9 @@ const result = await sendEnsureSplit(rpc, signer, {
 });
 
 if (result.status === "CREATED") {
-  console.log(`Share this vault: ${result.vault}`);
+  console.log(`Share this address: ${result.splitConfig}`);  // Use for x402 payTo
 } else if (result.status === "NO_CHANGE") {
-  console.log(`Already exists: ${result.vault}`);
+  console.log(`Already exists: ${result.splitConfig}`);
 }
 ```
 

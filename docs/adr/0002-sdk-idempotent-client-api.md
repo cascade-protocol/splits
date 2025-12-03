@@ -406,8 +406,8 @@ async function getTokenProgram(rpc: Rpc<SolanaRpcApi>, mint: Address): Promise<A
 
 x402 facilitators can integrate Cascade Splits as a post-settlement hook. The pattern:
 
-1. Facilitator settles payment to `payTo` address
-2. Check if `payTo` is a Cascade Split vault using `isCascadeSplit()`
+1. Facilitator derives vault from `payTo`: `ATA(owner=payTo, mint=asset)` and settles payment
+2. Check if vault is a Cascade Split using `isCascadeSplit(vault)`
 3. If yes, call `executeAndConfirmSplit()` to distribute funds
 
 ### 5.2 Wrapper Pattern
