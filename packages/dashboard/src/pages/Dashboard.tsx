@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback } from "react";
-import { useWallet } from "@solana/react-hooks";
 import { toast } from "sonner";
 import type { Address } from "@solana/kit";
 import { RefreshCw } from "lucide-react";
@@ -12,9 +11,8 @@ import {
 	useSplitsWithBalances,
 	useSplitsClient,
 	type SplitWithBalance,
-} from "./hooks/use-splits";
+} from "@/hooks/use-splits";
 
-import { Header } from "./components/Header";
 import {
 	createColumns,
 	CloseSplitDialog,
@@ -22,19 +20,13 @@ import {
 	CreateSplitForm,
 	DataTable,
 	mobileHiddenColumns,
-	SplitExplainer,
 	UpdateSplitDialog,
 	type SplitActions,
-} from "./components/splits";
-import { Button } from "./components/ui/button";
-import { ErrorBoundary } from "./components/ui/error-boundary";
-import { Toaster } from "./components/ui/sonner";
-import { openExternal } from "./lib/utils";
+} from "@/components/splits";
+import { Button } from "@/components/ui/button";
+import { openExternal } from "@/lib/utils";
 
-export default function App() {
-	const wallet = useWallet();
-	const connected = wallet.status === "connected";
-
+export function Dashboard() {
 	// Data fetching with real-time balance updates via WebSocket
 	const {
 		data: splits = [],
@@ -51,9 +43,6 @@ export default function App() {
 	const [isUpdating, setIsUpdating] = useState(false);
 	const [isClosing, setIsClosing] = useState(false);
 	const [executingVault, setExecutingVault] = useState<string | null>(null);
-
-	// View navigation - allows connected users to switch between About and Dashboard
-	const [showAbout, setShowAbout] = useState(false);
 
 	// Dialog state for update/close actions
 	const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -250,96 +239,52 @@ export default function App() {
 	};
 
 	return (
-		<div className="flex min-h-screen flex-col bg-background text-foreground">
-			<Header
-				showAbout={showAbout}
-				onNavigate={setShowAbout}
-				showNav={connected}
-			/>
-
-			<ErrorBoundary>
-				{!connected || showAbout ? (
-					// Not connected or viewing About: hero section fills remaining space
-					<main className="flex flex-1 items-center justify-center px-4">
-						<SplitExplainer />
-					</main>
+		<>
+			<main className="container mx-auto flex-1 px-4 py-8">
+				{isLoading ? (
+					<div className="flex items-center justify-center py-16">
+						<div className="text-muted-foreground">Loading splits...</div>
+					</div>
+				) : error ? (
+					<div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+						<p className="text-destructive font-medium">
+							Failed to load splits
+						</p>
+						<p className="text-muted-foreground text-sm max-w-md">
+							{error instanceof Error ? error.message : "Unknown error"}
+						</p>
+						<Button onClick={() => refetch()} variant="outline">
+							<RefreshCw className="mr-2 h-4 w-4" />
+							Try again
+						</Button>
+					</div>
+				) : splits.length === 0 ? (
+					<CreateSplitForm
+						onSubmit={handleCreateSplit}
+						isPending={isCreating}
+					/>
 				) : (
-					// Connected and viewing Dashboard: standard content layout
-					<main className="container mx-auto flex-1 px-4 py-8">
-						{isLoading ? (
-							<div className="flex items-center justify-center py-16">
-								<div className="text-muted-foreground">Loading splits...</div>
-							</div>
-						) : error ? (
-							<div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-								<p className="text-destructive font-medium">
-									Failed to load splits
+					<>
+						<div className="mb-6 flex items-center justify-between">
+							<div>
+								<h1 className="text-2xl font-bold md:text-3xl">Your Splits</h1>
+								<p className="text-muted-foreground mt-1">
+									Manage your payment split configurations
 								</p>
-								<p className="text-muted-foreground text-sm max-w-md">
-									{error instanceof Error ? error.message : "Unknown error"}
-								</p>
-								<Button onClick={() => refetch()} variant="outline">
-									<RefreshCw className="mr-2 h-4 w-4" />
-									Try again
-								</Button>
 							</div>
-						) : splits.length === 0 ? (
-							<CreateSplitForm
+							<CreateSplitDialog
 								onSubmit={handleCreateSplit}
 								isPending={isCreating}
 							/>
-						) : (
-							<>
-								<div className="mb-6 flex items-center justify-between">
-									<div>
-										<h1 className="text-2xl font-bold md:text-3xl">
-											Your Splits
-										</h1>
-										<p className="text-muted-foreground mt-1">
-											Manage your payment split configurations
-										</p>
-									</div>
-									<CreateSplitDialog
-										onSubmit={handleCreateSplit}
-										isPending={isCreating}
-									/>
-								</div>
-								<DataTable
-									columns={columns}
-									data={splits}
-									initialColumnVisibility={mobileHiddenColumns}
-								/>
-							</>
-						)}
-					</main>
+						</div>
+						<DataTable
+							columns={columns}
+							data={splits}
+							initialColumnVisibility={mobileHiddenColumns}
+						/>
+					</>
 				)}
-			</ErrorBoundary>
-
-			{/* Footer */}
-			<footer className="border-t py-4 px-4 mt-auto">
-				<div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
-					<div className="flex items-center gap-2">
-						<span>Cascade Splits</span>
-						<span className="text-xs">© 2025</span>
-						<span className="text-xs text-amber-600">
-							Unaudited — use at your own risk
-						</span>
-					</div>
-					<div className="flex items-center gap-2">
-						<span className="text-xs bg-muted px-2 py-0.5 rounded">
-							Mainnet
-						</span>
-						<a
-							href="https://solscan.io/account/SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB"
-							target="_blank"
-							rel="noopener noreferrer"
-							className="font-mono text-xs hover:text-foreground transition-colors"
-						>
-							SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB
-						</a>
-					</div>
-				</div>
-			</footer>
+			</main>
 
 			{/* Update/Close dialogs */}
 			<UpdateSplitDialog
@@ -356,8 +301,6 @@ export default function App() {
 				onConfirm={handleCloseSubmit}
 				isPending={isClosing}
 			/>
-
-			<Toaster />
-		</div>
+		</>
 	);
 }

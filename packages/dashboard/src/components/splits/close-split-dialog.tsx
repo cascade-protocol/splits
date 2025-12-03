@@ -65,7 +65,7 @@ export function CloseSplitDialog({
 							Vault
 						</div>
 						<div className="font-mono text-xs break-all">
-							{splitConfig.vault}
+							{splitConfig.address}
 						</div>
 					</div>
 				)}

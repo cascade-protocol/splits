@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { RouterProvider } from "react-router";
 import {
 	createClient,
 	autoDiscover,
@@ -8,7 +9,7 @@ import {
 	backpack,
 } from "@solana/client";
 import { SolanaProvider } from "@solana/react-hooks";
-import App from "./App.tsx";
+import { router } from "./router";
 import "./index.css";
 
 const client = createClient({
@@ -29,7 +30,7 @@ const client = createClient({
 createRoot(document.getElementById("root")!).render(
 	<StrictMode>
 		<SolanaProvider client={client}>
-			<App />
+			<RouterProvider router={router} />
 		</SolanaProvider>
 	</StrictMode>,
 );

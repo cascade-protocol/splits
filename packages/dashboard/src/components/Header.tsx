@@ -1,25 +1,17 @@
+import { NavLink, Link } from "react-router";
 import { WalletButton } from "./ui/wallet-button";
-
-interface HeaderProps {
-	/** Whether the About view is currently shown */
-	showAbout?: boolean;
-	/** Callback to navigate between views */
-	onNavigate?: (showAbout: boolean) => void;
-	/** Whether to show navigation links (only when connected) */
-	showNav?: boolean;
-}
 
 /**
  * Header with logo, navigation, social links, and wallet connection.
  */
-export function Header({ showAbout, onNavigate, showNav }: HeaderProps) {
+export function Header() {
 	return (
 		<header className="border-b">
 			<div className="container mx-auto px-4 py-4 md:px-6 md:py-6">
 				<div className="flex items-center justify-between">
 					{/* Left group: Logo + Title + Nav */}
 					<div className="flex items-center gap-4 md:gap-6">
-						<div className="flex items-center gap-2 md:gap-3">
+						<Link to="/" className="flex items-center gap-2 md:gap-3">
 							<img
 								src="/water-wave-cascade.svg"
 								alt="Cascade Splits logo"
@@ -28,35 +20,36 @@ export function Header({ showAbout, onNavigate, showNav }: HeaderProps) {
 							<h1 className="text-lg font-semibold md:text-xl">
 								Cascade Splits
 							</h1>
-						</div>
+						</Link>
 
-						{/* Navigation - only visible when connected */}
-						{showNav && (
-							<nav className="flex items-center gap-1">
-								<button
-									type="button"
-									onClick={() => onNavigate?.(false)}
-									className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-										!showAbout
+						{/* Navigation */}
+						<nav className="flex items-center gap-1">
+							<NavLink
+								to="/"
+								end
+								className={({ isActive }) =>
+									`rounded-md px-3 py-1.5 text-sm transition-colors ${
+										isActive
 											? "bg-accent font-medium text-accent-foreground"
 											: "text-muted-foreground hover:text-foreground"
-									}`}
-								>
-									Dashboard
-								</button>
-								<button
-									type="button"
-									onClick={() => onNavigate?.(true)}
-									className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-										showAbout
+									}`
+								}
+							>
+								Dashboard
+							</NavLink>
+							<NavLink
+								to="/about"
+								className={({ isActive }) =>
+									`rounded-md px-3 py-1.5 text-sm transition-colors ${
+										isActive
 											? "bg-accent font-medium text-accent-foreground"
 											: "text-muted-foreground hover:text-foreground"
-									}`}
-								>
-									About
-								</button>
-							</nav>
-						)}
+									}`
+								}
+							>
+								About
+							</NavLink>
+						</nav>
 					</div>
 
 					{/* Right group: Social icons + Wallet button */}
