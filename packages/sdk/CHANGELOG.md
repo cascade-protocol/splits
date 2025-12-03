@@ -1,5 +1,71 @@
 # Changelog
 
+## [0.9.0] - 2025-12-02
+
+### Added
+
+- **Client Factory for Browser Apps** (`/solana/client`)
+  - `createSplitsClient(rpc, wallet)` — stateful client with persistent wallet binding
+  - `SplitsWallet` interface — adapter pattern for wallet flexibility
+  - `fromKitSigner()` — kit-native adapter (WebSocket-based confirmation)
+  - Methods: `ensureSplit()`, `execute()`, `update()`, `close()`
+  - Discriminated union results: `CREATED`, `UPDATED`, `NO_CHANGE`, `BLOCKED`, `FAILED`, `EXECUTED`, `SKIPPED`, `CLOSED`, `ALREADY_CLOSED`
+  - Actionable error messages in all BLOCKED/FAILED results (what happened, why, what to do)
+  - Abort signal support for timeout/cancellation
+
+- **HTTP-Only Functions** (for facilitators/servers without WebSocket)
+  - `sendEnsureSplit()` — idempotent create/update with polling confirmation
+  - `sendExecuteSplit()` — distribute vault with polling confirmation
+  - `sendUpdateSplit()` — update recipients with polling confirmation
+  - `sendCloseSplit()` — close split with polling confirmation
+  - Configurable polling: `confirm: { maxRetries, retryDelayMs }` or fire-and-forget
+
+- **WebSocket Functions** (thin wrappers using client internals)
+  - `ensureSplitConfig()` — idempotent create/update
+  - `closeSplit()` — idempotent close with rent recovery
+  - `updateSplit()` — update recipients with pre-validation
+  - All use `fromKitSigner` internally for WebSocket-based confirmation
+
+- **Wallet Adapter Support** (`/solana/web3-compat`)
+  - `fromWalletAdapter(wallet, connection)` — convert wallet-adapter to SplitsWallet
+  - `toWeb3Transaction()` — convert kit messages to web3.js VersionedTransaction
+  - `WalletDisconnectedError`, `WalletRejectedError` — typed wallet errors
+
+- **Rent Estimation**
+  - `estimateSplitRent()` — pure rent calculation before committing
+
+- **Label-Based Seeds** (cross-chain compatible)
+  - `labelToSeed(label)` — convert human-readable label to hashed Address
+  - `seedToLabel(seed)` — reverse conversion (if recoverable)
+  - `seedBytesToAddress(bytes)` — raw bytes to Address
+
+- **Token Program Detection**
+  - `detectTokenProgram()` — auto-detect SPL Token vs Token-2022 from mint
+  - Cached per mint for efficiency
+
+- **Recipient Helpers**
+  - `recipientsEqual()` — set equality comparison (order-independent)
+  - `checkRecipientAtas()` — check which recipient ATAs are missing
+
+- **New Error Types**
+  - `MintNotFoundError` — mint account doesn't exist
+  - `RecipientAtasMissingError` — lists missing recipient ATAs
+
+- **Architecture Documentation**
+  - `ARCHITECTURE.md` — design rationale for API layers and decisions
+
+### Changed
+
+- **Export Structure**: New `/solana/client` subpath for client factory
+- **Result Types**: Unified `EnsureResult`, `ExecuteResult`, `UpdateResult`, `CloseResult` across all API layers
+
+### Internal
+
+- New `client/` module: `index.ts`, `types.ts`, `ensure.ts`, `execute.ts`, `update.ts`, `close.ts`, `buildTransaction.ts`, `messages.ts`, `errors.ts`, `wallet-errors.ts`
+- Kit-signer adapter: `client/adapters/kit-signer.ts`
+- Transaction conversion: `web3-compat/transactions.ts`
+- Comprehensive test coverage for all client operations
+
 ## [0.8.0] - 2025-12-02
 
 ### Added
@@ -172,6 +238,7 @@
 - Transaction building with compute budget support
 - Type-safe schemas with comprehensive validation
 
+[0.9.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.8.0...sdk@v0.9.0
 [0.8.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.7.1...sdk@v0.8.0
 [0.7.1]: https://github.com/cascade-protocol/splits/compare/sdk@v0.7.0...sdk@v0.7.1
 [0.7.0]: https://github.com/cascade-protocol/splits/compare/sdk@v0.6.0...sdk@v0.7.0

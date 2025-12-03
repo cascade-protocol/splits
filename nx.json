@@ -1,0 +1,40 @@
+{
+	"$schema": "./node_modules/nx/schemas/nx-schema.json",
+	"plugins": ["@nx/vite/plugin"],
+	"targetDefaults": {
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": ["{projectRoot}/dist"],
+			"cache": true
+		},
+		"prepublishOnly": {
+			"dependsOn": ["^prepublishOnly"]
+		},
+		"generate": {
+			"outputs": ["{projectRoot}/packages/sdk/src/solana/generated"],
+			"cache": true
+		},
+		"lint": {
+			"cache": true
+		},
+		"type-check": {
+			"cache": true
+		},
+		"check": {
+			"cache": true
+		},
+		"types:check": {
+			"cache": true
+		},
+		"format": {
+			"cache": true
+		},
+		"test": {
+			"cache": true
+		},
+		"@nx/vitest:test": {
+			"cache": true,
+			"inputs": ["default", "^default"]
+		}
+	}
+}

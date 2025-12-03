@@ -25,7 +25,9 @@ export type SplitsErrorCode =
 	| "SPLIT_NOT_FOUND"
 	| "PROTOCOL_NOT_INITIALIZED"
 	| "INVALID_RECIPIENTS"
-	| "INVALID_TOKEN_ACCOUNT";
+	| "INVALID_TOKEN_ACCOUNT"
+	| "MINT_NOT_FOUND"
+	| "RECIPIENT_ATAS_MISSING";
 
 // =============================================================================
 // SDK Errors
@@ -90,6 +92,30 @@ export class InvalidTokenAccountError extends SplitsError {
 		super(
 			"INVALID_TOKEN_ACCOUNT",
 			`Invalid token account data: ${address}`,
+			options,
+		);
+	}
+}
+
+/** Mint account not found */
+export class MintNotFoundError extends SplitsError {
+	constructor(
+		public readonly mint: string,
+		options?: ErrorOptions,
+	) {
+		super("MINT_NOT_FOUND", `Mint not found: ${mint}`, options);
+	}
+}
+
+/** One or more recipient ATAs don't exist */
+export class RecipientAtasMissingError extends SplitsError {
+	constructor(
+		public readonly missing: Array<{ recipient: string; ata: string }>,
+		options?: ErrorOptions,
+	) {
+		super(
+			"RECIPIENT_ATAS_MISSING",
+			`Recipient ATAs missing: ${missing.map((m) => m.recipient).join(", ")}`,
 			options,
 		);
 	}

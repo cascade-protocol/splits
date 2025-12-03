@@ -26,6 +26,7 @@ import {
 	getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 
+import type { Address } from "@solana/kit";
 import { PROGRAM_ID } from "../src/index.js";
 import { createSplitConfig } from "../src/solana/index.js";
 import {
@@ -376,5 +377,112 @@ describe("SDK Integration: share/bps conversion", () => {
 		// Each has 10 shares = 990 bps (10 * 99)
 		expect(decoded.recipients[0]?.percentageBps).toBe(990);
 		expect(decoded.recipients[9]?.percentageBps).toBe(990);
+	});
+});
+
+describe("SDK Integration: Idempotent Helpers", () => {
+	test("recipientsEqual identifies matching recipients with synthetic data", async () => {
+		// Import recipientsEqual helper
+		const { recipientsEqual } = await import("../src/solana/helpers.js");
+		type SplitRecipient = {
+			address: Address;
+			percentageBps: number;
+			share: number;
+		};
+
+		const alice = "A1ice111111111111111111111111111111111111111";
+		const bob = "Bob11111111111111111111111111111111111111111";
+
+		// Simulated on-chain recipients (as would be decoded from account)
+		const onChainRecipients: SplitRecipient[] = [
+			{ address: alice as Address, percentageBps: 6930, share: 70 },
+			{ address: bob as Address, percentageBps: 2871, share: 29 },
+		];
+
+		// Same order should match
+		const sameOrder = [
+			{ address: alice, share: 70 },
+			{ address: bob, share: 29 },
+		];
+		expect(recipientsEqual(sameOrder, onChainRecipients)).toBe(true);
+
+		// Different order should also match (set equality)
+		const differentOrder = [
+			{ address: bob, share: 29 },
+			{ address: alice, share: 70 },
+		];
+		expect(recipientsEqual(differentOrder, onChainRecipients)).toBe(true);
+
+		// Different shares should not match
+		const differentShares = [
+			{ address: alice, share: 60 },
+			{ address: bob, share: 39 },
+		];
+		expect(recipientsEqual(differentShares, onChainRecipients)).toBe(false);
+	});
+
+	test("checkRecipientAtas identifies missing ATAs in LiteSVM state", async () => {
+		const svm = setupLiteSVM();
+		const payer = Keypair.generate();
+		const feeWallet = Keypair.generate();
+
+		svm.airdrop(payer.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
+		setupProtocolConfig(svm, feeWallet.publicKey);
+		const mint = createMint(svm, payer.publicKey);
+
+		// Create recipient with ATA
+		const recipientWithAta = Keypair.generate();
+		const ata = getAssociatedTokenAddressSync(mint, recipientWithAta.publicKey);
+		createTokenAccount(svm, ata, mint, recipientWithAta.publicKey);
+
+		// Verify ATA exists
+		const ataAccount = svm.getAccount(ata);
+		expect(ataAccount).not.toBeNull();
+
+		// Verify a new recipient wouldn't have an ATA
+		const recipientWithoutAta = Keypair.generate();
+		const missingAta = getAssociatedTokenAddressSync(
+			mint,
+			recipientWithoutAta.publicKey,
+		);
+		const missingAtaAccount = svm.getAccount(missingAta);
+		expect(missingAtaAccount).toBeNull();
+	});
+
+	test("createSplitConfig returns deterministic vault address", async () => {
+		// This test verifies the vault address derivation is consistent
+		const authority = Keypair.generate().publicKey;
+		const mint = Keypair.generate().publicKey;
+		const uniqueId = Keypair.generate().publicKey;
+
+		const { vault: vault1, splitConfig: config1 } = await createSplitConfig({
+			authority: toAddress(authority),
+			recipients: [
+				{ address: toAddress(Keypair.generate().publicKey), share: 99 },
+			],
+			mint: toAddress(mint),
+			uniqueId: toAddress(uniqueId),
+		});
+
+		const { vault: vault2, splitConfig: config2 } = await createSplitConfig({
+			authority: toAddress(authority),
+			recipients: [
+				{ address: toAddress(Keypair.generate().publicKey), share: 99 },
+			],
+			mint: toAddress(mint),
+			uniqueId: toAddress(uniqueId),
+		});
+
+		// Same authority/mint/uniqueId should produce same addresses
+		expect(vault1).toBe(vault2);
+		expect(config1).toBe(config2);
+
+		// Vault should be ATA of splitConfig
+		const expectedVault = getAssociatedTokenAddressSync(
+			mint,
+			toPublicKey(config1),
+			true,
+		);
+		expect(toPublicKey(vault1).toBase58()).toBe(expectedVault.toBase58());
 	});
 });

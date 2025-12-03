@@ -17,12 +17,14 @@ import {
 	ASSOCIATED_TOKEN_PROGRAM_ID,
 	TOKEN_PROGRAM_ID,
 	bpsToShares,
+	toPercentageBps,
 } from "../index.js";
 import {
 	VaultNotFoundError,
 	InvalidTokenAccountError,
 	SplitConfigNotFoundError,
 	ProtocolNotInitializedError,
+	MintNotFoundError,
 } from "../errors.js";
 import { fetchMaybeSplitConfig } from "./generated/accounts/splitConfig.js";
 import { fetchProtocolConfig } from "./generated/accounts/protocolConfig.js";
@@ -443,4 +445,257 @@ export function generateUniqueId(): Address {
 	const bytes = new Uint8Array(32);
 	crypto.getRandomValues(bytes);
 	return decodeAddress(bytes);
+}
+
+// =============================================================================
+// Label-based Seeds
+// =============================================================================
+
+/**
+ * Prefix for labeled seeds. Enables detection of labeled vs random seeds.
+ * 5 bytes, leaving 27 bytes for the label.
+ */
+const LABEL_PREFIX = "CSPL:";
+const LABEL_PREFIX_BYTES = new TextEncoder().encode(LABEL_PREFIX);
+const MAX_LABEL_LENGTH = 27;
+
+/**
+ * Convert a human-readable label to a deterministic seed (Address).
+ *
+ * Labels are encoded directly into 32 bytes with a "CSPL:" prefix,
+ * enabling reverse lookup via `seedToLabel()`. This is NOT hashing—
+ * labels are limited to 27 characters.
+ *
+ * Cross-chain compatible: same label produces same seed bytes on Solana and EVM.
+ *
+ * @param label - Human-readable label (max 27 ASCII characters)
+ * @returns Deterministic Address usable as `uniqueId` or `seed` parameter
+ *
+ * @example
+ * ```typescript
+ * // Dashboard auto-generates labels
+ * const seed = labelToSeed("Split 1");
+ * await ensureSplitConfig(rpc, rpcSub, signer, { recipients, seed });
+ *
+ * // Same label = same vault address (idempotent)
+ * const seed2 = labelToSeed("Split 1");
+ * // seed === seed2
+ * ```
+ */
+export function labelToSeed(label: string): Address {
+	if (label.length > MAX_LABEL_LENGTH) {
+		throw new Error(
+			`Label too long: ${label.length} chars (max ${MAX_LABEL_LENGTH})`,
+		);
+	}
+
+	const labelBytes = new TextEncoder().encode(label);
+	const bytes = new Uint8Array(32);
+	bytes.set(LABEL_PREFIX_BYTES, 0);
+	bytes.set(labelBytes, LABEL_PREFIX_BYTES.length);
+	// Remaining bytes are 0x00 (padding)
+
+	return decodeAddress(bytes);
+}
+
+/**
+ * Extract human-readable label from a seed, if it was created via `labelToSeed()`.
+ *
+ * Returns `null` for random seeds (created via `generateUniqueId()`),
+ * enabling graceful fallback in UI display.
+ *
+ * @param seed - Seed Address or raw bytes to inspect
+ * @returns Label string if seed was labeled, null otherwise
+ *
+ * @example
+ * ```typescript
+ * // Display logic for split list
+ * function getSplitDisplayName(split: SplitConfig): string {
+ *   const label = seedToLabel(split.uniqueId);
+ *   return label ?? `Vault ${truncate(split.vault)}`;
+ * }
+ *
+ * // Labeled seed
+ * seedToLabel(labelToSeed("Split 1")); // "Split 1"
+ *
+ * // Random seed
+ * seedToLabel(generateUniqueId()); // null
+ * ```
+ */
+export function seedToLabel(seed: Address | Uint8Array): string | null {
+	const bytes = seed instanceof Uint8Array ? seed : addressEncoder.encode(seed);
+
+	// Check for CSPL: prefix
+	for (let i = 0; i < LABEL_PREFIX_BYTES.length; i++) {
+		if (bytes[i] !== LABEL_PREFIX_BYTES[i]) {
+			return null; // Not a labeled seed
+		}
+	}
+
+	// Extract label (bytes after prefix, until first null byte)
+	const labelStart = LABEL_PREFIX_BYTES.length;
+	let labelEnd = bytes.length;
+	for (let i = labelStart; i < bytes.length; i++) {
+		if (bytes[i] === 0) {
+			labelEnd = i;
+			break;
+		}
+	}
+
+	return new TextDecoder().decode(bytes.subarray(labelStart, labelEnd));
+}
+
+/**
+ * Convert raw seed bytes to chain-specific format.
+ *
+ * @param bytes - Raw 32-byte seed
+ * @returns Solana Address
+ *
+ * @example
+ * ```typescript
+ * // For EVM, use: `0x${Buffer.from(bytes).toString('hex')}`
+ * const evmUniqueId = seedBytesToHex(bytes);
+ * ```
+ */
+export function seedBytesToAddress(bytes: Uint8Array): Address {
+	return decodeAddress(bytes);
+}
+
+// =============================================================================
+// Token Program Detection
+// =============================================================================
+
+/**
+ * Cache for mint → token program mapping.
+ * Safe to cache indefinitely (program never changes for a mint).
+ */
+const mintProgramCache = new Map<string, Address>();
+
+/**
+ * Detect the token program for a mint by checking account owner.
+ * Results are cached per mint.
+ */
+export async function detectTokenProgram(
+	rpc: Rpc<SolanaRpcApi>,
+	mint: Address,
+): Promise<Address> {
+	const cached = mintProgramCache.get(mint);
+	if (cached) return cached;
+
+	const accountInfo = await rpc
+		.getAccountInfo(mint, { encoding: "base64" })
+		.send();
+
+	if (!accountInfo.value) {
+		throw new MintNotFoundError(mint);
+	}
+
+	const program = accountInfo.value.owner as Address;
+	mintProgramCache.set(mint, program);
+	return program;
+}
+
+// =============================================================================
+// Recipient Comparison (Set Equality)
+// =============================================================================
+
+/**
+ * Compare recipients using set equality (order-independent).
+ * Returns true if same addresses with same shares, regardless of order.
+ */
+export function recipientsEqual(
+	a: Array<{ address: string; share?: number; percentageBps?: number }>,
+	b: SplitRecipient[],
+): boolean {
+	if (a.length !== b.length) return false;
+
+	const normalizeA = a
+		.map((r) => ({
+			address: r.address,
+			bps: r.percentageBps ?? toPercentageBps(r),
+		}))
+		.sort((x, y) => x.address.localeCompare(y.address));
+
+	const normalizeB = b
+		.map((r) => ({ address: r.address as string, bps: r.percentageBps }))
+		.sort((x, y) => x.address.localeCompare(y.address));
+
+	return normalizeA.every(
+		(r, i) =>
+			r.address === normalizeB[i]?.address && r.bps === normalizeB[i]?.bps,
+	);
+}
+
+// =============================================================================
+// ATA Checking
+// =============================================================================
+
+/**
+ * Missing ATA information
+ */
+export interface MissingAta {
+	recipient: string;
+	ata: string;
+}
+
+/**
+ * Check which recipient ATAs are missing.
+ * Use with @solana-program/token to create missing ATAs before calling ensureSplitConfig.
+ *
+ * @example
+ * ```typescript
+ * import { checkRecipientAtas } from "@cascade-fyi/splits-sdk/solana";
+ * import { getCreateAssociatedTokenIdempotentInstruction } from "@solana-program/token";
+ *
+ * const missing = await checkRecipientAtas(rpc, recipients, mint);
+ *
+ * if (missing.length > 0) {
+ *   const instructions = missing.map(m =>
+ *     getCreateAssociatedTokenIdempotentInstruction({
+ *       payer: payer.address,
+ *       owner: m.recipient,
+ *       mint,
+ *       ata: m.ata,
+ *     })
+ *   );
+ *   // Send transaction with instructions...
+ * }
+ *
+ * // Now safe to create split config
+ * await ensureSplitConfig(...);
+ * ```
+ */
+export async function checkRecipientAtas(
+	rpc: Rpc<SolanaRpcApi>,
+	recipients: Array<{ address: string }>,
+	mint: Address,
+): Promise<MissingAta[]> {
+	const tokenProgram = await detectTokenProgram(rpc, mint);
+
+	const atas = await Promise.all(
+		recipients.map(async (r) => ({
+			recipient: r.address,
+			ata: await deriveAta(r.address as Address, mint, tokenProgram),
+		})),
+	);
+
+	const accounts = await rpc
+		.getMultipleAccounts(
+			atas.map((a) => a.ata),
+			{ encoding: "base64" },
+		)
+		.send();
+
+	const missing: MissingAta[] = [];
+	for (let i = 0; i < atas.length; i++) {
+		const ata = atas[i];
+		if (!accounts.value[i] && ata) {
+			missing.push({
+				recipient: ata.recipient,
+				ata: ata.ata,
+			});
+		}
+	}
+
+	return missing;
 }

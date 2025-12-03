@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sharesToBps, bpsToShares, toPercentageBps } from "../src/index.js";
+import { sharesToBps, bpsToShares, toPercentageBps } from "./index.js";
 
 describe("sharesToBps", () => {
 	it("converts shares to bps correctly", () => {

@@ -18,50 +18,66 @@ npm install @cascade-fyi/splits-sdk @solana/kit
 
 ## Quick Start
 
-### For Facilitators: Execute a Split
+### For Facilitators: Execute a Split (HTTP-only)
 
 ```typescript
-import { createSolanaRpc, createSolanaRpcSubscriptions } from "@solana/kit";
-import { executeAndConfirmSplit, isCascadeSplit } from "@cascade-fyi/splits-sdk/solana";
+import { createSolanaRpc } from "@solana/kit";
+import { sendExecuteSplit, isCascadeSplit } from "@cascade-fyi/splits-sdk/solana";
 
 const rpc = createSolanaRpc("https://api.mainnet-beta.solana.com");
-const rpcSubscriptions = createSolanaRpcSubscriptions("wss://api.mainnet-beta.solana.com");
 
 // Check if payment destination is a split vault
 if (await isCascadeSplit(rpc, vault)) {
-  // Execute split and wait for confirmation
-  const result = await executeAndConfirmSplit(rpc, rpcSubscriptions, vault, signer);
+  const result = await sendExecuteSplit(rpc, vault, signer, {
+    minBalance: 1_000_000n, // Skip if < 1 USDC
+  });
 
-  if (result.ok) {
+  if (result.status === "EXECUTED") {
     console.log(`Split executed: ${result.signature}`);
-  } else if (result.reason === "below_threshold") {
-    console.log("Vault balance below minimum, skipping");
-  } else {
-    console.error(`Failed: ${result.reason}`, result.error);
+  } else if (result.status === "SKIPPED") {
+    console.log(`Skipped: ${result.reason}`);
   }
 }
 ```
 
-### For Merchants: Create a Split
+> Uses HTTP polling — no WebSocket required. For WebSocket confirmation, use `executeAndConfirmSplit`.
+
+### For Merchants: Create a Split (Idempotent)
 
 ```typescript
 import { createSolanaRpc } from "@solana/kit";
-import { createSplitConfig, generateUniqueId } from "@cascade-fyi/splits-sdk/solana";
+import { sendEnsureSplit } from "@cascade-fyi/splits-sdk/solana";
 
 const rpc = createSolanaRpc("https://api.mainnet-beta.solana.com");
 
-const { instruction, vault } = await createSplitConfig({
-  authority: myWallet,  // Controls updates/closing
+const result = await sendEnsureSplit(rpc, signer, {
   recipients: [
-    { address: "Agent111...", share: 90 },      // 90% to agent
-    { address: "Platform111...", share: 10 },   // 10% to platform
+    { address: "Agent111...", share: 90 },
+    { address: "Platform111...", share: 10 },
   ],
-  // mint: USDC_MINT,     // Default: USDC
-  // uniqueId: generateUniqueId(),  // Auto-generated
+  seed: "revenue-share", // Optional: human-readable label
 });
 
-// Sign and send instruction, then share `vault` address with payers
-console.log(`Share this vault address: ${vault}`);
+if (result.status === "CREATED") {
+  console.log(`Share this vault: ${result.vault}`);
+} else if (result.status === "NO_CHANGE") {
+  console.log(`Already exists: ${result.vault}`);
+}
+```
+
+> `ensure` is idempotent — safe to call repeatedly. Returns `NO_CHANGE` if split already matches.
+
+### For Browser Apps: Client Factory
+
+```typescript
+import { createSplitsClient } from "@cascade-fyi/splits-sdk/solana/client";
+import { fromWalletAdapter } from "@cascade-fyi/splits-sdk/solana/web3-compat";
+
+const splits = createSplitsClient(rpc, fromWalletAdapter(wallet, connection));
+
+const result = await splits.ensureSplit({
+  recipients: [{ address: alice, share: 70 }, { address: bob, share: 29 }],
+});
 ```
 
 ## Key Concepts
@@ -78,24 +94,21 @@ Recipients specify shares from 1-100 that must total exactly 100. Protocol takes
 
 ### Discriminated Union Results
 
-All async operations return typed results for exhaustive error handling:
+All operations return typed results with `status` discriminant:
 
 ```typescript
-const result = await executeAndConfirmSplit(rpc, rpcSubscriptions, vault, signer);
+const result = await sendEnsureSplit(rpc, signer, { recipients });
 
-if (result.ok) {
-  // result.signature available
-} else {
-  switch (result.reason) {
-    case "not_found":      // Vault doesn't exist
-    case "not_a_split":    // Not a Cascade Split vault
-    case "below_threshold": // Balance < minBalance option
-    case "send_failed":    // Transaction failed (check result.error)
-    case "expired":        // Blockhash expired
-    case "aborted":        // AbortSignal triggered
-  }
+switch (result.status) {
+  case "CREATED":    // result.vault, result.signature, result.rentPaid
+  case "UPDATED":    // result.vault, result.signature
+  case "NO_CHANGE":  // result.vault (no transaction sent)
+  case "BLOCKED":    // result.reason, result.message (e.g., vault not empty)
+  case "FAILED":     // result.reason, result.message, result.error
 }
 ```
+
+`BLOCKED` is a valid state, not an error — e.g., "vault has balance, execute first".
 
 ### Unclaimed Amounts (Self-Healing)
 
@@ -111,30 +124,69 @@ console.log(config.unclaimedAmounts);  // [{ recipient, amount, timestamp }]
 
 ## API Reference
 
-### High-Level Execution (`/solana`)
+### HTTP-Only Functions (`/solana`)
+
+For servers without WebSocket. Uses HTTP polling for confirmation.
 
 ```typescript
-import { executeAndConfirmSplit } from "@cascade-fyi/splits-sdk/solana";
+import {
+  sendEnsureSplit,    // Idempotent create/update
+  sendExecuteSplit,   // Distribute vault funds
+  sendUpdateSplit,    // Update recipients
+  sendCloseSplit,     // Close and recover rent
+} from "@cascade-fyi/splits-sdk/solana";
 
-// Execute split with full transaction lifecycle
-const result = await executeAndConfirmSplit(
-  rpc,              // Rpc<SolanaRpcApi>
-  rpcSubscriptions, // RpcSubscriptions (WebSocket)
-  vault,            // Vault address
-  signer,           // KeyPairSigner
-  {
-    minBalance: 1_000_000n,      // Skip if balance < 1 USDC (micropayment batching)
-    commitment: "confirmed",      // Default: "confirmed"
-    abortSignal: AbortSignal.timeout(30_000),
-    computeUnitLimit: 150_000,   // Default: 200_000
-    computeUnitPrice: 50_000n,   // Priority fee (microlamports/CU)
-  }
-);
+// All accept options:
+{
+  computeUnitPrice?: bigint,     // Priority fee
+  computeUnitLimit?: number,
+  commitment?: "confirmed" | "finalized",
+  confirm?: boolean | { maxRetries, retryDelayMs },  // false = fire-and-forget
+}
+```
+
+### WebSocket Functions (`/solana`)
+
+Requires `rpcSubscriptions`. Uses WebSocket for confirmation.
+
+```typescript
+import {
+  ensureSplitConfig,      // Idempotent create/update
+  executeAndConfirmSplit, // Distribute vault funds
+  updateSplit,            // Update recipients
+  closeSplit,             // Close and recover rent
+} from "@cascade-fyi/splits-sdk/solana";
+
+const result = await ensureSplitConfig(rpc, rpcSubscriptions, signer, {
+  recipients: [{ address: alice, share: 70 }, { address: bob, share: 29 }],
+  seed: "my-split",  // Optional label
+});
+```
+
+### Client Factory (`/solana/client`)
+
+Stateful client for browser apps with persistent wallet.
+
+```typescript
+import { createSplitsClient, fromKitSigner } from "@cascade-fyi/splits-sdk/solana/client";
+import { fromWalletAdapter } from "@cascade-fyi/splits-sdk/solana/web3-compat";
+
+// With wallet-adapter (browser)
+const splits = createSplitsClient(rpc, fromWalletAdapter(wallet, connection));
+
+// With kit signer (requires WebSocket)
+const splits = createSplitsClient(rpc, fromKitSigner(signer, rpc, rpcSubscriptions));
+
+// Methods
+await splits.ensureSplit({ recipients, seed? });
+await splits.execute(vault, { minBalance? });
+await splits.update(vault, { recipients });
+await splits.close(vault);
 ```
 
 ### Instruction Builders (`/solana`)
 
-For custom transaction building:
+For custom transaction building (facilitators with own tx logic):
 
 ```typescript
 import {
@@ -144,31 +196,16 @@ import {
   closeSplitConfig,
 } from "@cascade-fyi/splits-sdk/solana";
 
-// Create split config
-const { instruction, splitConfig, vault } = await createSplitConfig({
-  authority: Address,
-  recipients: Recipient[],
-  mint?: Address,           // Default: USDC
-  uniqueId?: Address,       // Default: random
-  tokenProgram?: Address,   // Default: SPL Token (auto-detects Token-2022)
-  payer?: Address,          // Default: authority
+// Returns { instruction, splitConfig, vault }
+const { instruction, vault } = await createSplitConfig({
+  authority,
+  recipients,
+  mint?,        // Default: USDC
+  uniqueId?,    // Default: random
 });
 
-// Execute split (returns instruction only)
-const result = await executeSplit(rpc, vault, executor, tokenProgram?);
-if (result.ok) {
-  // result.instruction ready to sign
-}
-
-// Update recipients (vault must be empty)
-const instruction = await updateSplitConfig(rpc, {
-  vault, authority, recipients, tokenProgram?
-});
-
-// Close and recover rent (vault must be empty)
-const instruction = await closeSplitConfig(rpc, {
-  vault, authority, rentReceiver?, tokenProgram?
-});
+// Returns { ok, instruction } or { ok: false, reason }
+const result = await executeSplit(rpc, vault, executor);
 ```
 
 ### Read Functions (`/solana`)
@@ -355,6 +392,7 @@ For facilitators processing many payments:
 
 ## Resources
 
+- **Architecture:** [ARCHITECTURE.md](https://github.com/cascade-protocol/splits/blob/main/packages/sdk/ARCHITECTURE.md) — why the SDK is structured this way
 - **Specification:** [docs/specification.md](https://github.com/cascade-protocol/splits/blob/main/docs/specification.md)
 - **Changelog:** [CHANGELOG.md](https://github.com/cascade-protocol/splits/blob/main/packages/sdk/CHANGELOG.md)
 - **Issues:** [GitHub Issues](https://github.com/cascade-protocol/splits/issues)

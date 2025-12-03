@@ -1,14 +1,13 @@
 /**
  * Framework-kit hooks for Cascade Splits
  *
- * Uses SDK instruction builders + @solana/react-hooks for wallet/transaction management
+ * Query hooks for reading data + client hook for mutations via SDK.
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
 	useSolanaClient,
 	useWalletSession,
-	useTransactionPool,
 	useProgramAccounts,
 } from "@solana/react-hooks";
 import {
@@ -17,38 +16,80 @@ import {
 	type SolanaRpcApi,
 	type Base58EncodedBytes,
 	type Signature,
+	type Commitment,
 	getBase58Decoder,
 	getAddressEncoder,
 } from "@solana/kit";
 
 // SDK imports
 import {
-	createSplitConfig,
-	executeSplit,
-	updateSplitConfig,
-	closeSplitConfig,
 	getVaultBalance,
 	type SplitConfig,
 	type SplitRecipient,
 	type UnclaimedAmount,
 } from "@cascade-fyi/splits-sdk/solana";
 import {
+	createSplitsClient,
+	type SplitsClient,
+	type SplitsWallet,
+	type TransactionMessage,
+} from "@cascade-fyi/splits-sdk/solana/client";
+import {
 	SPLIT_CONFIG_DISCRIMINATOR,
 	getSplitConfigDecoder,
 } from "@cascade-fyi/splits-sdk/solana/generated";
-import {
-	PROGRAM_ID,
-	bpsToShares,
-	type Recipient,
-} from "@cascade-fyi/splits-sdk";
+import { PROGRAM_ID, bpsToShares } from "@cascade-fyi/splits-sdk";
 
 // =============================================================================
 // Types
 // =============================================================================
 
-/** SplitConfig with vault balance for dashboard display */
+/** SplitConfig with vault balance and creation timestamp for dashboard display */
 export interface SplitWithBalance extends SplitConfig {
 	vaultBalance: bigint;
+	createdAt: bigint | null;
+}
+
+// =============================================================================
+// Transaction Confirmation
+// =============================================================================
+
+const CONFIRMATION_POLL_INTERVAL_MS = 500;
+const MAX_CONFIRMATION_ATTEMPTS = 60; // 30 seconds max
+
+/**
+ * Poll for transaction confirmation.
+ * Framework-kit's prepareAndSend doesn't wait for confirmation.
+ */
+async function waitForConfirmation(
+	rpc: Rpc<SolanaRpcApi>,
+	signature: Signature,
+	commitment: Commitment = "confirmed",
+): Promise<void> {
+	for (let attempt = 0; attempt < MAX_CONFIRMATION_ATTEMPTS; attempt++) {
+		const response = await rpc.getSignatureStatuses([signature]).send();
+
+		const status = response.value[0];
+		if (status !== null) {
+			if (status.err) {
+				throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
+			}
+			// Check if confirmation level is met
+			const confirmationStatus = status.confirmationStatus;
+			if (
+				confirmationStatus === commitment ||
+				confirmationStatus === "confirmed"
+			) {
+				return;
+			}
+		}
+
+		await new Promise((resolve) =>
+			setTimeout(resolve, CONFIRMATION_POLL_INTERVAL_MS),
+		);
+	}
+
+	throw new Error("Transaction confirmation timeout");
 }
 
 // =============================================================================
@@ -59,48 +100,6 @@ const AUTHORITY_OFFSET = 9;
 const base58Decoder = getBase58Decoder();
 const addressEncoder = getAddressEncoder();
 const splitConfigDecoder = getSplitConfigDecoder();
-
-// Confirmation polling settings
-const CONFIRMATION_POLL_INTERVAL_MS = 1000;
-const CONFIRMATION_MAX_RETRIES = 60; // 60 seconds max
-
-type ConfirmationCommitment = "processed" | "confirmed" | "finalized";
-
-/**
- * Wait for transaction confirmation by polling getSignatureStatuses.
- * Mirrors framework-kit's useWaitForSignature behavior.
- */
-async function waitForConfirmation(
-	rpc: Rpc<SolanaRpcApi>,
-	signature: Signature,
-	commitment: ConfirmationCommitment = "confirmed",
-): Promise<void> {
-	const commitmentPriority: Record<ConfirmationCommitment, number> = {
-		processed: 0,
-		confirmed: 1,
-		finalized: 2,
-	};
-	const targetPriority = commitmentPriority[commitment];
-
-	for (let i = 0; i < CONFIRMATION_MAX_RETRIES; i++) {
-		const result = await rpc.getSignatureStatuses([signature]).send();
-		const status = result.value[0];
-
-		if (status?.confirmationStatus) {
-			const statusPriority =
-				commitmentPriority[
-					status.confirmationStatus as ConfirmationCommitment
-				] ?? -1;
-			if (statusPriority >= targetPriority) {
-				return;
-			}
-		}
-
-		await new Promise((r) => setTimeout(r, CONFIRMATION_POLL_INTERVAL_MS));
-	}
-
-	throw new Error("Transaction confirmation timeout");
-}
 
 /**
  * Decode base64 account data to Uint8Array
@@ -292,9 +291,12 @@ export function useSplits() {
 
 /**
  * Combines useSplits with useVaultBalances for real-time balance updates.
- * Drop-in replacement for useSplits that includes live vault balances.
+ * Drop-in replacement for useSplits that includes live vault balances and creation timestamps.
  */
 export function useSplitsWithBalances() {
+	const client = useSolanaClient();
+	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
+
 	const {
 		data: splits,
 		error,
@@ -307,14 +309,54 @@ export function useSplitsWithBalances() {
 
 	const { balances, isLoading: balancesLoading } = useVaultBalances(vaults);
 
-	// Combine splits with their watched balances
+	// Cache creation timestamps by split address (timestamps never change)
+	const [timestamps, setTimestamps] = useState<Map<string, bigint | null>>(
+		new Map(),
+	);
+
+	// Stable key - only changes when split addresses change
+	const splitAddressesKey = useMemo(
+		() => splits.map((s) => s.address as string).join(","),
+		[splits],
+	);
+
+	// Fetch timestamps only for NEW splits not already in cache
+	useEffect(() => {
+		// Parse addresses from the stable key (no need for splits array)
+		const addresses = splitAddressesKey.split(",").filter(Boolean);
+		const newAddresses = addresses.filter((addr) => !timestamps.has(addr));
+		if (newAddresses.length === 0) return;
+
+		Promise.all(
+			newAddresses.map(async (addr) => {
+				try {
+					const sigs = await rpc
+						.getSignaturesForAddress(addr as Address, { limit: 1 })
+						.send();
+					if (sigs.length === 0) return [addr, null] as const;
+					const oldest = sigs[sigs.length - 1];
+					return [
+						addr,
+						oldest.blockTime !== null ? BigInt(oldest.blockTime) : null,
+					] as const;
+				} catch {
+					return [addr, null] as const;
+				}
+			}),
+		).then((entries) => {
+			setTimestamps((prev) => new Map([...prev, ...entries]));
+		});
+	}, [rpc, splitAddressesKey, timestamps]);
+
+	// Combine splits with balances and timestamps
 	const data = useMemo<SplitWithBalance[]>(
 		() =>
 			splits.map((split) => ({
 				...split,
 				vaultBalance: balances.get(split.vault.toString()) ?? 0n,
+				createdAt: timestamps.get(split.address as string) ?? null,
 			})),
-		[splits, balances],
+		[splits, balances, timestamps],
 	);
 
 	return {
@@ -326,133 +368,63 @@ export function useSplitsWithBalances() {
 }
 
 // =============================================================================
-// Mutation Hooks
+// Client Hook
 // =============================================================================
 
-export function useCreateSplit() {
+/**
+ * Create a SplitsClient for mutations.
+ *
+ * @returns SplitsClient or null if wallet is not connected
+ *
+ * @example
+ * ```typescript
+ * const splits = useSplitsClient();
+ *
+ * const handleCreate = async () => {
+ *   if (!splits) return;
+ *   const result = await splits.ensureSplit({
+ *     recipients: [{ address: alice, share: 70 }, { address: bob, share: 29 }],
+ *   });
+ *   if (result.status === 'CREATED') {
+ *     console.log('Created!', result.vault);
+ *   }
+ * };
+ * ```
+ */
+export function useSplitsClient(): SplitsClient | null {
 	const client = useSolanaClient();
-	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
 	const session = useWalletSession();
-	const { addInstruction, prepareAndSend, isSending, clearInstructions } =
-		useTransactionPool();
 
-	const mutate = useCallback(
-		async (recipients: Recipient[], mint: Address) => {
-			if (!session) throw new Error("Wallet not connected");
+	return useMemo(() => {
+		if (!session) return null;
 
-			const { instruction, vault } = await createSplitConfig({
-				authority: session.account.address,
-				recipients,
-				mint,
-			});
+		const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
 
-			clearInstructions();
-			addInstruction(instruction);
-			const sig = await prepareAndSend({ authority: session });
+		// Bridge framework-kit session to SDK's SplitsWallet interface
+		const wallet: SplitsWallet = {
+			address: session.account.address,
 
-			// Wait for confirmation before returning
-			await waitForConfirmation(rpc, sig);
+			signAndSend: async (
+				message: TransactionMessage,
+				options,
+			): Promise<Signature> => {
+				const commitment = options?.commitment ?? "confirmed";
 
-			return { signature: sig, vault };
-		},
-		[rpc, session, addInstruction, prepareAndSend, clearInstructions],
-	);
+				// Use framework-kit's transaction helper (sends but doesn't confirm)
+				const signature = await client.helpers.transaction.prepareAndSend({
+					authority: session,
+					instructions: [...message.instructions],
+					lifetime: message.lifetimeConstraint,
+					commitment,
+				});
 
-	return { mutate, isPending: isSending };
-}
+				// Wait for confirmation before returning
+				await waitForConfirmation(rpc, signature, commitment);
 
-export function useExecuteSplit() {
-	const client = useSolanaClient();
-	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
-	const session = useWalletSession();
-	const { addInstruction, prepareAndSend, isSending, clearInstructions } =
-		useTransactionPool();
+				return signature;
+			},
+		};
 
-	const mutate = useCallback(
-		async (split: SplitWithBalance) => {
-			if (!session) throw new Error("Wallet not connected");
-
-			const result = await executeSplit(
-				rpc,
-				split.vault,
-				session.account.address,
-			);
-			if (!result.ok) throw new Error(result.reason);
-
-			clearInstructions();
-			addInstruction(result.instruction);
-			const sig = await prepareAndSend({ authority: session });
-
-			// Wait for confirmation before returning
-			await waitForConfirmation(rpc, sig);
-
-			return { signature: sig };
-		},
-		[rpc, session, addInstruction, prepareAndSend, clearInstructions],
-	);
-
-	return { mutate, isPending: isSending };
-}
-
-export function useUpdateSplit() {
-	const client = useSolanaClient();
-	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
-	const session = useWalletSession();
-	const { addInstruction, prepareAndSend, isSending, clearInstructions } =
-		useTransactionPool();
-
-	const mutate = useCallback(
-		async (split: SplitWithBalance, recipients: Recipient[]) => {
-			if (!session) throw new Error("Wallet not connected");
-
-			const instruction = await updateSplitConfig(rpc, {
-				vault: split.vault,
-				authority: session.account.address,
-				recipients,
-			});
-
-			clearInstructions();
-			addInstruction(instruction);
-			const sig = await prepareAndSend({ authority: session });
-
-			// Wait for confirmation before returning
-			await waitForConfirmation(rpc, sig);
-
-			return { signature: sig };
-		},
-		[rpc, session, addInstruction, prepareAndSend, clearInstructions],
-	);
-
-	return { mutate, isPending: isSending };
-}
-
-export function useCloseSplit() {
-	const client = useSolanaClient();
-	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
-	const session = useWalletSession();
-	const { addInstruction, prepareAndSend, isSending, clearInstructions } =
-		useTransactionPool();
-
-	const mutate = useCallback(
-		async (split: SplitWithBalance) => {
-			if (!session) throw new Error("Wallet not connected");
-
-			const instruction = await closeSplitConfig(rpc, {
-				vault: split.vault,
-				authority: session.account.address,
-			});
-
-			clearInstructions();
-			addInstruction(instruction);
-			const sig = await prepareAndSend({ authority: session });
-
-			// Wait for confirmation before returning
-			await waitForConfirmation(rpc, sig);
-
-			return { signature: sig };
-		},
-		[rpc, session, addInstruction, prepareAndSend, clearInstructions],
-	);
-
-	return { mutate, isPending: isSending };
+		return createSplitsClient(rpc, wallet);
+	}, [client, session]);
 }

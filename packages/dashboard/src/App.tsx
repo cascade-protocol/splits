@@ -3,17 +3,16 @@ import { useWallet } from "@solana/react-hooks";
 import { toast } from "sonner";
 import type { Address } from "@solana/kit";
 import { RefreshCw } from "lucide-react";
-import { USDC_MINT, type Recipient } from "@cascade-fyi/splits-sdk";
+import {
+	USDC_MINT,
+	generateUniqueId,
+	type Recipient,
+} from "@cascade-fyi/splits-sdk";
 import {
 	useSplitsWithBalances,
-	useCreateSplit,
-	useExecuteSplit,
-	useUpdateSplit,
-	useCloseSplit,
+	useSplitsClient,
 	type SplitWithBalance,
 } from "./hooks/use-splits";
-
-import { useCreationTimestamps } from "./hooks/use-creation-timestamps";
 
 import { Header } from "./components/Header";
 import {
@@ -44,26 +43,13 @@ export default function App() {
 		refetch,
 	} = useSplitsWithBalances();
 
-	// Fetch creation timestamps (cached indefinitely - they never change)
-	const { timestamps } = useCreationTimestamps(splits);
+	// SDK client for mutations
+	const splitsClient = useSplitsClient();
 
-	// Enrich splits with createdAt for table display
-	const splitsWithCreatedAt = useMemo(
-		() =>
-			splits.map((split) => ({
-				...split,
-				createdAt: timestamps.get(split.address) ?? null,
-			})),
-		[splits, timestamps],
-	);
-
-	// Mutations (priority fees handled in hooks)
-	const createSplitMutation = useCreateSplit();
-	const executeSplitMutation = useExecuteSplit();
-	const updateSplitMutation = useUpdateSplit();
-	const closeSplitMutation = useCloseSplit();
-
-	// Track which vault is being executed (for loading state in table)
+	// Pending states for UI feedback
+	const [isCreating, setIsCreating] = useState(false);
+	const [isUpdating, setIsUpdating] = useState(false);
+	const [isClosing, setIsClosing] = useState(false);
 	const [executingVault, setExecutingVault] = useState<string | null>(null);
 
 	// View navigation - allows connected users to switch between About and Dashboard
@@ -78,25 +64,41 @@ export default function App() {
 
 	const handleExecuteSplit = useCallback(
 		async (splitConfig: SplitWithBalance) => {
+			if (!splitsClient) return;
 			setExecutingVault(splitConfig.vault as string);
 			const toastId = toast.loading("Signing transaction...");
 			try {
-				// Update toast once wallet interaction starts
 				setTimeout(() => {
 					toast.loading("Confirming transaction...", { id: toastId });
-				}, 2000); // Approximate time for wallet popup
+				}, 2000);
 
-				const result = await executeSplitMutation.mutate(splitConfig);
-				toast.success("Split executed!", {
-					id: toastId,
-					description: `Funds distributed. Signature: ${result.signature.slice(0, 8)}...`,
-					action: {
-						label: "View",
-						onClick: () =>
-							openExternal(`https://solscan.io/tx/${result.signature}`),
-					},
-				});
-				refetch();
+				const result = await splitsClient.execute(splitConfig.vault);
+
+				if (result.status === "EXECUTED") {
+					toast.success("Split executed!", {
+						id: toastId,
+						description: `Funds distributed. Signature: ${result.signature.slice(0, 8)}...`,
+						action: {
+							label: "View",
+							onClick: () =>
+								openExternal(`https://solscan.io/tx/${result.signature}`),
+						},
+					});
+					refetch();
+				} else if (result.status === "SKIPPED") {
+					toast.info("Execution skipped", {
+						id: toastId,
+						description:
+							result.reason === "below_threshold"
+								? "Vault balance below threshold"
+								: "Split not found",
+					});
+				} else {
+					toast.error("Failed to execute split", {
+						id: toastId,
+						description: result.message,
+					});
+				}
 			} catch (err) {
 				toast.error("Failed to execute split", {
 					id: toastId,
@@ -106,7 +108,7 @@ export default function App() {
 				setExecutingVault(null);
 			}
 		},
-		[executeSplitMutation.mutate, refetch],
+		[splitsClient, refetch],
 	);
 
 	// Callbacks for update/close actions
@@ -120,34 +122,68 @@ export default function App() {
 		setCloseDialogOpen(true);
 	}, []);
 
-	// Handlers for dialog submissions - dialogs handle errors internally
+	// Handlers for dialog submissions
 	const handleUpdateSubmit = async (
 		splitConfig: SplitWithBalance,
 		recipients: Recipient[],
 	) => {
-		const result = await updateSplitMutation.mutate(splitConfig, recipients);
-		toast.success("Recipients updated!", {
-			description: `Signature: ${result.signature.slice(0, 8)}...`,
-			action: {
-				label: "View",
-				onClick: () =>
-					openExternal(`https://solscan.io/tx/${result.signature}`),
-			},
-		});
-		refetch();
+		if (!splitsClient) return;
+		setIsUpdating(true);
+		try {
+			const result = await splitsClient.update(splitConfig.vault, {
+				recipients,
+			});
+
+			if (result.status === "UPDATED") {
+				toast.success("Recipients updated!", {
+					description: `Signature: ${result.signature.slice(0, 8)}...`,
+					action: {
+						label: "View",
+						onClick: () =>
+							openExternal(`https://solscan.io/tx/${result.signature}`),
+					},
+				});
+				refetch();
+			} else if (result.status === "NO_CHANGE") {
+				toast.info("No changes needed", {
+					description: "Recipients already match",
+				});
+			} else if (result.status === "BLOCKED") {
+				toast.warning("Cannot update", { description: result.message });
+			} else {
+				toast.error("Update failed", { description: result.message });
+			}
+		} finally {
+			setIsUpdating(false);
+		}
 	};
 
 	const handleCloseSubmit = async (splitConfig: SplitWithBalance) => {
-		const result = await closeSplitMutation.mutate(splitConfig);
-		toast.success("Split closed!", {
-			description: `Rent returned. Signature: ${result.signature.slice(0, 8)}...`,
-			action: {
-				label: "View",
-				onClick: () =>
-					openExternal(`https://solscan.io/tx/${result.signature}`),
-			},
-		});
-		refetch();
+		if (!splitsClient) return;
+		setIsClosing(true);
+		try {
+			const result = await splitsClient.close(splitConfig.vault);
+
+			if (result.status === "CLOSED") {
+				toast.success("Split closed!", {
+					description: `Rent returned. Signature: ${result.signature.slice(0, 8)}...`,
+					action: {
+						label: "View",
+						onClick: () =>
+							openExternal(`https://solscan.io/tx/${result.signature}`),
+					},
+				});
+				refetch();
+			} else if (result.status === "ALREADY_CLOSED") {
+				toast.info("Already closed");
+			} else if (result.status === "BLOCKED") {
+				toast.warning("Cannot close", { description: result.message });
+			} else {
+				toast.error("Close failed", { description: result.message });
+			}
+		} finally {
+			setIsClosing(false);
+		}
 	};
 
 	// Split actions object for table columns
@@ -167,36 +203,49 @@ export default function App() {
 	);
 
 	const handleCreateSplit = async (recipients: Recipient[]) => {
+		if (!splitsClient) return;
+		setIsCreating(true);
 		const toastId = toast.loading("Signing transaction...");
 		try {
 			setTimeout(() => {
 				toast.loading("Confirming transaction...", { id: toastId });
 			}, 2000);
 
-			const result = await createSplitMutation.mutate(
+			const result = await splitsClient.ensureSplit({
 				recipients,
-				USDC_MINT as Address,
-			);
-			const vault = result.vault;
-			toast.success("Split created!", {
-				id: toastId,
-				description: vault
-					? `Vault: ${vault.slice(0, 8)}...${vault.slice(-4)}`
-					: `Signature: ${result.signature.slice(0, 8)}...`,
-				action: vault
-					? {
-							label: "View",
-							onClick: () =>
-								openExternal(`https://solscan.io/account/${vault}`),
-						}
-					: undefined,
+				mint: USDC_MINT as Address,
+				seed: generateUniqueId(),
 			});
-			refetch();
+
+			if (result.status === "CREATED") {
+				toast.success("Split created!", {
+					id: toastId,
+					description: `Vault: ${result.vault.slice(0, 8)}...${result.vault.slice(-4)}`,
+					action: {
+						label: "View",
+						onClick: () =>
+							openExternal(`https://solscan.io/account/${result.vault}`),
+					},
+				});
+				refetch();
+			} else if (result.status === "BLOCKED") {
+				toast.warning("Cannot create split", {
+					id: toastId,
+					description: result.message,
+				});
+			} else if (result.status === "FAILED") {
+				toast.error("Failed to create split", {
+					id: toastId,
+					description: result.message,
+				});
+			}
 		} catch (err) {
 			toast.error("Failed to create split", {
 				id: toastId,
 				description: err instanceof Error ? err.message : "Unknown error",
 			});
+		} finally {
+			setIsCreating(false);
 		}
 	};
 
@@ -237,7 +286,7 @@ export default function App() {
 						) : splits.length === 0 ? (
 							<CreateSplitForm
 								onSubmit={handleCreateSplit}
-								isPending={createSplitMutation.isPending}
+								isPending={isCreating}
 							/>
 						) : (
 							<>
@@ -252,12 +301,12 @@ export default function App() {
 									</div>
 									<CreateSplitDialog
 										onSubmit={handleCreateSplit}
-										isPending={createSplitMutation.isPending}
+										isPending={isCreating}
 									/>
 								</div>
 								<DataTable
 									columns={columns}
-									data={splitsWithCreatedAt}
+									data={splits}
 									initialColumnVisibility={mobileHiddenColumns}
 								/>
 							</>
@@ -298,14 +347,14 @@ export default function App() {
 				open={updateDialogOpen}
 				onOpenChange={setUpdateDialogOpen}
 				onSubmit={handleUpdateSubmit}
-				isPending={updateSplitMutation.isPending}
+				isPending={isUpdating}
 			/>
 			<CloseSplitDialog
 				splitConfig={selectedSplit}
 				open={closeDialogOpen}
 				onOpenChange={setCloseDialogOpen}
 				onConfirm={handleCloseSubmit}
-				isPending={closeSplitMutation.isPending}
+				isPending={isClosing}
 			/>
 
 			<Toaster />

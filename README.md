@@ -108,23 +108,26 @@ See [docs/benchmarks/compute_units.md](docs/benchmarks/compute_units.md) for ful
 ### Execute a Split (Facilitators)
 
 ```typescript
-import { createSolanaRpc, createSolanaRpcSubscriptions } from "@solana/kit";
-import { executeAndConfirmSplit, isCascadeSplit } from "@cascade-fyi/splits-sdk/solana";
+import { createSolanaRpc } from "@solana/kit";
+import { sendExecuteSplit, isCascadeSplit } from "@cascade-fyi/splits-sdk/solana";
 
 const rpc = createSolanaRpc("https://api.mainnet-beta.solana.com");
-const rpcSubscriptions = createSolanaRpcSubscriptions("wss://api.mainnet-beta.solana.com");
 
 // Check if destination is a split vault
 if (await isCascadeSplit(rpc, vault)) {
-  const result = await executeAndConfirmSplit(rpc, rpcSubscriptions, vault, signer);
+  const result = await sendExecuteSplit(rpc, vault, signer, {
+    minBalance: 1_000_000n, // Skip if < 1 USDC
+  });
 
-  if (result.ok) {
+  if (result.status === "EXECUTED") {
     console.log(`Split executed: ${result.signature}`);
-  } else {
-    console.error(`Failed: ${result.reason}`);
+  } else if (result.status === "SKIPPED") {
+    console.log(`Skipped: ${result.reason}`);
   }
 }
 ```
+
+> **Note:** `sendExecuteSplit` uses HTTP polling for confirmation — no WebSocket required. For WebSocket-based confirmation, use `executeAndConfirmSplit` with `rpcSubscriptions`.
 
 ### Create a Split (Merchants)
 
@@ -184,16 +187,16 @@ No separate claim instruction needed - single interface for all operations.
 Cascade Splits integrates seamlessly with x402 payment facilitators:
 
 ```typescript
-import { isCascadeSplit, executeAndConfirmSplit } from "@cascade-fyi/splits-sdk/solana";
+import { isCascadeSplit, sendExecuteSplit } from "@cascade-fyi/splits-sdk/solana";
 
 // In your facilitator's settle handler:
 if (await isCascadeSplit(rpc, paymentDestination)) {
   // It's a split vault - execute distribution after payment
-  await executeAndConfirmSplit(rpc, rpcSubscriptions, paymentDestination, signer);
+  await sendExecuteSplit(rpc, paymentDestination, signer);
 }
 ```
 
-Use the vault address as your `payTo` destination. The SDK caches detection results for high-volume efficiency.
+Use the vault address as your `payTo` destination. The SDK caches detection results for high-volume efficiency. HTTP-only — no WebSocket required.
 
 See [specification](docs/specification.md) for complete integration guide.
 

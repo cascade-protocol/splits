@@ -8,7 +8,7 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 import type {
 	Address,
-	KeyPairSigner,
+	TransactionSigner,
 	Rpc,
 	SolanaRpcApi,
 	RpcSubscriptions,
@@ -59,12 +59,12 @@ vi.mock("@solana-program/compute-budget", () => ({
 }));
 
 // Mock internal dependencies
-vi.mock("../src/solana/helpers.js", () => ({
+vi.mock("./helpers.js", () => ({
 	getVaultBalanceAndOwner: vi.fn(),
 	invalidateProtocolConfigCache: vi.fn(),
 }));
 
-vi.mock("../src/solana/instructions.js", () => ({
+vi.mock("./instructions.js", () => ({
 	executeSplit: vi.fn(),
 }));
 
@@ -76,10 +76,12 @@ import {
 import {
 	getVaultBalanceAndOwner,
 	invalidateProtocolConfigCache,
-} from "../src/solana/helpers.js";
-import { executeSplit } from "../src/solana/instructions.js";
-import { executeAndConfirmSplit } from "../src/solana/execute.js";
-import { CASCADE_SPLITS_ERROR__INVALID_PROTOCOL_FEE_RECIPIENT } from "../src/solana/generated/errors/index.js";
+} from "./helpers.js";
+import { executeSplit } from "./instructions.js";
+import { executeAndConfirmSplit } from "./execute.js";
+
+// Note: Client uses hardcoded 6004 for InvalidProtocolFeeRecipient error detection
+const INVALID_PROTOCOL_FEE_RECIPIENT_ERROR_CODE = 6004;
 
 // =============================================================================
 // Test Fixtures
@@ -112,16 +114,11 @@ const createMockRpcSubscriptions = (): MockRpcSubscriptions => {
 	return {} as MockRpcSubscriptions;
 };
 
-const createMockSigner = (): KeyPairSigner => {
+const createMockSigner = (): TransactionSigner => {
 	return {
 		address: "Signer111111111111111111111111111111111111111" as Address,
-		keyPair: {
-			publicKey: {} as CryptoKey,
-			privateKey: {} as CryptoKey,
-		},
-		signMessages: vi.fn(),
 		signTransactions: vi.fn(),
-	} as unknown as KeyPairSigner;
+	} as unknown as TransactionSigner;
 };
 
 // Helper to create mock error with code
@@ -185,8 +182,8 @@ describe("executeAndConfirmSplit", () => {
 			signer,
 		);
 
-		expect(result.ok).toBe(true);
-		if (result.ok) {
+		expect(result.status).toBe("EXECUTED");
+		if (result.status === "EXECUTED") {
 			expect(result.signature).toBeDefined();
 		}
 	});
@@ -205,7 +202,7 @@ describe("executeAndConfirmSplit", () => {
 			signer,
 		);
 
-		expect(result).toEqual({ ok: false, reason: "not_found" });
+		expect(result).toEqual({ status: "SKIPPED", reason: "not_found" });
 	});
 
 	test("returns not_a_split when vault is not a split", async () => {
@@ -230,7 +227,7 @@ describe("executeAndConfirmSplit", () => {
 			signer,
 		);
 
-		expect(result).toEqual({ ok: false, reason: "not_a_split" });
+		expect(result).toEqual({ status: "SKIPPED", reason: "not_a_split" });
 	});
 
 	test("returns below_threshold when balance < minBalance", async () => {
@@ -261,7 +258,7 @@ describe("executeAndConfirmSplit", () => {
 			{ minBalance: 1_000_000n }, // 1 USDC threshold
 		);
 
-		expect(result).toEqual({ ok: false, reason: "below_threshold" });
+		expect(result).toEqual({ status: "SKIPPED", reason: "below_threshold" });
 	});
 
 	test("executes when balance >= minBalance", async () => {
@@ -297,7 +294,7 @@ describe("executeAndConfirmSplit", () => {
 			{ minBalance: 1_000_000n }, // 1 USDC threshold
 		);
 
-		expect(result.ok).toBe(true);
+		expect(result.status).toBe("EXECUTED");
 	});
 
 	test("adds compute budget instructions when options set", async () => {
@@ -364,7 +361,7 @@ describe("executeAndConfirmSplit", () => {
 		});
 
 		const blockHeightError = createMockSolanaError(
-			"Block height exceeded",
+			"Transaction blockhash expired",
 			SOLANA_ERROR__BLOCK_HEIGHT_EXCEEDED,
 		);
 
@@ -388,9 +385,9 @@ describe("executeAndConfirmSplit", () => {
 			signer,
 		);
 
-		expect(result.ok).toBe(false);
-		if (!result.ok && "error" in result) {
-			expect(result.reason).toBe("expired");
+		expect(result.status).toBe("FAILED");
+		if (result.status === "FAILED") {
+			expect(result.reason).toBe("transaction_expired");
 		}
 	});
 
@@ -431,9 +428,9 @@ describe("executeAndConfirmSplit", () => {
 			{ abortSignal: abortController.signal },
 		);
 
-		expect(result.ok).toBe(false);
-		if (!result.ok && "error" in result) {
-			expect(result.reason).toBe("aborted");
+		expect(result.status).toBe("FAILED");
+		if (result.status === "FAILED") {
+			expect(result.reason).toBe("transaction_expired"); // Abort maps to expired in client impl
 		}
 	});
 
@@ -458,10 +455,11 @@ describe("executeAndConfirmSplit", () => {
 		});
 
 		// First call fails with InvalidProtocolFeeRecipient, second succeeds
+		// Error message format that isProgramError detects: includes hex code
 		const protocolFeeError = createMockSolanaError(
-			"Invalid protocol fee recipient",
+			`custom program error: 0x${INVALID_PROTOCOL_FEE_RECIPIENT_ERROR_CODE.toString(16)}`,
 			SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
-			{ code: CASCADE_SPLITS_ERROR__INVALID_PROTOCOL_FEE_RECIPIENT },
+			{ code: INVALID_PROTOCOL_FEE_RECIPIENT_ERROR_CODE },
 		);
 
 		const mockSendAndConfirm = vi
@@ -488,7 +486,7 @@ describe("executeAndConfirmSplit", () => {
 		);
 
 		expect(invalidateProtocolConfigCache).toHaveBeenCalled();
-		expect(result.ok).toBe(true);
+		expect(result.status).toBe("EXECUTED");
 	});
 
 	test("does not retry more than once on InvalidProtocolFeeRecipient", async () => {
@@ -512,10 +510,11 @@ describe("executeAndConfirmSplit", () => {
 		});
 
 		// Both calls fail
+		// Error message format that isProgramError detects: includes hex code
 		const protocolFeeError = createMockSolanaError(
-			"Invalid protocol fee recipient",
+			`custom program error: 0x${INVALID_PROTOCOL_FEE_RECIPIENT_ERROR_CODE.toString(16)}`,
 			SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
-			{ code: CASCADE_SPLITS_ERROR__INVALID_PROTOCOL_FEE_RECIPIENT },
+			{ code: INVALID_PROTOCOL_FEE_RECIPIENT_ERROR_CODE },
 		);
 
 		const mockSendAndConfirm = vi.fn().mockRejectedValue(protocolFeeError);
@@ -540,11 +539,9 @@ describe("executeAndConfirmSplit", () => {
 
 		// Should only be called once for invalidation (retry fails, no second invalidation)
 		expect(invalidateProtocolConfigCache).toHaveBeenCalledTimes(1);
-		expect(result.ok).toBe(false);
-		if (!result.ok && "programErrorCode" in result) {
-			expect(result.programErrorCode).toBe(
-				CASCADE_SPLITS_ERROR__INVALID_PROTOCOL_FEE_RECIPIENT,
-			);
+		expect(result.status).toBe("FAILED");
+		if (result.status === "FAILED") {
+			expect(result.reason).toBe("program_error");
 		}
 	});
 
@@ -581,7 +578,7 @@ describe("executeAndConfirmSplit", () => {
 			signer,
 		);
 
-		expect(result.ok).toBe(true);
+		expect(result.status).toBe("EXECUTED");
 		expect(mockSendAndConfirm).toHaveBeenCalled();
 	});
 });

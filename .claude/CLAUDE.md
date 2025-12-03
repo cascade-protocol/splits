@@ -55,18 +55,24 @@ User Payment → Vault (ATA owned by SplitConfig PDA)
 
 ## splits-sdk
 
+Primary interface is `ensure` — idempotent create/update. See `packages/sdk/ARCHITECTURE.md` for design rationale.
+
 ```typescript
-// Types, constants, conversion helpers
-import { PROGRAM_ID, Recipient, toPercentageBps } from '@cascade-fyi/splits-sdk';
+// HTTP-only (most servers) — no WebSocket required
+import { sendEnsureSplit, sendExecuteSplit, isCascadeSplit } from '@cascade-fyi/splits-sdk/solana';
 
-// Instruction builders (requires @solana/kit)
+// WebSocket available
+import { ensureSplitConfig, executeAndConfirmSplit } from '@cascade-fyi/splits-sdk/solana';
+
+// Browser with wallet-adapter
+import { createSplitsClient } from '@cascade-fyi/splits-sdk/solana/client';
+import { fromWalletAdapter } from '@cascade-fyi/splits-sdk/solana/web3-compat';
+
+// Low-level instruction builders (for custom tx building)
 import { createSplitConfig, executeSplit } from '@cascade-fyi/splits-sdk/solana';
-
-// Bridge to @solana/web3.js (for wallet adapters)
-import { toWeb3Instruction, toAddress } from '@cascade-fyi/splits-sdk/solana/web3-compat';
 ```
 
-Instruction builders use Codama-generated encoders. Account order matters for remaining accounts.
+Result types use discriminated unions (`CREATED`, `UPDATED`, `BLOCKED`, `FAILED`), not exceptions.
 
 ## Release Process
 
@@ -216,3 +222,12 @@ gh release create "sdk@v${SDK_VERSION}" --title "splits-sdk v${SDK_VERSION}" --n
 | All | `pnpm test:all` | Everything |
 
 **Principle:** Mollusk tests all errors. Smoke tests only Token-2022 CPI and real network behavior.
+
+# General Guidelines for working with Nx
+
+- When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
+- You have access to the Nx MCP server and its tools, use them to help the user
+- When answering questions about the repository, use the `nx_workspace` tool first to gain an understanding of the workspace architecture where applicable.
+- When working in individual projects, use the `nx_project_details` mcp tool to analyze and understand the specific project structure and dependencies
+- For questions around nx configuration, best practices or if you're unsure, use the `nx_docs` tool to get relevant, up-to-date docs. Always use this instead of assuming things about nx configuration
+- If the user needs help with an Nx configuration or project graph error, use the `nx_workspace` tool to get any errors

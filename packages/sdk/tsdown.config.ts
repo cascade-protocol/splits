@@ -6,6 +6,7 @@ export default defineConfig({
 		"solana/index": "src/solana/index.ts",
 		"solana/web3-compat": "src/solana/web3-compat/index.ts",
 		"solana/generated": "src/solana/generated/index.ts",
+		"solana/client/index": "src/solana/client/index.ts",
 	},
 	format: ["esm", "cjs"],
 	dts: true,

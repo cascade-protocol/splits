@@ -8,6 +8,7 @@
 		"start": "serve ./build/client",
 		"types:check": "react-router typegen && fumadocs-mdx && tsc --noEmit",
 		"postinstall": "fumadocs-mdx",
+		"type-check": "pnpm types:check",
 		"lint": "biome check",
 		"format": "biome format --write"
 	},

@@ -105,3 +105,23 @@ export function fromWeb3Instruction(
 ): Instruction {
 	return fromLegacyTransactionInstruction(legacyInstruction);
 }
+
+// =============================================================================
+// Transaction Conversion
+// =============================================================================
+
+export {
+	toWeb3Transaction,
+	type KitTransactionMessage,
+} from "./transactions.js";
+
+// =============================================================================
+// Wallet Adapters
+// =============================================================================
+
+export {
+	fromWalletAdapter,
+	WalletDisconnectedError,
+	WalletRejectedError,
+	type WalletAdapterLike,
+} from "./wallet-adapter.js";

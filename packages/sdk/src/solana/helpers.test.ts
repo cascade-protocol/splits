@@ -1,24 +1,29 @@
 /**
- * Tests for caching behavior in helpers.ts
+ * Tests for helpers.ts
  *
- * Tests:
+ * Covers:
  * - isCascadeSplit caching (split detection)
  * - getProtocolConfig caching
+ * - recipientsEqual (set equality comparison)
+ * - labelToSeed / seedToLabel (human-readable split identifiers)
  */
 
-import { describe, test, expect, vi, beforeEach } from "vitest";
+import { describe, test, it, expect, vi, beforeEach } from "vitest";
 import type { Address, Rpc, SolanaRpcApi } from "@solana/kit";
 
-// Create a mock module for the generated accounts
+// =============================================================================
+// Mocks
+// =============================================================================
+
 const mockFetchMaybeSplitConfig = vi.fn();
 const mockFetchProtocolConfig = vi.fn();
 
-vi.mock("../src/solana/generated/accounts/splitConfig.js", () => ({
+vi.mock("./generated/accounts/splitConfig.js", () => ({
 	fetchMaybeSplitConfig: (...args: unknown[]) =>
 		mockFetchMaybeSplitConfig(...args),
 }));
 
-vi.mock("../src/solana/generated/accounts/protocolConfig.js", () => ({
+vi.mock("./generated/accounts/protocolConfig.js", () => ({
 	fetchProtocolConfig: (...args: unknown[]) => mockFetchProtocolConfig(...args),
 }));
 
@@ -42,6 +47,9 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 
 const mockVault1 = "Vault111111111111111111111111111111111111111" as Address;
 const mockVault2 = "Vault222222222222222222222222222222222222222" as Address;
+const alice = "A1ice111111111111111111111111111111111111111" as Address;
+const bob = "Bob11111111111111111111111111111111111111111" as Address;
+const charlie = "Char1ie11111111111111111111111111111111111111" as Address;
 
 const createMockRpc = () => {
 	const rpc = {
@@ -79,14 +87,12 @@ describe("isCascadeSplit caching", () => {
 	beforeEach(async () => {
 		vi.clearAllMocks();
 		// Clear the cache between tests
-		const helpers = await import("../src/solana/helpers.js");
+		const helpers = await import("./helpers.js");
 		helpers.clearSplitCache();
 	});
 
 	test("caches positive results", async () => {
-		const { isCascadeSplit, clearSplitCache } = await import(
-			"../src/solana/helpers.js"
-		);
+		const { isCascadeSplit, clearSplitCache } = await import("./helpers.js");
 		clearSplitCache();
 
 		const rpc = createMockRpc();
@@ -123,9 +129,7 @@ describe("isCascadeSplit caching", () => {
 	});
 
 	test("caches negative results for existing non-split accounts", async () => {
-		const { isCascadeSplit, clearSplitCache } = await import(
-			"../src/solana/helpers.js"
-		);
+		const { isCascadeSplit, clearSplitCache } = await import("./helpers.js");
 		clearSplitCache();
 
 		// Create RPC that returns an account but splitConfig doesn't exist
@@ -157,9 +161,7 @@ describe("isCascadeSplit caching", () => {
 	});
 
 	test("does NOT cache when account doesn't exist", async () => {
-		const { isCascadeSplit, clearSplitCache } = await import(
-			"../src/solana/helpers.js"
-		);
+		const { isCascadeSplit, clearSplitCache } = await import("./helpers.js");
 		clearSplitCache();
 
 		// RPC returns null (account doesn't exist)
@@ -181,9 +183,7 @@ describe("isCascadeSplit caching", () => {
 	});
 
 	test("does NOT cache on RPC errors", async () => {
-		const { isCascadeSplit, clearSplitCache } = await import(
-			"../src/solana/helpers.js"
-		);
+		const { isCascadeSplit, clearSplitCache } = await import("./helpers.js");
 		clearSplitCache();
 
 		// RPC throws an error
@@ -211,7 +211,7 @@ describe("isCascadeSplit caching", () => {
 
 	test("invalidateSplitCache clears specific entry", async () => {
 		const { isCascadeSplit, invalidateSplitCache, clearSplitCache } =
-			await import("../src/solana/helpers.js");
+			await import("./helpers.js");
 		clearSplitCache();
 
 		const rpc = createMockRpc();
@@ -248,9 +248,7 @@ describe("isCascadeSplit caching", () => {
 	});
 
 	test("clearSplitCache clears all entries", async () => {
-		const { isCascadeSplit, clearSplitCache } = await import(
-			"../src/solana/helpers.js"
-		);
+		const { isCascadeSplit, clearSplitCache } = await import("./helpers.js");
 		clearSplitCache();
 
 		const rpc = createMockRpc();
@@ -295,13 +293,13 @@ describe("protocol config caching", () => {
 	beforeEach(async () => {
 		vi.clearAllMocks();
 		// Clear the cache
-		const helpers = await import("../src/solana/helpers.js");
+		const helpers = await import("./helpers.js");
 		helpers.invalidateProtocolConfigCache();
 	});
 
 	test("caches protocol config after first fetch", async () => {
 		const { getProtocolConfig, invalidateProtocolConfigCache } = await import(
-			"../src/solana/helpers.js"
+			"./helpers.js"
 		);
 		invalidateProtocolConfigCache();
 
@@ -329,7 +327,7 @@ describe("protocol config caching", () => {
 
 	test("invalidateProtocolConfigCache clears cache", async () => {
 		const { getProtocolConfig, invalidateProtocolConfigCache } = await import(
-			"../src/solana/helpers.js"
+			"./helpers.js"
 		);
 		invalidateProtocolConfigCache();
 
@@ -358,7 +356,7 @@ describe("protocol config caching", () => {
 
 	test("refetches after invalidation with new data", async () => {
 		const { getProtocolConfig, invalidateProtocolConfigCache } = await import(
-			"../src/solana/helpers.js"
+			"./helpers.js"
 		);
 		invalidateProtocolConfigCache();
 
@@ -395,5 +393,223 @@ describe("protocol config caching", () => {
 		// Second call - new fee wallet
 		const result2 = await getProtocolConfig(rpc);
 		expect(result2.feeWallet).toBe(newFeeWallet);
+	});
+});
+
+// =============================================================================
+// Tests: recipientsEqual
+// =============================================================================
+
+import { recipientsEqual, type SplitRecipient } from "./helpers.js";
+
+const makeSplitRecipient = (
+	address: Address,
+	percentageBps: number,
+): SplitRecipient => ({
+	address,
+	percentageBps,
+	share: Math.round(percentageBps / 99),
+});
+
+describe("recipientsEqual", () => {
+	it("returns true for identical recipients", () => {
+		const input = [
+			{ address: alice as string, share: 70 },
+			{ address: bob as string, share: 29 },
+		];
+		const onChain: SplitRecipient[] = [
+			makeSplitRecipient(alice, 6930), // 70 * 99 = 6930
+			makeSplitRecipient(bob, 2871), // 29 * 99 = 2871
+		];
+
+		expect(recipientsEqual(input, onChain)).toBe(true);
+	});
+
+	it("returns true for same recipients different order", () => {
+		const input = [
+			{ address: bob as string, share: 29 },
+			{ address: alice as string, share: 70 },
+		];
+		const onChain: SplitRecipient[] = [
+			makeSplitRecipient(alice, 6930),
+			makeSplitRecipient(bob, 2871),
+		];
+
+		expect(recipientsEqual(input, onChain)).toBe(true);
+	});
+
+	it("returns false for different addresses", () => {
+		const input = [
+			{ address: alice as string, share: 70 },
+			{ address: charlie as string, share: 29 },
+		];
+		const onChain: SplitRecipient[] = [
+			makeSplitRecipient(alice, 6930),
+			makeSplitRecipient(bob, 2871),
+		];
+
+		expect(recipientsEqual(input, onChain)).toBe(false);
+	});
+
+	it("returns false for same addresses different shares", () => {
+		const input = [
+			{ address: alice as string, share: 60 },
+			{ address: bob as string, share: 39 },
+		];
+		const onChain: SplitRecipient[] = [
+			makeSplitRecipient(alice, 6930), // 70 shares
+			makeSplitRecipient(bob, 2871), // 29 shares
+		];
+
+		expect(recipientsEqual(input, onChain)).toBe(false);
+	});
+
+	it("returns false for different lengths", () => {
+		const input = [
+			{ address: alice as string, share: 70 },
+			{ address: bob as string, share: 20 },
+			{ address: charlie as string, share: 9 },
+		];
+		const onChain: SplitRecipient[] = [
+			makeSplitRecipient(alice, 6930),
+			makeSplitRecipient(bob, 2871),
+		];
+
+		expect(recipientsEqual(input, onChain)).toBe(false);
+	});
+
+	it("handles share vs percentageBps input", () => {
+		// Input with percentageBps directly
+		const inputWithBps = [
+			{ address: alice as string, percentageBps: 6930 },
+			{ address: bob as string, percentageBps: 2871 },
+		];
+		const onChain: SplitRecipient[] = [
+			makeSplitRecipient(alice, 6930),
+			makeSplitRecipient(bob, 2871),
+		];
+
+		expect(recipientsEqual(inputWithBps, onChain)).toBe(true);
+	});
+
+	it("returns true for empty arrays", () => {
+		expect(recipientsEqual([], [])).toBe(true);
+	});
+
+	it("returns false when input is empty but onChain is not", () => {
+		const onChain: SplitRecipient[] = [makeSplitRecipient(alice, 9900)];
+
+		expect(recipientsEqual([], onChain)).toBe(false);
+	});
+});
+
+// =============================================================================
+// Tests: labelToSeed / seedToLabel
+// =============================================================================
+
+import { labelToSeed, seedToLabel, generateUniqueId } from "./helpers.js";
+
+describe("labelToSeed", () => {
+	test("converts label to deterministic seed", () => {
+		const seed1 = labelToSeed("Split 1");
+		const seed2 = labelToSeed("Split 1");
+
+		// Same label = same seed
+		expect(seed1).toBe(seed2);
+	});
+
+	test("different labels produce different seeds", () => {
+		const seed1 = labelToSeed("Split 1");
+		const seed2 = labelToSeed("Split 2");
+
+		expect(seed1).not.toBe(seed2);
+	});
+
+	test("handles max length label (27 chars)", () => {
+		const maxLabel = "abcdefghijklmnopqrstuvwxyza"; // 27 chars
+		expect(maxLabel.length).toBe(27);
+
+		const seed = labelToSeed(maxLabel);
+		expect(seed).toBeDefined();
+	});
+
+	test("throws for label exceeding max length", () => {
+		const tooLong = "abcdefghijklmnopqrstuvwxyzab"; // 28 chars
+		expect(tooLong.length).toBe(28);
+
+		expect(() => labelToSeed(tooLong)).toThrow("Label too long");
+	});
+
+	test("handles empty label", () => {
+		const seed = labelToSeed("");
+		expect(seed).toBeDefined();
+	});
+
+	test("handles special characters", () => {
+		const seed = labelToSeed("Split #1 - Test!");
+		expect(seed).toBeDefined();
+	});
+});
+
+describe("seedToLabel", () => {
+	test("extracts label from labeled seed", () => {
+		const label = "My Split";
+		const seed = labelToSeed(label);
+		const extracted = seedToLabel(seed);
+
+		expect(extracted).toBe(label);
+	});
+
+	test("returns null for random seed", () => {
+		const randomSeed = generateUniqueId();
+		const label = seedToLabel(randomSeed);
+
+		expect(label).toBeNull();
+	});
+
+	test("handles empty label roundtrip", () => {
+		const seed = labelToSeed("");
+		const extracted = seedToLabel(seed);
+
+		expect(extracted).toBe("");
+	});
+
+	test("handles max length label roundtrip", () => {
+		const maxLabel = "abcdefghijklmnopqrstuvwxyza";
+		const seed = labelToSeed(maxLabel);
+		const extracted = seedToLabel(seed);
+
+		expect(extracted).toBe(maxLabel);
+	});
+
+	test("handles special characters roundtrip", () => {
+		const label = "API Revenue - 2025";
+		const seed = labelToSeed(label);
+		const extracted = seedToLabel(seed);
+
+		expect(extracted).toBe(label);
+	});
+});
+
+describe("cross-chain compatibility", () => {
+	test("labeled seed has CSPL: prefix in bytes", () => {
+		const seed = labelToSeed("Test");
+
+		// The seed should decode back to label
+		expect(seedToLabel(seed)).toBe("Test");
+	});
+
+	test("multiple labeled seeds are distinguishable", () => {
+		const seedA = labelToSeed("Product A");
+		const seedB = labelToSeed("Product B");
+		const seedC = labelToSeed("Product C");
+
+		// All unique
+		expect(new Set([seedA, seedB, seedC]).size).toBe(3);
+
+		// All extractable
+		expect(seedToLabel(seedA)).toBe("Product A");
+		expect(seedToLabel(seedB)).toBe("Product B");
+		expect(seedToLabel(seedC)).toBe("Product C");
 	});
 });

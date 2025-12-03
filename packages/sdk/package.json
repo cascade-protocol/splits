@@ -1,6 +1,6 @@
 {
 	"name": "@cascade-fyi/splits-sdk",
-	"version": "0.8.0",
+	"version": "0.9.0",
 	"type": "module",
 	"description": "TypeScript SDK for Cascade Splits payment splitting protocol",
 	"scripts": {
@@ -36,7 +36,8 @@
 		"vitest": "^4.0.12"
 	},
 	"peerDependencies": {
-		"@solana/kit": "^5.0.0"
+		"@solana/kit": "^5.0.0",
+		"@solana/web3.js": "^1.90.0"
 	},
 	"peerDependenciesMeta": {
 		"@solana/web3.js": {
@@ -86,6 +87,16 @@
 			"require": {
 				"types": "./dist/solana/generated.d.cts",
 				"default": "./dist/solana/generated.cjs"
+			}
+		},
+		"./solana/client": {
+			"import": {
+				"types": "./dist/solana/client/index.d.mts",
+				"default": "./dist/solana/client/index.mjs"
+			},
+			"require": {
+				"types": "./dist/solana/client/index.d.cts",
+				"default": "./dist/solana/client/index.cjs"
 			}
 		},
 		"./package.json": "./package.json"

@@ -71,7 +71,7 @@ function CopyButton({ text }: { text: string }) {
 			size="icon"
 			className="h-7 w-7 shrink-0"
 			onClick={handleCopy}
-			title={copied ? "Copied!" : "Copy vault address"}
+			title={copied ? "Copied!" : "Copy payment address"}
 		>
 			{copied ? (
 				<Check className="h-3.5 w-3.5 text-green-500" />
@@ -79,7 +79,7 @@ function CopyButton({ text }: { text: string }) {
 				<Copy className="h-3.5 w-3.5" />
 			)}
 			<span className="sr-only">
-				{copied ? "Copied" : "Copy vault address"}
+				{copied ? "Copied" : "Copy payment address"}
 			</span>
 		</Button>
 	);
@@ -103,19 +103,19 @@ export function createColumns(
 ): ColumnDef<SplitWithBalance>[] {
 	return [
 		{
-			accessorKey: "vault",
-			header: "Vault Address",
+			accessorKey: "address",
+			header: "Payment Address",
 			cell: ({ row }) => {
-				const vault = row.getValue("vault") as string;
+				const address = row.getValue("address") as string;
 				return (
 					<div className="flex items-center gap-2">
 						{/* Mobile: Truncated */}
 						<code className="font-mono text-sm md:hidden">
-							{vault.slice(0, 6)}...{vault.slice(-4)}
+							{address.slice(0, 6)}...{address.slice(-4)}
 						</code>
 						{/* Desktop: Full address */}
-						<code className="hidden font-mono text-sm md:block">{vault}</code>
-						<CopyButton text={vault} />
+						<code className="hidden font-mono text-sm md:block">{address}</code>
+						<CopyButton text={address} />
 					</div>
 				);
 			},
@@ -196,18 +196,6 @@ export function createColumns(
 							</TooltipContent>
 						</Tooltip>
 					</TooltipProvider>
-				);
-			},
-		},
-		{
-			accessorKey: "lastActivity",
-			header: "Last Activity",
-			cell: ({ row }) => {
-				const timestamp = row.getValue("lastActivity") as bigint;
-				return (
-					<span className="text-muted-foreground">
-						{formatRelativeTime(timestamp)}
-					</span>
 				);
 			},
 		},
@@ -345,13 +333,17 @@ function ActionsDropdown({ splitConfig, actions }: ActionsDropdownProps) {
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
 				<DropdownMenuLabel>Actions</DropdownMenuLabel>
-				<DropdownMenuItem onClick={() => copy(splitConfig.vault as string)}>
+				<DropdownMenuItem onClick={() => copy(splitConfig.address as string)}>
 					{copied ? (
 						<Check className="mr-2 h-4 w-4 text-green-500" />
 					) : (
 						<Copy className="mr-2 h-4 w-4" />
 					)}
-					{copied ? "Copied!" : "Copy vault address"}
+					{copied ? "Copied!" : "Copy payment address"}
+				</DropdownMenuItem>
+				<DropdownMenuItem onClick={() => copy(splitConfig.vault as string)}>
+					<Copy className="mr-2 h-4 w-4" />
+					Copy vault address (ATA)
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
@@ -380,19 +372,27 @@ function ActionsDropdown({ splitConfig, actions }: ActionsDropdownProps) {
 				<DropdownMenuItem
 					onClick={() => {
 						openExternal(
-							`https://solscan.io/account/${splitConfig.vault as string}`,
+							`https://solscan.io/account/${splitConfig.address as string}`,
 						);
 					}}
 				>
 					<ExternalLink className="mr-2 h-4 w-4" />
 					View on Solscan
 				</DropdownMenuItem>
+				<DropdownMenuItem
+					onClick={() => {
+						openExternal(
+							`https://solscan.io/account/${splitConfig.vault as string}`,
+						);
+					}}
+				>
+					<ExternalLink className="mr-2 h-4 w-4" />
+					View vault on Solscan
+				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
 }
 
-// Columns hidden by default (use CSS classes in cells for responsive hiding)
-export const mobileHiddenColumns = {
-	lastActivity: false, // Hidden by default
-};
+// Columns hidden by default on mobile
+export const mobileHiddenColumns = {};
