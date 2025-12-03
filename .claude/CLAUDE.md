@@ -53,7 +53,11 @@ User Payment → Vault (ATA owned by SplitConfig PDA)
 - Split Config: `["split_config", authority, mint, unique_id]` - 1,832 bytes
 - Vault: ATA with split_config as owner
 
-## splits-sdk
+## SDKs
+
+Two separate packages for Solana and EVM:
+
+### @cascade-fyi/splits-sdk (Solana)
 
 Primary interface is `ensure` — idempotent create/update. See `packages/sdk/ARCHITECTURE.md` for design rationale.
 
@@ -73,6 +77,33 @@ import { createSplitConfig, executeSplit } from '@cascade-fyi/splits-sdk/solana'
 ```
 
 Result types use discriminated unions (`CREATED`, `UPDATED`, `BLOCKED`, `FAILED`), not exceptions.
+
+### @cascade-fyi/splits-sdk-evm (Base)
+
+EVM SDK using viem. Splits are **immutable** (no update/close).
+
+**Factory Address:** `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7` (Base Mainnet & Sepolia)
+
+```typescript
+// High-level client
+import { createEvmSplitsClient } from '@cascade-fyi/splits-sdk-evm/client';
+import { base } from 'viem/chains';
+import { privateKeyToAccount } from 'viem/accounts';
+
+const client = createEvmSplitsClient(base, {
+  account: privateKeyToAccount('0x...')
+});
+
+const result = await client.ensureSplit({
+  uniqueId: '0x...',
+  recipients: [{ address: '0xAlice...', share: 60 }, { address: '0xBob...', share: 40 }]
+});
+
+// Low-level functions
+import { ensureSplit, executeSplit, isCascadeSplit } from '@cascade-fyi/splits-sdk-evm';
+```
+
+Result types: `CREATED`, `NO_CHANGE`, `FAILED` for ensure; `EXECUTED`, `SKIPPED`, `FAILED` for execute.
 
 ## Release Process
 
@@ -217,7 +248,10 @@ gh release create "sdk@v${SDK_VERSION}" --title "splits-sdk v${SDK_VERSION}" --n
 | Layer | Command | Description |
 |-------|---------|-------------|
 | Rust | `pnpm test:rust` | Mollusk instruction tests |
-| splits-sdk | `pnpm test:sdk` | Vitest + LiteSVM |
+| splits-sdk (Solana) | `pnpm test:sdk` | Vitest + LiteSVM |
+| splits-sdk-evm | `pnpm --filter @cascade-fyi/splits-sdk-evm test` | Vitest + mocked viem |
+| EVM Contracts | `cd contracts && forge test` | Foundry tests |
+| EVM Fork Tests | `cd contracts && forge test --fork-url base_sepolia` | Fork tests against deployed contracts |
 | Integration | `pnpm test` | Anchor + localnet |
 | All | `pnpm test:all` | Everything |
 
