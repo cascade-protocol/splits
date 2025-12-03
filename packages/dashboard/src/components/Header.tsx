@@ -1,10 +1,15 @@
 import { NavLink, Link } from "react-router";
-import { WalletButton } from "./ui/wallet-button";
+import { ChainSelector } from "./wallet/chain-selector";
+import { SolanaWalletButton } from "@/components/solana";
+import { EvmWalletButton } from "@/components/evm";
+import { useChain } from "@/contexts/chain-context";
 
 /**
  * Header with logo, navigation, social links, and wallet connection.
  */
 export function Header() {
+	const { isSolana } = useChain();
+
 	return (
 		<header className="border-b">
 			<div className="container mx-auto px-4 py-4 md:px-6 md:py-6">
@@ -52,8 +57,10 @@ export function Header() {
 						</nav>
 					</div>
 
-					{/* Right group: Social icons + Wallet button */}
+					{/* Right group: Chain selector + Social icons + Wallet button */}
 					<div className="flex items-center gap-3 md:gap-4">
+						<ChainSelector />
+
 						<a
 							href="https://github.com/cascade-protocol/splits"
 							target="_blank"
@@ -89,8 +96,8 @@ export function Header() {
 							<span className="sr-only">X</span>
 						</a>
 
-						{/* Wallet button - custom styled */}
-						<WalletButton />
+						{/* Wallet button - chain-specific */}
+						{isSolana ? <SolanaWalletButton /> : <EvmWalletButton />}
 					</div>
 				</div>
 			</div>

@@ -1,5 +1,5 @@
 import { PROTOCOL_FEE_BPS, bpsToShares } from "@cascade-fyi/splits-sdk";
-import type { SplitWithBalance } from "../hooks/use-splits";
+import type { SplitWithBalance } from "../hooks/use-splits-solana";
 
 // =============================================================================
 // Constants

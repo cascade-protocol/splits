@@ -6,59 +6,77 @@ import { MAX_RECIPIENTS, type Recipient } from "@cascade-fyi/splits-sdk";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useChain, type ActiveChain } from "@/contexts/chain-context";
+import { isValidSolanaAddress, isValidEvmAddress } from "@/lib/chain-helpers";
 
 /**
- * Validates a Solana address (base58, 32-44 chars)
+ * Validate address based on chain type.
  */
-function isValidSolanaAddress(address: string): boolean {
-	const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-	return base58Regex.test(address);
+function isValidAddress(address: string, chain: ActiveChain): boolean {
+	if (chain === "solana") {
+		return isValidSolanaAddress(address);
+	}
+	return isValidEvmAddress(address);
 }
 
-// Zod schema for split creation
-const recipientSchema = z.object({
-	address: z
-		.string()
-		.min(1, "Address is required")
-		.refine(isValidSolanaAddress, "Invalid Solana address"),
-	share: z
-		.number()
-		.int("Must be a whole number")
-		.min(1, "Must be at least 1%")
-		.max(100, "Must be at most 100%"),
-});
+/**
+ * Get address validation error message for chain.
+ */
+function getAddressErrorMessage(chain: ActiveChain): string {
+	return chain === "solana" ? "Invalid Solana address" : "Invalid EVM address";
+}
 
-const createSplitSchema = z
-	.object({
-		recipients: z
-			.array(recipientSchema)
-			.min(1, "Add at least one recipient")
-			.max(MAX_RECIPIENTS, `Maximum ${MAX_RECIPIENTS} recipients`),
-	})
-	.refine(
-		(data) => {
-			const total = data.recipients.reduce((sum, r) => sum + r.share, 0);
-			return total === 100;
-		},
-		{
-			message: "Shares must total exactly 100%",
-			path: ["recipients"],
-		},
-	)
-	.refine(
-		(data) => {
-			const addresses = data.recipients
-				.map((r) => r.address)
-				.filter((a) => a.length > 0);
-			return new Set(addresses).size === addresses.length;
-		},
-		{
-			message: "Duplicate addresses not allowed",
-			path: ["recipients"],
-		},
-	);
+/**
+ * Create zod schema for split creation based on chain.
+ */
+function createSplitSchema(chain: ActiveChain) {
+	const recipientSchema = z.object({
+		address: z
+			.string()
+			.min(1, "Address is required")
+			.refine(
+				(addr) => isValidAddress(addr, chain),
+				getAddressErrorMessage(chain),
+			),
+		share: z
+			.number()
+			.int("Must be a whole number")
+			.min(1, "Must be at least 1%")
+			.max(100, "Must be at most 100%"),
+	});
 
-type CreateSplitFormData = z.infer<typeof createSplitSchema>;
+	return z
+		.object({
+			recipients: z
+				.array(recipientSchema)
+				.min(1, "Add at least one recipient")
+				.max(MAX_RECIPIENTS, `Maximum ${MAX_RECIPIENTS} recipients`),
+		})
+		.refine(
+			(data) => {
+				const total = data.recipients.reduce((sum, r) => sum + r.share, 0);
+				return total === 100;
+			},
+			{
+				message: "Shares must total exactly 100%",
+				path: ["recipients"],
+			},
+		)
+		.refine(
+			(data) => {
+				const addresses = data.recipients
+					.map((r) => r.address.toLowerCase())
+					.filter((a) => a.length > 0);
+				return new Set(addresses).size === addresses.length;
+			},
+			{
+				message: "Duplicate addresses not allowed",
+				path: ["recipients"],
+			},
+		);
+}
+
+type CreateSplitFormData = z.infer<ReturnType<typeof createSplitSchema>>;
 
 interface CreateSplitFormProps {
 	onSubmit?: (data: Recipient[]) => void;
@@ -66,8 +84,10 @@ interface CreateSplitFormProps {
 }
 
 export function CreateSplitForm({ onSubmit, isPending }: CreateSplitFormProps) {
+	const { chain } = useChain();
+
 	const form = useForm<CreateSplitFormData>({
-		resolver: zodResolver(createSplitSchema),
+		resolver: zodResolver(createSplitSchema(chain)),
 		defaultValues: {
 			recipients: [
 				{ address: "", share: 10 },

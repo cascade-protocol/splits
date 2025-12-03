@@ -1,5 +1,5 @@
 import { bpsToShares } from "@cascade-fyi/splits-sdk";
-import type { SplitWithBalance } from "@/hooks/use-splits";
+import type { SplitWithBalance } from "@/hooks/use-splits-solana";
 import { hasUnclaimedAmounts, formatBalance } from "@/lib/splits-helpers";
 
 interface SplitDetailRowProps {

@@ -13,7 +13,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { bpsToShares } from "@cascade-fyi/splits-sdk";
-import type { SplitWithBalance } from "@/hooks/use-splits";
+import type { SplitWithBalance } from "@/hooks/use-splits-solana";
 import {
 	canUpdateOrClose,
 	hasUnclaimedAmounts,
@@ -23,6 +23,13 @@ import {
 } from "@/lib/splits-helpers";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { openExternal } from "@/lib/utils";
+import type { ActiveChain } from "@/contexts/chain-context";
+import {
+	getAddressExplorerUrl,
+	getExplorerName,
+	supportsUpdate,
+	supportsClose,
+} from "@/lib/chain-helpers";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -100,6 +107,7 @@ export interface SplitActions {
 export function createColumns(
 	actions: SplitActions,
 	executingVault: string | null,
+	chain: ActiveChain,
 ): ColumnDef<SplitWithBalance>[] {
 	return [
 		{
@@ -288,7 +296,11 @@ export function createColumns(
 						)}
 
 						{/* More actions dropdown */}
-						<ActionsDropdown splitConfig={splitConfig} actions={actions} />
+						<ActionsDropdown
+							splitConfig={splitConfig}
+							actions={actions}
+							chain={chain}
+						/>
 					</div>
 				);
 			},
@@ -299,6 +311,7 @@ export function createColumns(
 interface ActionsDropdownProps {
 	splitConfig: SplitWithBalance;
 	actions: SplitActions;
+	chain: ActiveChain;
 }
 
 /**
@@ -318,10 +331,20 @@ function getBlockedReason(splitConfig: SplitWithBalance): string | null {
 /**
  * Actions dropdown component
  */
-function ActionsDropdown({ splitConfig, actions }: ActionsDropdownProps) {
+function ActionsDropdown({
+	splitConfig,
+	actions,
+	chain,
+}: ActionsDropdownProps) {
 	const { copied, copy } = useCopyToClipboard();
 	const canModify = canUpdateOrClose(splitConfig, splitConfig.vaultBalance);
 	const blockedReason = canModify ? null : getBlockedReason(splitConfig);
+
+	// Chain-specific capabilities
+	const canUpdate = supportsUpdate(chain) && canModify;
+	const canClose = supportsClose(chain) && canModify;
+	const explorerName = getExplorerName(chain);
+	const isSolana = chain === "solana";
 
 	return (
 		<DropdownMenu>
@@ -341,54 +364,67 @@ function ActionsDropdown({ splitConfig, actions }: ActionsDropdownProps) {
 					)}
 					{copied ? "Copied!" : "Copy payment address"}
 				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => copy(splitConfig.vault as string)}>
-					<Copy className="mr-2 h-4 w-4" />
-					Copy vault address (ATA)
-				</DropdownMenuItem>
-				<DropdownMenuSeparator />
-				<DropdownMenuItem
-					disabled={!canModify}
-					onClick={() => canModify && actions.onUpdate(splitConfig)}
-					className={!canModify ? "opacity-50 cursor-not-allowed" : ""}
-					title={blockedReason ?? undefined}
-				>
-					<Settings className="mr-2 h-4 w-4" />
-					Update Recipients
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					disabled={!canModify}
-					onClick={() => canModify && actions.onClose(splitConfig)}
-					className={
-						!canModify
-							? "opacity-50 cursor-not-allowed"
-							: "text-destructive focus:text-destructive"
-					}
-					title={blockedReason ?? undefined}
-				>
-					<Trash2 className="mr-2 h-4 w-4" />
-					Close Split
-				</DropdownMenuItem>
+				{/* Only show vault copy for Solana (EVM splits don't have separate vault) */}
+				{isSolana && (
+					<DropdownMenuItem onClick={() => copy(splitConfig.vault as string)}>
+						<Copy className="mr-2 h-4 w-4" />
+						Copy vault address (ATA)
+					</DropdownMenuItem>
+				)}
+				{/* Only show update/close for chains that support it */}
+				{supportsUpdate(chain) && (
+					<>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem
+							disabled={!canUpdate}
+							onClick={() => canUpdate && actions.onUpdate(splitConfig)}
+							className={!canUpdate ? "opacity-50 cursor-not-allowed" : ""}
+							title={blockedReason ?? undefined}
+						>
+							<Settings className="mr-2 h-4 w-4" />
+							Update Recipients
+						</DropdownMenuItem>
+					</>
+				)}
+				{supportsClose(chain) && (
+					<DropdownMenuItem
+						disabled={!canClose}
+						onClick={() => canClose && actions.onClose(splitConfig)}
+						className={
+							!canClose
+								? "opacity-50 cursor-not-allowed"
+								: "text-destructive focus:text-destructive"
+						}
+						title={blockedReason ?? undefined}
+					>
+						<Trash2 className="mr-2 h-4 w-4" />
+						Close Split
+					</DropdownMenuItem>
+				)}
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
 					onClick={() => {
 						openExternal(
-							`https://solscan.io/account/${splitConfig.address as string}`,
+							getAddressExplorerUrl(splitConfig.address as string, chain),
 						);
 					}}
 				>
 					<ExternalLink className="mr-2 h-4 w-4" />
-					View on Solscan
+					View on {explorerName}
 				</DropdownMenuItem>
-				<DropdownMenuItem
-					onClick={() => {
-						openExternal(
-							`https://solscan.io/account/${splitConfig.vault as string}`,
-						);
-					}}
-				>
-					<ExternalLink className="mr-2 h-4 w-4" />
-					View vault on Solscan
-				</DropdownMenuItem>
+				{/* Only show vault link for Solana */}
+				{isSolana && (
+					<DropdownMenuItem
+						onClick={() => {
+							openExternal(
+								getAddressExplorerUrl(splitConfig.vault as string, chain),
+							);
+						}}
+					>
+						<ExternalLink className="mr-2 h-4 w-4" />
+						View vault on {explorerName}
+					</DropdownMenuItem>
+				)}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

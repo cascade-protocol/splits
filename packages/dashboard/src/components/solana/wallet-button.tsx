@@ -2,18 +2,17 @@ import { useWalletConnection } from "@solana/react-hooks";
 import { Wallet, ChevronDown, LogOut, Copy, Check } from "lucide-react";
 import { useState, useCallback } from "react";
 
-import { Button } from "./button";
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "./dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 /**
- * Custom wallet button styled to match the app's design system.
- * Uses framework-kit's useWalletConnection hook.
+ * Solana wallet button using framework-kit's useWalletConnection hook.
  */
 export function WalletButton() {
 	const { connect, disconnect, connectors, connecting, connected, wallet } =

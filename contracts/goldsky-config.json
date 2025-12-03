@@ -1,0 +1,17 @@
+{
+	"version": "1",
+	"name": "cascade-splits",
+	"abis": {
+		"factory": {
+			"path": "./out/SplitFactory.sol/SplitFactory.json"
+		}
+	},
+	"instances": [
+		{
+			"abi": "factory",
+			"address": "0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7",
+			"startBlock": 38960664,
+			"chain": "base"
+		}
+	]
+}

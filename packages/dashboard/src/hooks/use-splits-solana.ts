@@ -41,6 +41,13 @@ import {
 import { PROGRAM_ID, bpsToShares } from "@cascade-fyi/splits-sdk";
 
 // =============================================================================
+// Constants (stable references to prevent infinite re-renders)
+// =============================================================================
+
+const EMPTY_SPLITS: SplitConfig[] = [];
+const EMPTY_VAULTS: Address[] = [];
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -119,11 +126,13 @@ function decodeBase64ToBytes(base64: string): Uint8Array {
  */
 export function useVaultBalances(vaults: Address[]) {
 	const client = useSolanaClient();
-	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
 	const [balances, setBalances] = useState<Map<string, bigint>>(new Map());
 	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
+		// Extract rpc inside effect to avoid unstable reference in deps
+		const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
+
 		if (vaults.length === 0) {
 			setBalances(new Map());
 			setIsLoading(false);
@@ -186,7 +195,7 @@ export function useVaultBalances(vaults: Address[]) {
 				controller.abort();
 			}
 		};
-	}, [client, rpc, vaults]);
+	}, [client, vaults]);
 
 	return { balances, isLoading };
 }
@@ -241,7 +250,7 @@ export function useSplits() {
 	// Process accounts synchronously (balances come from useVaultBalances)
 	const data = useMemo<SplitConfig[]>(() => {
 		if (!query.accounts || query.accounts.length === 0) {
-			return [];
+			return EMPTY_SPLITS;
 		}
 
 		return query.accounts.map(({ pubkey, account }) => {
@@ -295,7 +304,6 @@ export function useSplits() {
  */
 export function useSplitsWithBalances() {
 	const client = useSolanaClient();
-	const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
 
 	const {
 		data: splits,
@@ -304,8 +312,11 @@ export function useSplitsWithBalances() {
 		refetch,
 	} = useSplits();
 
-	// Extract vault addresses for balance watching
-	const vaults = useMemo(() => splits.map((s) => s.vault), [splits]);
+	// Extract vault addresses for balance watching (stable reference when empty)
+	const vaults = useMemo(
+		() => (splits.length === 0 ? EMPTY_VAULTS : splits.map((s) => s.vault)),
+		[splits],
+	);
 
 	const { balances, isLoading: balancesLoading } = useVaultBalances(vaults);
 
@@ -324,29 +335,41 @@ export function useSplitsWithBalances() {
 	useEffect(() => {
 		// Parse addresses from the stable key (no need for splits array)
 		const addresses = splitAddressesKey.split(",").filter(Boolean);
-		const newAddresses = addresses.filter((addr) => !timestamps.has(addr));
-		if (newAddresses.length === 0) return;
+		if (addresses.length === 0) return;
 
-		Promise.all(
-			newAddresses.map(async (addr) => {
-				try {
-					const sigs = await rpc
-						.getSignaturesForAddress(addr as Address, { limit: 1 })
-						.send();
-					if (sigs.length === 0) return [addr, null] as const;
-					const oldest = sigs[sigs.length - 1];
-					return [
-						addr,
-						oldest.blockTime !== null ? BigInt(oldest.blockTime) : null,
-					] as const;
-				} catch {
-					return [addr, null] as const;
-				}
-			}),
-		).then((entries) => {
-			setTimestamps((prev) => new Map([...prev, ...entries]));
+		// Extract rpc inside effect to avoid unstable reference in deps
+		const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
+
+		// Use functional update to check cache without timestamps in deps
+		setTimestamps((prev) => {
+			const newAddresses = addresses.filter((addr) => !prev.has(addr));
+			if (newAddresses.length === 0) return prev; // No change needed
+
+			// Fetch timestamps for new addresses asynchronously
+			Promise.all(
+				newAddresses.map(async (addr) => {
+					try {
+						const sigs = await rpc
+							.getSignaturesForAddress(addr as Address, { limit: 1 })
+							.send();
+						if (sigs.length === 0) return [addr, null] as const;
+						const oldest = sigs[sigs.length - 1];
+						return [
+							addr,
+							oldest.blockTime !== null ? BigInt(oldest.blockTime) : null,
+						] as const;
+					} catch {
+						return [addr, null] as const;
+					}
+				}),
+			).then((entries) => {
+				setTimestamps((current) => new Map([...current, ...entries]));
+			});
+
+			// Return prev unchanged - updates come from Promise.then
+			return prev;
 		});
-	}, [rpc, splitAddressesKey, timestamps]);
+	}, [client, splitAddressesKey]);
 
 	// Combine splits with balances and timestamps
 	const data = useMemo<SplitWithBalance[]>(

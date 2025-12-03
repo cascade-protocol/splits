@@ -16,8 +16,6 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import type { SplitWithBalance } from "@/hooks/use-splits";
-
 import {
 	Table,
 	TableBody,
@@ -27,28 +25,31 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { SplitDetailRow } from "./split-detail-row";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
 	initialColumnVisibility?: VisibilityState;
+	initialSorting?: SortingState;
+	renderDetailRow?: (row: TData) => React.ReactNode;
 }
 
 export function DataTable<TData, TValue>({
 	columns,
 	data,
 	initialColumnVisibility = {},
+	initialSorting = [],
+	renderDetailRow,
 }: DataTableProps<TData, TValue>) {
-	const [sorting, setSorting] = React.useState<SortingState>([
-		{ id: "createdAt", desc: true },
-	]);
+	const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
 		[],
 	);
 	const [columnVisibility, setColumnVisibility] =
 		React.useState<VisibilityState>(initialColumnVisibility);
 	const [expanded, setExpanded] = React.useState<ExpandedState>({});
+
+	const hasExpandableRows = !!renderDetailRow;
 
 	const table = useReactTable({
 		data,
@@ -82,8 +83,7 @@ export function DataTable<TData, TValue>({
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup) => (
 							<TableRow key={headerGroup.id}>
-								{/* Empty header for expand indicator */}
-								<TableHead className="w-8 px-2" />
+								{hasExpandableRows && <TableHead className="w-8 px-2" />}
 								{headerGroup.headers.map((header) => {
 									return (
 										<TableHead key={header.id}>
@@ -105,31 +105,41 @@ export function DataTable<TData, TValue>({
 								<React.Fragment key={row.id}>
 									<TableRow
 										data-state={row.getIsSelected() && "selected"}
-										className="cursor-pointer hover:bg-muted/50"
-										onClick={() => row.toggleExpanded()}
+										className={
+											hasExpandableRows
+												? "cursor-pointer hover:bg-muted/50"
+												: undefined
+										}
+										onClick={
+											hasExpandableRows ? () => row.toggleExpanded() : undefined
+										}
 									>
-										{/* Expand indicator */}
-										<TableCell className="w-8 px-2">
-											<ChevronDown
-												className={`h-4 w-4 text-muted-foreground transition-transform ${
-													row.getIsExpanded() ? "rotate-180" : ""
-												}`}
-											/>
-										</TableCell>
+										{hasExpandableRows && (
+											<TableCell className="w-8 px-2">
+												<ChevronDown
+													className={`h-4 w-4 text-muted-foreground transition-transform ${
+														row.getIsExpanded() ? "rotate-180" : ""
+													}`}
+												/>
+											</TableCell>
+										)}
 										{row.getVisibleCells().map((cell) => (
 											<TableCell
 												key={cell.id}
-												onClick={(e) => {
-													// Don't toggle expansion when clicking action buttons
-													if (
-														(e.target as HTMLElement).closest("button") ||
-														(e.target as HTMLElement).closest(
-															"[role='menuitem']",
-														)
-													) {
-														e.stopPropagation();
-													}
-												}}
+												onClick={
+													hasExpandableRows
+														? (e) => {
+																if (
+																	(e.target as HTMLElement).closest("button") ||
+																	(e.target as HTMLElement).closest(
+																		"[role='menuitem']",
+																	)
+																) {
+																	e.stopPropagation();
+																}
+															}
+														: undefined
+												}
 											>
 												{flexRender(
 													cell.column.columnDef.cell,
@@ -138,13 +148,13 @@ export function DataTable<TData, TValue>({
 											</TableCell>
 										))}
 									</TableRow>
-									{/* Expanded detail row */}
-									{row.getIsExpanded() && (
-										<TableRow>
-											<TableCell colSpan={columns.length + 1} className="p-0">
-												<SplitDetailRow
-													splitConfig={row.original as SplitWithBalance}
-												/>
+									{row.getIsExpanded() && renderDetailRow && (
+										<TableRow className="hover:bg-transparent">
+											<TableCell
+												colSpan={columns.length + 1}
+												className="p-0 w-full"
+											>
+												{renderDetailRow(row.original)}
 											</TableCell>
 										</TableRow>
 									)}
@@ -153,7 +163,7 @@ export function DataTable<TData, TValue>({
 						) : (
 							<TableRow>
 								<TableCell
-									colSpan={columns.length + 1}
+									colSpan={columns.length + (hasExpandableRows ? 1 : 0)}
 									className="h-24 text-center"
 								>
 									No results.

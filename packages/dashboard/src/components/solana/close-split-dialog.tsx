@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
-import type { SplitWithBalance } from "@/hooks/use-splits";
+import type { SplitWithBalance } from "@/hooks/use-splits-solana";
 
 import {
 	AlertDialog,

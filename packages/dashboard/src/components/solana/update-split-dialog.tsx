@@ -8,7 +8,7 @@ import {
 	type Recipient,
 	bpsToShares,
 } from "@cascade-fyi/splits-sdk";
-import type { SplitWithBalance } from "@/hooks/use-splits";
+import type { SplitWithBalance } from "@/hooks/use-splits-solana";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

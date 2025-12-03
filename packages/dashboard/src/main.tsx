@@ -9,10 +9,15 @@ import {
 	backpack,
 } from "@solana/client";
 import { SolanaProvider } from "@solana/react-hooks";
+import { WagmiProvider } from "wagmi";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ChainProvider } from "./contexts/chain-context";
+import { wagmiConfig } from "./lib/wagmi";
 import { router } from "./router";
 import "./index.css";
 
-const client = createClient({
+// Solana client configuration
+const solanaClient = createClient({
 	commitment: "confirmed",
 	endpoint:
 		import.meta.env.VITE_MAINNET_RPC || "https://api.mainnet-beta.solana.com",
@@ -26,11 +31,27 @@ const client = createClient({
 	],
 });
 
+// TanStack Query client (required by wagmi)
+const queryClient = new QueryClient({
+	defaultOptions: {
+		queries: {
+			staleTime: 5_000,
+			refetchOnWindowFocus: false,
+		},
+	},
+});
+
 // biome-ignore lint/style/noNonNullAssertion: Vite guarantees root element exists
 createRoot(document.getElementById("root")!).render(
 	<StrictMode>
-		<SolanaProvider client={client}>
-			<RouterProvider router={router} />
+		<SolanaProvider client={solanaClient}>
+			<WagmiProvider config={wagmiConfig}>
+				<QueryClientProvider client={queryClient}>
+					<ChainProvider>
+						<RouterProvider router={router} />
+					</ChainProvider>
+				</QueryClientProvider>
+			</WagmiProvider>
 		</SolanaProvider>
 	</StrictMode>,
 );
