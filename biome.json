@@ -19,6 +19,7 @@
 			"!**/idl.json",
 			"!apps/dashboard/src/components/ui",
 			"!packages/splits-sdk/src/solana/generated",
+			"!packages/tabs-sdk/src/generated",
 			"!apps/docs/.source",
 			"!apps/docs/.react-router"
 		]

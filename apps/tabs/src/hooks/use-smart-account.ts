@@ -11,7 +11,7 @@ import { useWalletConnection } from "@solana/react-hooks";
 import { toast } from "sonner";
 import {
 	type SmartAccountState,
-	fetchSmartAccountState,
+	fetchSmartAccountStateByOwner,
 	encodeApiKey,
 	buildCreateAccountTx,
 	buildDepositTx,
@@ -64,7 +64,7 @@ export function useSmartAccount(): UseSmartAccountReturn {
 		queryKey: [...QUERY_KEY, ownerAddress],
 		queryFn: () => {
 			if (!ownerAddress) return null;
-			return fetchSmartAccountState(ownerAddress);
+			return fetchSmartAccountStateByOwner(ownerAddress);
 		},
 		enabled: connected && !!ownerAddress,
 		staleTime: 30_000, // 30 seconds
