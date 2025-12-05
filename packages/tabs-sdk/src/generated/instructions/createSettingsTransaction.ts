@@ -42,15 +42,15 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 import {
   getSettingsActionDecoder,
   getSettingsActionEncoder,
   type SettingsAction,
   type SettingsActionArgs,
-} from '../types';
+} from "../types";
 
 export const CREATE_SETTINGS_TRANSACTION_DISCRIMINATOR = new Uint8Array([
   101, 168, 254, 203, 222, 102, 95, 192,
@@ -58,7 +58,7 @@ export const CREATE_SETTINGS_TRANSACTION_DISCRIMINATOR = new Uint8Array([
 
 export function getCreateSettingsTransactionDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CREATE_SETTINGS_TRANSACTION_DISCRIMINATOR
+    CREATE_SETTINGS_TRANSACTION_DISCRIMINATOR,
   );
 }
 
@@ -69,7 +69,7 @@ export type CreateSettingsTransactionInstruction<
   TAccountCreator extends string | AccountMeta<string> = string,
   TAccountRentPayer extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -110,28 +110,28 @@ export type CreateSettingsTransactionInstructionDataArgs = {
 export function getCreateSettingsTransactionInstructionDataEncoder(): Encoder<CreateSettingsTransactionInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['actions', getArrayEncoder(getSettingsActionEncoder())],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["actions", getArrayEncoder(getSettingsActionEncoder())],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
     (value) => ({
       ...value,
       discriminator: CREATE_SETTINGS_TRANSACTION_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getCreateSettingsTransactionInstructionDataDecoder(): Decoder<CreateSettingsTransactionInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['actions', getArrayDecoder(getSettingsActionDecoder())],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["actions", getArrayDecoder(getSettingsActionDecoder())],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -143,7 +143,7 @@ export function getCreateSettingsTransactionInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getCreateSettingsTransactionInstructionDataEncoder(),
-    getCreateSettingsTransactionInstructionDataDecoder()
+    getCreateSettingsTransactionInstructionDataDecoder(),
   );
 }
 
@@ -161,8 +161,8 @@ export type CreateSettingsTransactionInput<
   /** The payer for the transaction account rent. */
   rentPayer: TransactionSigner<TAccountRentPayer>;
   systemProgram?: Address<TAccountSystemProgram>;
-  actions: CreateSettingsTransactionInstructionDataArgs['actions'];
-  memo: CreateSettingsTransactionInstructionDataArgs['memo'];
+  actions: CreateSettingsTransactionInstructionDataArgs["actions"];
+  memo: CreateSettingsTransactionInstructionDataArgs["memo"];
 };
 
 export function getCreateSettingsTransactionInstruction<
@@ -181,7 +181,7 @@ export function getCreateSettingsTransactionInstruction<
     TAccountRentPayer,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CreateSettingsTransactionInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -213,10 +213,10 @@ export function getCreateSettingsTransactionInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -226,7 +226,7 @@ export function getCreateSettingsTransactionInstruction<
       getAccountMeta(accounts.systemProgram),
     ],
     data: getCreateSettingsTransactionInstructionDataEncoder().encode(
-      args as CreateSettingsTransactionInstructionDataArgs
+      args as CreateSettingsTransactionInstructionDataArgs,
     ),
     programAddress,
   } as CreateSettingsTransactionInstruction<
@@ -262,11 +262,11 @@ export function parseCreateSettingsTransactionInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateSettingsTransactionInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -284,7 +284,7 @@ export function parseCreateSettingsTransactionInstruction<
       systemProgram: getNextAccount(),
     },
     data: getCreateSettingsTransactionInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

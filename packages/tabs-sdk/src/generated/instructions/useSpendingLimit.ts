@@ -43,9 +43,9 @@ import {
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const USE_SPENDING_LIMIT_DISCRIMINATOR = new Uint8Array([
   41, 179, 70, 5, 194, 147, 239, 158,
@@ -53,7 +53,7 @@ export const USE_SPENDING_LIMIT_DISCRIMINATOR = new Uint8Array([
 
 export function getUseSpendingLimitDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    USE_SPENDING_LIMIT_DISCRIMINATOR
+    USE_SPENDING_LIMIT_DISCRIMINATOR,
   );
 }
 
@@ -136,27 +136,27 @@ export type UseSpendingLimitInstructionDataArgs = {
 export function getUseSpendingLimitInstructionDataEncoder(): Encoder<UseSpendingLimitInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['amount', getU64Encoder()],
-      ['decimals', getU8Encoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["amount", getU64Encoder()],
+      ["decimals", getU8Encoder()],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
-    (value) => ({ ...value, discriminator: USE_SPENDING_LIMIT_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: USE_SPENDING_LIMIT_DISCRIMINATOR }),
   );
 }
 
 export function getUseSpendingLimitInstructionDataDecoder(): Decoder<UseSpendingLimitInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['amount', getU64Decoder()],
-    ['decimals', getU8Decoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["amount", getU64Decoder()],
+    ["decimals", getU8Decoder()],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -168,7 +168,7 @@ export function getUseSpendingLimitInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getUseSpendingLimitInstructionDataEncoder(),
-    getUseSpendingLimitInstructionDataDecoder()
+    getUseSpendingLimitInstructionDataDecoder(),
   );
 }
 
@@ -205,9 +205,9 @@ export type UseSpendingLimitInput<
   /** In case `spending_limit.mint` is an SPL token. */
   tokenProgram?: Address<TAccountTokenProgram>;
   program: Address<TAccountProgram>;
-  amount: UseSpendingLimitInstructionDataArgs['amount'];
-  decimals: UseSpendingLimitInstructionDataArgs['decimals'];
-  memo: UseSpendingLimitInstructionDataArgs['memo'];
+  amount: UseSpendingLimitInstructionDataArgs["amount"];
+  decimals: UseSpendingLimitInstructionDataArgs["decimals"];
+  memo: UseSpendingLimitInstructionDataArgs["memo"];
 };
 
 export function getUseSpendingLimitInstruction<
@@ -238,7 +238,7 @@ export function getUseSpendingLimitInstruction<
     TAccountTokenProgram,
     TAccountProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): UseSpendingLimitInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -285,7 +285,7 @@ export function getUseSpendingLimitInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -301,7 +301,7 @@ export function getUseSpendingLimitInstruction<
       getAccountMeta(accounts.program),
     ],
     data: getUseSpendingLimitInstructionDataEncoder().encode(
-      args as UseSpendingLimitInstructionDataArgs
+      args as UseSpendingLimitInstructionDataArgs,
     ),
     programAddress,
   } as UseSpendingLimitInstruction<
@@ -356,11 +356,11 @@ export function parseUseSpendingLimitInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedUseSpendingLimitInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 11) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {

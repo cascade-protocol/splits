@@ -28,7 +28,7 @@ import {
   type Option,
   type OptionOrNullable,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from "@solana/kit";
 
 export type CreateTransactionArgs = {
   /** Index of the smart account this transaction belongs to. */
@@ -50,14 +50,14 @@ export type CreateTransactionArgsArgs = {
 
 export function getCreateTransactionArgsEncoder(): Encoder<CreateTransactionArgsArgs> {
   return getStructEncoder([
-    ['accountIndex', getU8Encoder()],
-    ['ephemeralSigners', getU8Encoder()],
+    ["accountIndex", getU8Encoder()],
+    ["ephemeralSigners", getU8Encoder()],
     [
-      'transactionMessage',
+      "transactionMessage",
       addEncoderSizePrefix(getBytesEncoder(), getU32Encoder()),
     ],
     [
-      'memo',
+      "memo",
       getOptionEncoder(addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())),
     ],
   ]);
@@ -65,14 +65,14 @@ export function getCreateTransactionArgsEncoder(): Encoder<CreateTransactionArgs
 
 export function getCreateTransactionArgsDecoder(): Decoder<CreateTransactionArgs> {
   return getStructDecoder([
-    ['accountIndex', getU8Decoder()],
-    ['ephemeralSigners', getU8Decoder()],
+    ["accountIndex", getU8Decoder()],
+    ["ephemeralSigners", getU8Decoder()],
     [
-      'transactionMessage',
+      "transactionMessage",
       addDecoderSizePrefix(getBytesDecoder(), getU32Decoder()),
     ],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -84,6 +84,6 @@ export function getCreateTransactionArgsCodec(): Codec<
 > {
   return combineCodec(
     getCreateTransactionArgsEncoder(),
-    getCreateTransactionArgsDecoder()
+    getCreateTransactionArgsDecoder(),
   );
 }

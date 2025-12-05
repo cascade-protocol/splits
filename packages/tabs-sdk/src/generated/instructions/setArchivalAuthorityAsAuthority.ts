@@ -42,17 +42,17 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const SET_ARCHIVAL_AUTHORITY_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array(
-  [178, 199, 4, 13, 237, 234, 152, 202]
+  [178, 199, 4, 13, 237, 234, 152, 202],
 );
 
 export function getSetArchivalAuthorityAsAuthorityDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    SET_ARCHIVAL_AUTHORITY_AS_AUTHORITY_DISCRIMINATOR
+    SET_ARCHIVAL_AUTHORITY_AS_AUTHORITY_DISCRIMINATOR,
   );
 }
 
@@ -105,28 +105,28 @@ export type SetArchivalAuthorityAsAuthorityInstructionDataArgs = {
 export function getSetArchivalAuthorityAsAuthorityInstructionDataEncoder(): Encoder<SetArchivalAuthorityAsAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['newArchivalAuthority', getOptionEncoder(getAddressEncoder())],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["newArchivalAuthority", getOptionEncoder(getAddressEncoder())],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
     (value) => ({
       ...value,
       discriminator: SET_ARCHIVAL_AUTHORITY_AS_AUTHORITY_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getSetArchivalAuthorityAsAuthorityInstructionDataDecoder(): Decoder<SetArchivalAuthorityAsAuthorityInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['newArchivalAuthority', getOptionDecoder(getAddressDecoder())],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["newArchivalAuthority", getOptionDecoder(getAddressDecoder())],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -138,7 +138,7 @@ export function getSetArchivalAuthorityAsAuthorityInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getSetArchivalAuthorityAsAuthorityInstructionDataEncoder(),
-    getSetArchivalAuthorityAsAuthorityInstructionDataDecoder()
+    getSetArchivalAuthorityAsAuthorityInstructionDataDecoder(),
   );
 }
 
@@ -161,8 +161,8 @@ export type SetArchivalAuthorityAsAuthorityInput<
   /** We might need it in case reallocation is needed. */
   systemProgram?: Address<TAccountSystemProgram>;
   program: Address<TAccountProgram>;
-  newArchivalAuthority: SetArchivalAuthorityAsAuthorityInstructionDataArgs['newArchivalAuthority'];
-  memo: SetArchivalAuthorityAsAuthorityInstructionDataArgs['memo'];
+  newArchivalAuthority: SetArchivalAuthorityAsAuthorityInstructionDataArgs["newArchivalAuthority"];
+  memo: SetArchivalAuthorityAsAuthorityInstructionDataArgs["memo"];
 };
 
 export function getSetArchivalAuthorityAsAuthorityInstruction<
@@ -181,7 +181,7 @@ export function getSetArchivalAuthorityAsAuthorityInstruction<
     TAccountSystemProgram,
     TAccountProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): SetArchivalAuthorityAsAuthorityInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -213,7 +213,7 @@ export function getSetArchivalAuthorityAsAuthorityInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -223,7 +223,7 @@ export function getSetArchivalAuthorityAsAuthorityInstruction<
       getAccountMeta(accounts.program),
     ],
     data: getSetArchivalAuthorityAsAuthorityInstructionDataEncoder().encode(
-      args as SetArchivalAuthorityAsAuthorityInstructionDataArgs
+      args as SetArchivalAuthorityAsAuthorityInstructionDataArgs,
     ),
     programAddress,
   } as SetArchivalAuthorityAsAuthorityInstruction<
@@ -264,11 +264,11 @@ export function parseSetArchivalAuthorityAsAuthorityInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetArchivalAuthorityAsAuthorityInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -292,7 +292,7 @@ export function parseSetArchivalAuthorityAsAuthorityInstruction<
       program: getNextAccount(),
     },
     data: getSetArchivalAuthorityAsAuthorityInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

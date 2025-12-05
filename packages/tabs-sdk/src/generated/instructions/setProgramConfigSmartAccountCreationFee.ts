@@ -30,16 +30,16 @@ import {
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const SET_PROGRAM_CONFIG_SMART_ACCOUNT_CREATION_FEE_DISCRIMINATOR =
   new Uint8Array([222, 30, 134, 176, 131, 113, 195, 202]);
 
 export function getSetProgramConfigSmartAccountCreationFeeDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    SET_PROGRAM_CONFIG_SMART_ACCOUNT_CREATION_FEE_DISCRIMINATOR
+    SET_PROGRAM_CONFIG_SMART_ACCOUNT_CREATION_FEE_DISCRIMINATOR,
   );
 }
 
@@ -75,21 +75,21 @@ export type SetProgramConfigSmartAccountCreationFeeInstructionDataArgs = {
 export function getSetProgramConfigSmartAccountCreationFeeInstructionDataEncoder(): FixedSizeEncoder<SetProgramConfigSmartAccountCreationFeeInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['newSmartAccountCreationFee', getU64Encoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["newSmartAccountCreationFee", getU64Encoder()],
     ]),
     (value) => ({
       ...value,
       discriminator:
         SET_PROGRAM_CONFIG_SMART_ACCOUNT_CREATION_FEE_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getSetProgramConfigSmartAccountCreationFeeInstructionDataDecoder(): FixedSizeDecoder<SetProgramConfigSmartAccountCreationFeeInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['newSmartAccountCreationFee', getU64Decoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["newSmartAccountCreationFee", getU64Decoder()],
   ]);
 }
 
@@ -99,7 +99,7 @@ export function getSetProgramConfigSmartAccountCreationFeeInstructionDataCodec()
 > {
   return combineCodec(
     getSetProgramConfigSmartAccountCreationFeeInstructionDataEncoder(),
-    getSetProgramConfigSmartAccountCreationFeeInstructionDataDecoder()
+    getSetProgramConfigSmartAccountCreationFeeInstructionDataDecoder(),
   );
 }
 
@@ -109,7 +109,7 @@ export type SetProgramConfigSmartAccountCreationFeeInput<
 > = {
   programConfig: Address<TAccountProgramConfig>;
   authority: TransactionSigner<TAccountAuthority>;
-  newSmartAccountCreationFee: SetProgramConfigSmartAccountCreationFeeInstructionDataArgs['newSmartAccountCreationFee'];
+  newSmartAccountCreationFee: SetProgramConfigSmartAccountCreationFeeInstructionDataArgs["newSmartAccountCreationFee"];
 };
 
 export function getSetProgramConfigSmartAccountCreationFeeInstruction<
@@ -122,7 +122,7 @@ export function getSetProgramConfigSmartAccountCreationFeeInstruction<
     TAccountProgramConfig,
     TAccountAuthority
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): SetProgramConfigSmartAccountCreationFeeInstruction<
   TProgramAddress,
   TAccountProgramConfig,
@@ -145,14 +145,14 @@ export function getSetProgramConfigSmartAccountCreationFeeInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.programConfig),
       getAccountMeta(accounts.authority),
     ],
     data: getSetProgramConfigSmartAccountCreationFeeInstructionDataEncoder().encode(
-      args as SetProgramConfigSmartAccountCreationFeeInstructionDataArgs
+      args as SetProgramConfigSmartAccountCreationFeeInstructionDataArgs,
     ),
     programAddress,
   } as SetProgramConfigSmartAccountCreationFeeInstruction<
@@ -180,14 +180,14 @@ export function parseSetProgramConfigSmartAccountCreationFeeInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetProgramConfigSmartAccountCreationFeeInstruction<
   TProgram,
   TAccountMetas
 > {
   if (instruction.accounts.length < 2) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -199,7 +199,7 @@ export function parseSetProgramConfigSmartAccountCreationFeeInstruction<
     programAddress: instruction.programAddress,
     accounts: { programConfig: getNextAccount(), authority: getNextAccount() },
     data: getSetProgramConfigSmartAccountCreationFeeInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

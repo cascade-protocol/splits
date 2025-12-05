@@ -42,16 +42,16 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const SET_NEW_SETTINGS_AUTHORITY_AS_AUTHORITY_DISCRIMINATOR =
   new Uint8Array([221, 112, 133, 229, 146, 58, 90, 56]);
 
 export function getSetNewSettingsAuthorityAsAuthorityDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    SET_NEW_SETTINGS_AUTHORITY_AS_AUTHORITY_DISCRIMINATOR
+    SET_NEW_SETTINGS_AUTHORITY_AS_AUTHORITY_DISCRIMINATOR,
   );
 }
 
@@ -104,28 +104,28 @@ export type SetNewSettingsAuthorityAsAuthorityInstructionDataArgs = {
 export function getSetNewSettingsAuthorityAsAuthorityInstructionDataEncoder(): Encoder<SetNewSettingsAuthorityAsAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['newSettingsAuthority', getAddressEncoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["newSettingsAuthority", getAddressEncoder()],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
     (value) => ({
       ...value,
       discriminator: SET_NEW_SETTINGS_AUTHORITY_AS_AUTHORITY_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getSetNewSettingsAuthorityAsAuthorityInstructionDataDecoder(): Decoder<SetNewSettingsAuthorityAsAuthorityInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['newSettingsAuthority', getAddressDecoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["newSettingsAuthority", getAddressDecoder()],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -137,7 +137,7 @@ export function getSetNewSettingsAuthorityAsAuthorityInstructionDataCodec(): Cod
 > {
   return combineCodec(
     getSetNewSettingsAuthorityAsAuthorityInstructionDataEncoder(),
-    getSetNewSettingsAuthorityAsAuthorityInstructionDataDecoder()
+    getSetNewSettingsAuthorityAsAuthorityInstructionDataDecoder(),
   );
 }
 
@@ -160,8 +160,8 @@ export type SetNewSettingsAuthorityAsAuthorityInput<
   /** We might need it in case reallocation is needed. */
   systemProgram?: Address<TAccountSystemProgram>;
   program: Address<TAccountProgram>;
-  newSettingsAuthority: SetNewSettingsAuthorityAsAuthorityInstructionDataArgs['newSettingsAuthority'];
-  memo: SetNewSettingsAuthorityAsAuthorityInstructionDataArgs['memo'];
+  newSettingsAuthority: SetNewSettingsAuthorityAsAuthorityInstructionDataArgs["newSettingsAuthority"];
+  memo: SetNewSettingsAuthorityAsAuthorityInstructionDataArgs["memo"];
 };
 
 export function getSetNewSettingsAuthorityAsAuthorityInstruction<
@@ -180,7 +180,7 @@ export function getSetNewSettingsAuthorityAsAuthorityInstruction<
     TAccountSystemProgram,
     TAccountProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): SetNewSettingsAuthorityAsAuthorityInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -212,7 +212,7 @@ export function getSetNewSettingsAuthorityAsAuthorityInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -222,7 +222,7 @@ export function getSetNewSettingsAuthorityAsAuthorityInstruction<
       getAccountMeta(accounts.program),
     ],
     data: getSetNewSettingsAuthorityAsAuthorityInstructionDataEncoder().encode(
-      args as SetNewSettingsAuthorityAsAuthorityInstructionDataArgs
+      args as SetNewSettingsAuthorityAsAuthorityInstructionDataArgs,
     ),
     programAddress,
   } as SetNewSettingsAuthorityAsAuthorityInstruction<
@@ -263,14 +263,14 @@ export function parseSetNewSettingsAuthorityAsAuthorityInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetNewSettingsAuthorityAsAuthorityInstruction<
   TProgram,
   TAccountMetas
 > {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -294,7 +294,7 @@ export function parseSetNewSettingsAuthorityAsAuthorityInstruction<
       program: getNextAccount(),
     },
     data: getSetNewSettingsAuthorityAsAuthorityInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

@@ -1,3 +1,9 @@
+// BigInt JSON serialization polyfill - required for @solana/kit RPC calls
+// biome-ignore lint/suspicious/noExplicitAny: polyfill for JSON.stringify
+(BigInt.prototype as any).toJSON = function () {
+	return this.toString();
+};
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";

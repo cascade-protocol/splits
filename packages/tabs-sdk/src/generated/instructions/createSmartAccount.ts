@@ -45,15 +45,15 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 import {
   getSmartAccountSignerDecoder,
   getSmartAccountSignerEncoder,
   type SmartAccountSigner,
   type SmartAccountSignerArgs,
-} from '../types';
+} from "../types";
 
 export const CREATE_SMART_ACCOUNT_DISCRIMINATOR = new Uint8Array([
   197, 102, 253, 231, 77, 84, 50, 17,
@@ -61,7 +61,7 @@ export const CREATE_SMART_ACCOUNT_DISCRIMINATOR = new Uint8Array([
 
 export function getCreateSmartAccountDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CREATE_SMART_ACCOUNT_DISCRIMINATOR
+    CREATE_SMART_ACCOUNT_DISCRIMINATOR,
   );
 }
 
@@ -71,7 +71,7 @@ export type CreateSmartAccountInstruction<
   TAccountTreasury extends string | AccountMeta<string> = string,
   TAccountCreator extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TAccountProgram extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
@@ -144,33 +144,36 @@ export type CreateSmartAccountInstructionDataArgs = {
 export function getCreateSmartAccountInstructionDataEncoder(): Encoder<CreateSmartAccountInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['settingsAuthority', getOptionEncoder(getAddressEncoder())],
-      ['threshold', getU16Encoder()],
-      ['signers', getArrayEncoder(getSmartAccountSignerEncoder())],
-      ['timeLock', getU32Encoder()],
-      ['rentCollector', getOptionEncoder(getAddressEncoder())],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["settingsAuthority", getOptionEncoder(getAddressEncoder())],
+      ["threshold", getU16Encoder()],
+      ["signers", getArrayEncoder(getSmartAccountSignerEncoder())],
+      ["timeLock", getU32Encoder()],
+      ["rentCollector", getOptionEncoder(getAddressEncoder())],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
-    (value) => ({ ...value, discriminator: CREATE_SMART_ACCOUNT_DISCRIMINATOR })
+    (value) => ({
+      ...value,
+      discriminator: CREATE_SMART_ACCOUNT_DISCRIMINATOR,
+    }),
   );
 }
 
 export function getCreateSmartAccountInstructionDataDecoder(): Decoder<CreateSmartAccountInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['settingsAuthority', getOptionDecoder(getAddressDecoder())],
-    ['threshold', getU16Decoder()],
-    ['signers', getArrayDecoder(getSmartAccountSignerDecoder())],
-    ['timeLock', getU32Decoder()],
-    ['rentCollector', getOptionDecoder(getAddressDecoder())],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["settingsAuthority", getOptionDecoder(getAddressDecoder())],
+    ["threshold", getU16Decoder()],
+    ["signers", getArrayDecoder(getSmartAccountSignerDecoder())],
+    ["timeLock", getU32Decoder()],
+    ["rentCollector", getOptionDecoder(getAddressDecoder())],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -182,7 +185,7 @@ export function getCreateSmartAccountInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getCreateSmartAccountInstructionDataEncoder(),
-    getCreateSmartAccountInstructionDataDecoder()
+    getCreateSmartAccountInstructionDataDecoder(),
   );
 }
 
@@ -201,12 +204,12 @@ export type CreateSmartAccountInput<
   creator: TransactionSigner<TAccountCreator>;
   systemProgram?: Address<TAccountSystemProgram>;
   program: Address<TAccountProgram>;
-  settingsAuthority: CreateSmartAccountInstructionDataArgs['settingsAuthority'];
-  threshold: CreateSmartAccountInstructionDataArgs['threshold'];
-  signers: CreateSmartAccountInstructionDataArgs['signers'];
-  timeLock: CreateSmartAccountInstructionDataArgs['timeLock'];
-  rentCollector: CreateSmartAccountInstructionDataArgs['rentCollector'];
-  memo: CreateSmartAccountInstructionDataArgs['memo'];
+  settingsAuthority: CreateSmartAccountInstructionDataArgs["settingsAuthority"];
+  threshold: CreateSmartAccountInstructionDataArgs["threshold"];
+  signers: CreateSmartAccountInstructionDataArgs["signers"];
+  timeLock: CreateSmartAccountInstructionDataArgs["timeLock"];
+  rentCollector: CreateSmartAccountInstructionDataArgs["rentCollector"];
+  memo: CreateSmartAccountInstructionDataArgs["memo"];
 };
 
 export function getCreateSmartAccountInstruction<
@@ -225,7 +228,7 @@ export function getCreateSmartAccountInstruction<
     TAccountSystemProgram,
     TAccountProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CreateSmartAccountInstruction<
   TProgramAddress,
   TAccountProgramConfig,
@@ -257,10 +260,10 @@ export function getCreateSmartAccountInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.programConfig),
@@ -270,7 +273,7 @@ export function getCreateSmartAccountInstruction<
       getAccountMeta(accounts.program),
     ],
     data: getCreateSmartAccountInstructionDataEncoder().encode(
-      args as CreateSmartAccountInstructionDataArgs
+      args as CreateSmartAccountInstructionDataArgs,
     ),
     programAddress,
   } as CreateSmartAccountInstruction<
@@ -307,11 +310,11 @@ export function parseCreateSmartAccountInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateSmartAccountInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -329,7 +332,7 @@ export function parseCreateSmartAccountInstruction<
       program: getNextAccount(),
     },
     data: getCreateSmartAccountInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

@@ -1,75 +1,78 @@
-# React + TypeScript + Vite
+# Cascade Tabs
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Non-custodial smart account management for API-based USDC spending.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Create Squads smart accounts with 1-of-1 threshold
+- Deposit/withdraw USDC to/from vault
+- Configure spending limits for API key access
+- Generate API keys for third-party facilitators
 
-## React Compiler
+## Setup
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+1. Install dependencies:
+   ```bash
+   pnpm install
+   ```
 
-Note: This will impact Vite dev & build performances.
+2. Configure environment:
+   ```bash
+   cp .env.example .env
+   ```
 
-## Expanding the ESLint configuration
+3. Set required variables in `.env`:
+   - `VITE_MAINNET_RPC` - Solana RPC endpoint
+   - `VITE_MAINNET_WS` - Solana WebSocket endpoint
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+4. Start development server:
+   ```bash
+   pnpm dev
+   ```
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Deployment
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Build and deploy to Cloudflare Workers:
+```bash
+pnpm build && pnpm deploy
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Worker Configuration
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Set secrets via Wrangler:
+```bash
+wrangler secret put HELIUS_RPC_URL
+wrangler secret put EXECUTOR_KEY
 ```
+
+Monitor deployed worker:
+```bash
+npx wrangler tail
+```
+
+## Worker API Endpoints
+
+- `GET /api/health` - Health check
+- `POST /api/verify` - Verify spending limit for payment
+- `POST /api/settle` - Execute payment from spending limit
+
+## Architecture
+
+- **React 19** + Vite + React Compiler
+- **TanStack Query** for server state
+- **Tailwind v4** + shadcn/ui
+- **@solana/react-hooks** (framework-kit v1)
+- **@cascade-fyi/tabs-sdk** for Squads integration
+
+## How It Works
+
+1. **Create Account** - User creates a Squads smart account with themselves as owner
+2. **Deposit** - Transfer USDC from wallet to the smart account vault
+3. **Set Spending Limit** - Configure how much the facilitator can spend per day/transaction
+4. **Get API Key** - Generated key encodes the smart account and spending limit addresses
+5. **Use API Key** - Third-party services use the key to execute payments within limits
+6. **Withdraw** - Owner can withdraw funds at any time
+
+## License
+
+MIT

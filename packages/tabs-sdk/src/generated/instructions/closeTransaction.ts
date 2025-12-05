@@ -26,9 +26,9 @@ import {
   type ReadonlyAccount,
   type ReadonlyUint8Array,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const CLOSE_TRANSACTION_DISCRIMINATOR = new Uint8Array([
   97, 46, 152, 170, 42, 215, 192, 218,
@@ -36,7 +36,7 @@ export const CLOSE_TRANSACTION_DISCRIMINATOR = new Uint8Array([
 
 export function getCloseTransactionDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CLOSE_TRANSACTION_DISCRIMINATOR
+    CLOSE_TRANSACTION_DISCRIMINATOR,
   );
 }
 
@@ -49,7 +49,7 @@ export type CloseTransactionInstruction<
   TAccountTransactionRentCollector extends string | AccountMeta<string> =
     string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -85,14 +85,14 @@ export type CloseTransactionInstructionDataArgs = {};
 
 export function getCloseTransactionInstructionDataEncoder(): FixedSizeEncoder<CloseTransactionInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]),
-    (value) => ({ ...value, discriminator: CLOSE_TRANSACTION_DISCRIMINATOR })
+    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
+    (value) => ({ ...value, discriminator: CLOSE_TRANSACTION_DISCRIMINATOR }),
   );
 }
 
 export function getCloseTransactionInstructionDataDecoder(): FixedSizeDecoder<CloseTransactionInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
   ]);
 }
 
@@ -102,7 +102,7 @@ export function getCloseTransactionInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getCloseTransactionInstructionDataEncoder(),
-    getCloseTransactionInstructionDataDecoder()
+    getCloseTransactionInstructionDataDecoder(),
   );
 }
 
@@ -144,7 +144,7 @@ export function getCloseTransactionInstruction<
     TAccountTransactionRentCollector,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CloseTransactionInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -181,10 +181,10 @@ export function getCloseTransactionInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -233,11 +233,11 @@ export function parseCloseTransactionInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCloseTransactionInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 6) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {

@@ -29,15 +29,15 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 import {
   getVoteOnProposalArgsDecoder,
   getVoteOnProposalArgsEncoder,
   type VoteOnProposalArgs,
   type VoteOnProposalArgsArgs,
-} from '../types';
+} from "../types";
 
 export const APPROVE_PROPOSAL_DISCRIMINATOR = new Uint8Array([
   136, 108, 102, 85, 98, 114, 7, 147,
@@ -45,7 +45,7 @@ export const APPROVE_PROPOSAL_DISCRIMINATOR = new Uint8Array([
 
 export function getApproveProposalDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    APPROVE_PROPOSAL_DISCRIMINATOR
+    APPROVE_PROPOSAL_DISCRIMINATOR,
   );
 }
 
@@ -89,17 +89,17 @@ export type ApproveProposalInstructionDataArgs = {
 export function getApproveProposalInstructionDataEncoder(): Encoder<ApproveProposalInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['args', getVoteOnProposalArgsEncoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["args", getVoteOnProposalArgsEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: APPROVE_PROPOSAL_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: APPROVE_PROPOSAL_DISCRIMINATOR }),
   );
 }
 
 export function getApproveProposalInstructionDataDecoder(): Decoder<ApproveProposalInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['args', getVoteOnProposalArgsDecoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["args", getVoteOnProposalArgsDecoder()],
   ]);
 }
 
@@ -109,7 +109,7 @@ export function getApproveProposalInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getApproveProposalInstructionDataEncoder(),
-    getApproveProposalInstructionDataDecoder()
+    getApproveProposalInstructionDataDecoder(),
   );
 }
 
@@ -123,7 +123,7 @@ export type ApproveProposalInput<
   signer: TransactionSigner<TAccountSigner>;
   proposal: Address<TAccountProposal>;
   systemProgram?: Address<TAccountSystemProgram>;
-  args: ApproveProposalInstructionDataArgs['args'];
+  args: ApproveProposalInstructionDataArgs["args"];
 };
 
 export function getApproveProposalInstruction<
@@ -140,7 +140,7 @@ export function getApproveProposalInstruction<
     TAccountProposal,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): ApproveProposalInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -167,7 +167,7 @@ export function getApproveProposalInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -176,7 +176,7 @@ export function getApproveProposalInstruction<
       getAccountMeta(accounts.systemProgram),
     ],
     data: getApproveProposalInstructionDataEncoder().encode(
-      args as ApproveProposalInstructionDataArgs
+      args as ApproveProposalInstructionDataArgs,
     ),
     programAddress,
   } as ApproveProposalInstruction<
@@ -208,11 +208,11 @@ export function parseApproveProposalInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedApproveProposalInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 4) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {

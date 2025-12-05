@@ -42,9 +42,9 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const CHANGE_THRESHOLD_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
   51, 141, 78, 133, 70, 47, 95, 124,
@@ -52,7 +52,7 @@ export const CHANGE_THRESHOLD_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
 
 export function getChangeThresholdAsAuthorityDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CHANGE_THRESHOLD_AS_AUTHORITY_DISCRIMINATOR
+    CHANGE_THRESHOLD_AS_AUTHORITY_DISCRIMINATOR,
   );
 }
 
@@ -105,28 +105,28 @@ export type ChangeThresholdAsAuthorityInstructionDataArgs = {
 export function getChangeThresholdAsAuthorityInstructionDataEncoder(): Encoder<ChangeThresholdAsAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['newThreshold', getU16Encoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["newThreshold", getU16Encoder()],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
     (value) => ({
       ...value,
       discriminator: CHANGE_THRESHOLD_AS_AUTHORITY_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getChangeThresholdAsAuthorityInstructionDataDecoder(): Decoder<ChangeThresholdAsAuthorityInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['newThreshold', getU16Decoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["newThreshold", getU16Decoder()],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -138,7 +138,7 @@ export function getChangeThresholdAsAuthorityInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getChangeThresholdAsAuthorityInstructionDataEncoder(),
-    getChangeThresholdAsAuthorityInstructionDataDecoder()
+    getChangeThresholdAsAuthorityInstructionDataDecoder(),
   );
 }
 
@@ -161,8 +161,8 @@ export type ChangeThresholdAsAuthorityInput<
   /** We might need it in case reallocation is needed. */
   systemProgram?: Address<TAccountSystemProgram>;
   program: Address<TAccountProgram>;
-  newThreshold: ChangeThresholdAsAuthorityInstructionDataArgs['newThreshold'];
-  memo: ChangeThresholdAsAuthorityInstructionDataArgs['memo'];
+  newThreshold: ChangeThresholdAsAuthorityInstructionDataArgs["newThreshold"];
+  memo: ChangeThresholdAsAuthorityInstructionDataArgs["memo"];
 };
 
 export function getChangeThresholdAsAuthorityInstruction<
@@ -181,7 +181,7 @@ export function getChangeThresholdAsAuthorityInstruction<
     TAccountSystemProgram,
     TAccountProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): ChangeThresholdAsAuthorityInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -213,7 +213,7 @@ export function getChangeThresholdAsAuthorityInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -223,7 +223,7 @@ export function getChangeThresholdAsAuthorityInstruction<
       getAccountMeta(accounts.program),
     ],
     data: getChangeThresholdAsAuthorityInstructionDataEncoder().encode(
-      args as ChangeThresholdAsAuthorityInstructionDataArgs
+      args as ChangeThresholdAsAuthorityInstructionDataArgs,
     ),
     programAddress,
   } as ChangeThresholdAsAuthorityInstruction<
@@ -264,11 +264,11 @@ export function parseChangeThresholdAsAuthorityInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedChangeThresholdAsAuthorityInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -292,7 +292,7 @@ export function parseChangeThresholdAsAuthorityInstruction<
       program: getNextAccount(),
     },
     data: getChangeThresholdAsAuthorityInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

@@ -35,9 +35,9 @@ import {
   type ReadonlySignerAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const LOG_EVENT_DISCRIMINATOR = new Uint8Array([
   5, 9, 90, 141, 223, 134, 57, 217,
@@ -79,29 +79,29 @@ export type LogEventInstructionDataArgs = {
 export function getLogEventInstructionDataEncoder(): Encoder<LogEventInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       [
-        'accountSeeds',
+        "accountSeeds",
         getArrayEncoder(
-          addEncoderSizePrefix(getBytesEncoder(), getU32Encoder())
+          addEncoderSizePrefix(getBytesEncoder(), getU32Encoder()),
         ),
       ],
-      ['bump', getU8Encoder()],
-      ['event', addEncoderSizePrefix(getBytesEncoder(), getU32Encoder())],
+      ["bump", getU8Encoder()],
+      ["event", addEncoderSizePrefix(getBytesEncoder(), getU32Encoder())],
     ]),
-    (value) => ({ ...value, discriminator: LOG_EVENT_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: LOG_EVENT_DISCRIMINATOR }),
   );
 }
 
 export function getLogEventInstructionDataDecoder(): Decoder<LogEventInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
     [
-      'accountSeeds',
+      "accountSeeds",
       getArrayDecoder(addDecoderSizePrefix(getBytesDecoder(), getU32Decoder())),
     ],
-    ['bump', getU8Decoder()],
-    ['event', addDecoderSizePrefix(getBytesDecoder(), getU32Decoder())],
+    ["bump", getU8Decoder()],
+    ["event", addDecoderSizePrefix(getBytesDecoder(), getU32Decoder())],
   ]);
 }
 
@@ -111,15 +111,15 @@ export function getLogEventInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getLogEventInstructionDataEncoder(),
-    getLogEventInstructionDataDecoder()
+    getLogEventInstructionDataDecoder(),
   );
 }
 
 export type LogEventInput<TAccountLogAuthority extends string = string> = {
   logAuthority: TransactionSigner<TAccountLogAuthority>;
-  accountSeeds: LogEventInstructionDataArgs['accountSeeds'];
-  bump: LogEventInstructionDataArgs['bump'];
-  event: LogEventInstructionDataArgs['event'];
+  accountSeeds: LogEventInstructionDataArgs["accountSeeds"];
+  bump: LogEventInstructionDataArgs["bump"];
+  event: LogEventInstructionDataArgs["event"];
 };
 
 export function getLogEventInstruction<
@@ -128,7 +128,7 @@ export function getLogEventInstruction<
     typeof SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS,
 >(
   input: LogEventInput<TAccountLogAuthority>,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): LogEventInstruction<TProgramAddress, TAccountLogAuthority> {
   // Program address.
   const programAddress =
@@ -146,11 +146,11 @@ export function getLogEventInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [getAccountMeta(accounts.logAuthority)],
     data: getLogEventInstructionDataEncoder().encode(
-      args as LogEventInstructionDataArgs
+      args as LogEventInstructionDataArgs,
     ),
     programAddress,
   } as LogEventInstruction<TProgramAddress, TAccountLogAuthority>);
@@ -173,11 +173,11 @@ export function parseLogEventInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedLogEventInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 1) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {

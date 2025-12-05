@@ -11,8 +11,8 @@ import {
   type Address,
   type SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
   type SolanaError,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
 
 /** AccountNotEmpty: Account is not empty */
 export const SQUADS_SMART_ACCOUNT_PROGRAM_ERROR__ACCOUNT_NOT_EMPTY = 0x1770; // 6000
@@ -182,7 +182,7 @@ export type SquadsSmartAccountProgramError =
 let squadsSmartAccountProgramErrorMessages:
   | Record<SquadsSmartAccountProgramError, string>
   | undefined;
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== "production") {
   squadsSmartAccountProgramErrorMessages = {
     [SQUADS_SMART_ACCOUNT_PROGRAM_ERROR__ACCOUNT_NOT_EMPTY]: `Account is not empty`,
     [SQUADS_SMART_ACCOUNT_PROGRAM_ERROR__ALREADY_APPROVED]: `Signer already approved the transaction`,
@@ -242,9 +242,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export function getSquadsSmartAccountProgramErrorMessage(
-  code: SquadsSmartAccountProgramError
+  code: SquadsSmartAccountProgramError,
 ): string {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== "production") {
     return (
       squadsSmartAccountProgramErrorMessages as Record<
         SquadsSmartAccountProgramError,
@@ -253,7 +253,7 @@ export function getSquadsSmartAccountProgramErrorMessage(
     )[code];
   }
 
-  return 'Error message not available in production bundles.';
+  return "Error message not available in production bundles.";
 }
 
 export function isSquadsSmartAccountProgramError<
@@ -263,13 +263,13 @@ export function isSquadsSmartAccountProgramError<
   transactionMessage: {
     instructions: Record<number, { programAddress: Address }>;
   },
-  code?: TProgramErrorCode
+  code?: TProgramErrorCode,
 ): error is SolanaError<typeof SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM> &
   Readonly<{ context: Readonly<{ code: TProgramErrorCode }> }> {
   return isProgramError<TProgramErrorCode>(
     error,
     transactionMessage,
     SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS,
-    code
+    code,
   );
 }

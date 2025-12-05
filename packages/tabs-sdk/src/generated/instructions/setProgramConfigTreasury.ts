@@ -30,9 +30,9 @@ import {
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const SET_PROGRAM_CONFIG_TREASURY_DISCRIMINATOR = new Uint8Array([
   244, 119, 192, 190, 182, 101, 227, 189,
@@ -40,7 +40,7 @@ export const SET_PROGRAM_CONFIG_TREASURY_DISCRIMINATOR = new Uint8Array([
 
 export function getSetProgramConfigTreasuryDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    SET_PROGRAM_CONFIG_TREASURY_DISCRIMINATOR
+    SET_PROGRAM_CONFIG_TREASURY_DISCRIMINATOR,
   );
 }
 
@@ -76,20 +76,20 @@ export type SetProgramConfigTreasuryInstructionDataArgs = {
 export function getSetProgramConfigTreasuryInstructionDataEncoder(): FixedSizeEncoder<SetProgramConfigTreasuryInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['newTreasury', getAddressEncoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["newTreasury", getAddressEncoder()],
     ]),
     (value) => ({
       ...value,
       discriminator: SET_PROGRAM_CONFIG_TREASURY_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getSetProgramConfigTreasuryInstructionDataDecoder(): FixedSizeDecoder<SetProgramConfigTreasuryInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['newTreasury', getAddressDecoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["newTreasury", getAddressDecoder()],
   ]);
 }
 
@@ -99,7 +99,7 @@ export function getSetProgramConfigTreasuryInstructionDataCodec(): FixedSizeCode
 > {
   return combineCodec(
     getSetProgramConfigTreasuryInstructionDataEncoder(),
-    getSetProgramConfigTreasuryInstructionDataDecoder()
+    getSetProgramConfigTreasuryInstructionDataDecoder(),
   );
 }
 
@@ -109,7 +109,7 @@ export type SetProgramConfigTreasuryInput<
 > = {
   programConfig: Address<TAccountProgramConfig>;
   authority: TransactionSigner<TAccountAuthority>;
-  newTreasury: SetProgramConfigTreasuryInstructionDataArgs['newTreasury'];
+  newTreasury: SetProgramConfigTreasuryInstructionDataArgs["newTreasury"];
 };
 
 export function getSetProgramConfigTreasuryInstruction<
@@ -122,7 +122,7 @@ export function getSetProgramConfigTreasuryInstruction<
     TAccountProgramConfig,
     TAccountAuthority
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): SetProgramConfigTreasuryInstruction<
   TProgramAddress,
   TAccountProgramConfig,
@@ -145,14 +145,14 @@ export function getSetProgramConfigTreasuryInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.programConfig),
       getAccountMeta(accounts.authority),
     ],
     data: getSetProgramConfigTreasuryInstructionDataEncoder().encode(
-      args as SetProgramConfigTreasuryInstructionDataArgs
+      args as SetProgramConfigTreasuryInstructionDataArgs,
     ),
     programAddress,
   } as SetProgramConfigTreasuryInstruction<
@@ -180,11 +180,11 @@ export function parseSetProgramConfigTreasuryInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetProgramConfigTreasuryInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -196,7 +196,7 @@ export function parseSetProgramConfigTreasuryInstruction<
     programAddress: instruction.programAddress,
     accounts: { programConfig: getNextAccount(), authority: getNextAccount() },
     data: getSetProgramConfigTreasuryInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

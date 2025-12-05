@@ -30,9 +30,9 @@ import {
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const SET_PROGRAM_CONFIG_AUTHORITY_DISCRIMINATOR = new Uint8Array([
   130, 40, 234, 111, 237, 155, 246, 203,
@@ -40,7 +40,7 @@ export const SET_PROGRAM_CONFIG_AUTHORITY_DISCRIMINATOR = new Uint8Array([
 
 export function getSetProgramConfigAuthorityDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    SET_PROGRAM_CONFIG_AUTHORITY_DISCRIMINATOR
+    SET_PROGRAM_CONFIG_AUTHORITY_DISCRIMINATOR,
   );
 }
 
@@ -76,20 +76,20 @@ export type SetProgramConfigAuthorityInstructionDataArgs = {
 export function getSetProgramConfigAuthorityInstructionDataEncoder(): FixedSizeEncoder<SetProgramConfigAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['newAuthority', getAddressEncoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["newAuthority", getAddressEncoder()],
     ]),
     (value) => ({
       ...value,
       discriminator: SET_PROGRAM_CONFIG_AUTHORITY_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getSetProgramConfigAuthorityInstructionDataDecoder(): FixedSizeDecoder<SetProgramConfigAuthorityInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['newAuthority', getAddressDecoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["newAuthority", getAddressDecoder()],
   ]);
 }
 
@@ -99,7 +99,7 @@ export function getSetProgramConfigAuthorityInstructionDataCodec(): FixedSizeCod
 > {
   return combineCodec(
     getSetProgramConfigAuthorityInstructionDataEncoder(),
-    getSetProgramConfigAuthorityInstructionDataDecoder()
+    getSetProgramConfigAuthorityInstructionDataDecoder(),
   );
 }
 
@@ -109,7 +109,7 @@ export type SetProgramConfigAuthorityInput<
 > = {
   programConfig: Address<TAccountProgramConfig>;
   authority: TransactionSigner<TAccountAuthority>;
-  newAuthority: SetProgramConfigAuthorityInstructionDataArgs['newAuthority'];
+  newAuthority: SetProgramConfigAuthorityInstructionDataArgs["newAuthority"];
 };
 
 export function getSetProgramConfigAuthorityInstruction<
@@ -122,7 +122,7 @@ export function getSetProgramConfigAuthorityInstruction<
     TAccountProgramConfig,
     TAccountAuthority
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): SetProgramConfigAuthorityInstruction<
   TProgramAddress,
   TAccountProgramConfig,
@@ -145,14 +145,14 @@ export function getSetProgramConfigAuthorityInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.programConfig),
       getAccountMeta(accounts.authority),
     ],
     data: getSetProgramConfigAuthorityInstructionDataEncoder().encode(
-      args as SetProgramConfigAuthorityInstructionDataArgs
+      args as SetProgramConfigAuthorityInstructionDataArgs,
     ),
     programAddress,
   } as SetProgramConfigAuthorityInstruction<
@@ -180,11 +180,11 @@ export function parseSetProgramConfigAuthorityInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetProgramConfigAuthorityInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -196,7 +196,7 @@ export function parseSetProgramConfigAuthorityInstruction<
     programAddress: instruction.programAddress,
     accounts: { programConfig: getNextAccount(), authority: getNextAccount() },
     data: getSetProgramConfigAuthorityInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

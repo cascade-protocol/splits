@@ -41,13 +41,13 @@ import {
   type MaybeAccount,
   type MaybeEncodedAccount,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from "@solana/kit";
 import {
   getPeriodDecoder,
   getPeriodEncoder,
   type Period,
   type PeriodArgs,
-} from '../types';
+} from "../types";
 
 export const SPENDING_LIMIT_DISCRIMINATOR = new Uint8Array([
   10, 201, 27, 160, 218, 195, 222, 152,
@@ -55,7 +55,7 @@ export const SPENDING_LIMIT_DISCRIMINATOR = new Uint8Array([
 
 export function getSpendingLimitDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    SPENDING_LIMIT_DISCRIMINATOR
+    SPENDING_LIMIT_DISCRIMINATOR,
   );
 }
 
@@ -152,40 +152,40 @@ export type SpendingLimitArgs = {
 export function getSpendingLimitEncoder(): Encoder<SpendingLimitArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['settings', getAddressEncoder()],
-      ['seed', getAddressEncoder()],
-      ['accountIndex', getU8Encoder()],
-      ['mint', getAddressEncoder()],
-      ['amount', getU64Encoder()],
-      ['period', getPeriodEncoder()],
-      ['remainingAmount', getU64Encoder()],
-      ['lastReset', getI64Encoder()],
-      ['bump', getU8Encoder()],
-      ['signers', getArrayEncoder(getAddressEncoder())],
-      ['destinations', getArrayEncoder(getAddressEncoder())],
-      ['expiration', getI64Encoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["settings", getAddressEncoder()],
+      ["seed", getAddressEncoder()],
+      ["accountIndex", getU8Encoder()],
+      ["mint", getAddressEncoder()],
+      ["amount", getU64Encoder()],
+      ["period", getPeriodEncoder()],
+      ["remainingAmount", getU64Encoder()],
+      ["lastReset", getI64Encoder()],
+      ["bump", getU8Encoder()],
+      ["signers", getArrayEncoder(getAddressEncoder())],
+      ["destinations", getArrayEncoder(getAddressEncoder())],
+      ["expiration", getI64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: SPENDING_LIMIT_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: SPENDING_LIMIT_DISCRIMINATOR }),
   );
 }
 
 /** Gets the decoder for {@link SpendingLimit} account data. */
 export function getSpendingLimitDecoder(): Decoder<SpendingLimit> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['settings', getAddressDecoder()],
-    ['seed', getAddressDecoder()],
-    ['accountIndex', getU8Decoder()],
-    ['mint', getAddressDecoder()],
-    ['amount', getU64Decoder()],
-    ['period', getPeriodDecoder()],
-    ['remainingAmount', getU64Decoder()],
-    ['lastReset', getI64Decoder()],
-    ['bump', getU8Decoder()],
-    ['signers', getArrayDecoder(getAddressDecoder())],
-    ['destinations', getArrayDecoder(getAddressDecoder())],
-    ['expiration', getI64Decoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["settings", getAddressDecoder()],
+    ["seed", getAddressDecoder()],
+    ["accountIndex", getU8Decoder()],
+    ["mint", getAddressDecoder()],
+    ["amount", getU64Decoder()],
+    ["period", getPeriodDecoder()],
+    ["remainingAmount", getU64Decoder()],
+    ["lastReset", getI64Decoder()],
+    ["bump", getU8Decoder()],
+    ["signers", getArrayDecoder(getAddressDecoder())],
+    ["destinations", getArrayDecoder(getAddressDecoder())],
+    ["expiration", getI64Decoder()],
   ]);
 }
 
@@ -198,24 +198,24 @@ export function getSpendingLimitCodec(): Codec<
 }
 
 export function decodeSpendingLimit<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress>,
 ): Account<SpendingLimit, TAddress>;
 export function decodeSpendingLimit<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
+  encodedAccount: MaybeEncodedAccount<TAddress>,
 ): MaybeAccount<SpendingLimit, TAddress>;
 export function decodeSpendingLimit<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
 ): Account<SpendingLimit, TAddress> | MaybeAccount<SpendingLimit, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getSpendingLimitDecoder()
+    getSpendingLimitDecoder(),
   );
 }
 
 export async function fetchSpendingLimit<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<Account<SpendingLimit, TAddress>> {
   const maybeAccount = await fetchMaybeSpendingLimit(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -225,7 +225,7 @@ export async function fetchSpendingLimit<TAddress extends string = string>(
 export async function fetchMaybeSpendingLimit<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<MaybeAccount<SpendingLimit, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeSpendingLimit(maybeAccount);
@@ -234,12 +234,12 @@ export async function fetchMaybeSpendingLimit<TAddress extends string = string>(
 export async function fetchAllSpendingLimit(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<Account<SpendingLimit>[]> {
   const maybeAccounts = await fetchAllMaybeSpendingLimit(
     rpc,
     addresses,
-    config
+    config,
   );
   assertAccountsExist(maybeAccounts);
   return maybeAccounts;
@@ -248,7 +248,7 @@ export async function fetchAllSpendingLimit(
 export async function fetchAllMaybeSpendingLimit(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<SpendingLimit>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) => decodeSpendingLimit(maybeAccount));

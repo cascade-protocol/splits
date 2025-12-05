@@ -37,7 +37,7 @@ import {
   type MaybeAccount,
   type MaybeEncodedAccount,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from "@solana/kit";
 
 export const PROGRAM_CONFIG_DISCRIMINATOR = new Uint8Array([
   196, 210, 90, 231, 144, 149, 140, 63,
@@ -45,7 +45,7 @@ export const PROGRAM_CONFIG_DISCRIMINATOR = new Uint8Array([
 
 export function getProgramConfigDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    PROGRAM_CONFIG_DISCRIMINATOR
+    PROGRAM_CONFIG_DISCRIMINATOR,
   );
 }
 
@@ -87,26 +87,26 @@ export type ProgramConfigArgs = {
 export function getProgramConfigEncoder(): FixedSizeEncoder<ProgramConfigArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['smartAccountIndex', getU128Encoder()],
-      ['authority', getAddressEncoder()],
-      ['smartAccountCreationFee', getU64Encoder()],
-      ['treasury', getAddressEncoder()],
-      ['reserved', fixEncoderSize(getBytesEncoder(), 64)],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["smartAccountIndex", getU128Encoder()],
+      ["authority", getAddressEncoder()],
+      ["smartAccountCreationFee", getU64Encoder()],
+      ["treasury", getAddressEncoder()],
+      ["reserved", fixEncoderSize(getBytesEncoder(), 64)],
     ]),
-    (value) => ({ ...value, discriminator: PROGRAM_CONFIG_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: PROGRAM_CONFIG_DISCRIMINATOR }),
   );
 }
 
 /** Gets the decoder for {@link ProgramConfig} account data. */
 export function getProgramConfigDecoder(): FixedSizeDecoder<ProgramConfig> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['smartAccountIndex', getU128Decoder()],
-    ['authority', getAddressDecoder()],
-    ['smartAccountCreationFee', getU64Decoder()],
-    ['treasury', getAddressDecoder()],
-    ['reserved', fixDecoderSize(getBytesDecoder(), 64)],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["smartAccountIndex", getU128Decoder()],
+    ["authority", getAddressDecoder()],
+    ["smartAccountCreationFee", getU64Decoder()],
+    ["treasury", getAddressDecoder()],
+    ["reserved", fixDecoderSize(getBytesDecoder(), 64)],
   ]);
 }
 
@@ -119,24 +119,24 @@ export function getProgramConfigCodec(): FixedSizeCodec<
 }
 
 export function decodeProgramConfig<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress>,
 ): Account<ProgramConfig, TAddress>;
 export function decodeProgramConfig<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
+  encodedAccount: MaybeEncodedAccount<TAddress>,
 ): MaybeAccount<ProgramConfig, TAddress>;
 export function decodeProgramConfig<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
 ): Account<ProgramConfig, TAddress> | MaybeAccount<ProgramConfig, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getProgramConfigDecoder()
+    getProgramConfigDecoder(),
   );
 }
 
 export async function fetchProgramConfig<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<Account<ProgramConfig, TAddress>> {
   const maybeAccount = await fetchMaybeProgramConfig(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -146,7 +146,7 @@ export async function fetchProgramConfig<TAddress extends string = string>(
 export async function fetchMaybeProgramConfig<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<MaybeAccount<ProgramConfig, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeProgramConfig(maybeAccount);
@@ -155,12 +155,12 @@ export async function fetchMaybeProgramConfig<TAddress extends string = string>(
 export async function fetchAllProgramConfig(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<Account<ProgramConfig>[]> {
   const maybeAccounts = await fetchAllMaybeProgramConfig(
     rpc,
     addresses,
-    config
+    config,
   );
   assertAccountsExist(maybeAccounts);
   return maybeAccounts;
@@ -169,7 +169,7 @@ export async function fetchAllProgramConfig(
 export async function fetchAllMaybeProgramConfig(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<ProgramConfig>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) => decodeProgramConfig(maybeAccount));

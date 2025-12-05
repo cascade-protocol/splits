@@ -12,7 +12,7 @@ import {
   getBytesEncoder,
   type Address,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from "@solana/kit";
 import {
   type ParsedActivateProposalInstruction,
   type ParsedAddSignerAsAuthorityInstruction,
@@ -51,10 +51,10 @@ import {
   type ParsedSetProgramConfigTreasuryInstruction,
   type ParsedSetTimeLockAsAuthorityInstruction,
   type ParsedUseSpendingLimitInstruction,
-} from '../instructions';
+} from "../instructions";
 
 export const SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS =
-  'SMRTzfY6DfH5ik3TKiyLFfXexV8uSG3d2UksSCYdunG' as Address<'SMRTzfY6DfH5ik3TKiyLFfXexV8uSG3d2UksSCYdunG'>;
+  "SMRTzfY6DfH5ik3TKiyLFfXexV8uSG3d2UksSCYdunG" as Address<"SMRTzfY6DfH5ik3TKiyLFfXexV8uSG3d2UksSCYdunG">;
 
 export enum SquadsSmartAccountProgramAccount {
   Batch,
@@ -69,16 +69,16 @@ export enum SquadsSmartAccountProgramAccount {
 }
 
 export function identifySquadsSmartAccountProgramAccount(
-  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array
+  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): SquadsSmartAccountProgramAccount {
-  const data = 'data' in account ? account.data : account;
+  const data = "data" in account ? account.data : account;
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([156, 194, 70, 44, 22, 88, 137, 44])
+        new Uint8Array([156, 194, 70, 44, 22, 88, 137, 44]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramAccount.Batch;
@@ -87,9 +87,9 @@ export function identifySquadsSmartAccountProgramAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([92, 20, 61, 146, 155, 62, 112, 72])
+        new Uint8Array([92, 20, 61, 146, 155, 62, 112, 72]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramAccount.BatchTransaction;
@@ -98,9 +98,9 @@ export function identifySquadsSmartAccountProgramAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([196, 210, 90, 231, 144, 149, 140, 63])
+        new Uint8Array([196, 210, 90, 231, 144, 149, 140, 63]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramAccount.ProgramConfig;
@@ -109,9 +109,9 @@ export function identifySquadsSmartAccountProgramAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([26, 94, 189, 187, 116, 136, 53, 33])
+        new Uint8Array([26, 94, 189, 187, 116, 136, 53, 33]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramAccount.Proposal;
@@ -120,9 +120,9 @@ export function identifySquadsSmartAccountProgramAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([199, 151, 72, 87, 77, 124, 16, 0])
+        new Uint8Array([199, 151, 72, 87, 77, 124, 16, 0]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramAccount.SettingsTransaction;
@@ -131,9 +131,9 @@ export function identifySquadsSmartAccountProgramAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([223, 179, 163, 190, 177, 224, 67, 173])
+        new Uint8Array([223, 179, 163, 190, 177, 224, 67, 173]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramAccount.Settings;
@@ -142,9 +142,9 @@ export function identifySquadsSmartAccountProgramAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([10, 201, 27, 160, 218, 195, 222, 152])
+        new Uint8Array([10, 201, 27, 160, 218, 195, 222, 152]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramAccount.SpendingLimit;
@@ -153,9 +153,9 @@ export function identifySquadsSmartAccountProgramAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([90, 36, 35, 219, 93, 225, 110, 96])
+        new Uint8Array([90, 36, 35, 219, 93, 225, 110, 96]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramAccount.TransactionBuffer;
@@ -164,15 +164,15 @@ export function identifySquadsSmartAccountProgramAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([11, 24, 174, 129, 203, 117, 242, 23])
+        new Uint8Array([11, 24, 174, 129, 203, 117, 242, 23]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramAccount.Transaction;
   }
   throw new Error(
-    'The provided account could not be identified as a squadsSmartAccountProgram account.'
+    "The provided account could not be identified as a squadsSmartAccountProgram account.",
   );
 }
 
@@ -217,16 +217,16 @@ export enum SquadsSmartAccountProgramInstruction {
 }
 
 export function identifySquadsSmartAccountProgramInstruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
+  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): SquadsSmartAccountProgramInstruction {
-  const data = 'data' in instruction ? instruction.data : instruction;
+  const data = "data" in instruction ? instruction.data : instruction;
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([6, 131, 61, 237, 40, 110, 83, 124])
+        new Uint8Array([6, 131, 61, 237, 40, 110, 83, 124]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.InitializeProgramConfig;
@@ -235,9 +235,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([130, 40, 234, 111, 237, 155, 246, 203])
+        new Uint8Array([130, 40, 234, 111, 237, 155, 246, 203]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.SetProgramConfigAuthority;
@@ -246,9 +246,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([222, 30, 134, 176, 131, 113, 195, 202])
+        new Uint8Array([222, 30, 134, 176, 131, 113, 195, 202]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.SetProgramConfigSmartAccountCreationFee;
@@ -257,9 +257,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([244, 119, 192, 190, 182, 101, 227, 189])
+        new Uint8Array([244, 119, 192, 190, 182, 101, 227, 189]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.SetProgramConfigTreasury;
@@ -268,9 +268,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([197, 102, 253, 231, 77, 84, 50, 17])
+        new Uint8Array([197, 102, 253, 231, 77, 84, 50, 17]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CreateSmartAccount;
@@ -279,9 +279,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([80, 198, 228, 154, 7, 234, 99, 56])
+        new Uint8Array([80, 198, 228, 154, 7, 234, 99, 56]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.AddSignerAsAuthority;
@@ -290,9 +290,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([58, 19, 149, 16, 181, 16, 125, 148])
+        new Uint8Array([58, 19, 149, 16, 181, 16, 125, 148]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.RemoveSignerAsAuthority;
@@ -301,9 +301,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([2, 234, 93, 93, 40, 92, 31, 234])
+        new Uint8Array([2, 234, 93, 93, 40, 92, 31, 234]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.SetTimeLockAsAuthority;
@@ -312,9 +312,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([51, 141, 78, 133, 70, 47, 95, 124])
+        new Uint8Array([51, 141, 78, 133, 70, 47, 95, 124]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.ChangeThresholdAsAuthority;
@@ -323,9 +323,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([221, 112, 133, 229, 146, 58, 90, 56])
+        new Uint8Array([221, 112, 133, 229, 146, 58, 90, 56]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.SetNewSettingsAuthorityAsAuthority;
@@ -334,9 +334,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([178, 199, 4, 13, 237, 234, 152, 202])
+        new Uint8Array([178, 199, 4, 13, 237, 234, 152, 202]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.SetArchivalAuthorityAsAuthority;
@@ -345,9 +345,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([169, 189, 84, 54, 30, 244, 223, 212])
+        new Uint8Array([169, 189, 84, 54, 30, 244, 223, 212]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.AddSpendingLimitAsAuthority;
@@ -356,9 +356,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([94, 32, 68, 127, 251, 44, 145, 7])
+        new Uint8Array([94, 32, 68, 127, 251, 44, 145, 7]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.RemoveSpendingLimitAsAuthority;
@@ -367,9 +367,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([101, 168, 254, 203, 222, 102, 95, 192])
+        new Uint8Array([101, 168, 254, 203, 222, 102, 95, 192]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CreateSettingsTransaction;
@@ -378,9 +378,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([131, 210, 27, 88, 27, 204, 143, 189])
+        new Uint8Array([131, 210, 27, 88, 27, 204, 143, 189]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.ExecuteSettingsTransaction;
@@ -389,9 +389,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([227, 193, 53, 239, 55, 126, 112, 105])
+        new Uint8Array([227, 193, 53, 239, 55, 126, 112, 105]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CreateTransaction;
@@ -400,9 +400,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([57, 97, 250, 156, 59, 211, 32, 208])
+        new Uint8Array([57, 97, 250, 156, 59, 211, 32, 208]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CreateTransactionBuffer;
@@ -411,9 +411,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([224, 221, 123, 213, 0, 204, 5, 191])
+        new Uint8Array([224, 221, 123, 213, 0, 204, 5, 191]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CloseTransactionBuffer;
@@ -422,9 +422,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([190, 86, 246, 95, 231, 154, 229, 91])
+        new Uint8Array([190, 86, 246, 95, 231, 154, 229, 91]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.ExtendTransactionBuffer;
@@ -433,9 +433,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([53, 192, 39, 239, 124, 84, 43, 249])
+        new Uint8Array([53, 192, 39, 239, 124, 84, 43, 249]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CreateTransactionFromBuffer;
@@ -444,9 +444,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([231, 173, 49, 91, 235, 24, 68, 19])
+        new Uint8Array([231, 173, 49, 91, 235, 24, 68, 19]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.ExecuteTransaction;
@@ -455,9 +455,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([159, 198, 248, 43, 248, 31, 235, 86])
+        new Uint8Array([159, 198, 248, 43, 248, 31, 235, 86]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CreateBatch;
@@ -466,9 +466,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([147, 75, 197, 227, 20, 149, 150, 113])
+        new Uint8Array([147, 75, 197, 227, 20, 149, 150, 113]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.AddTransactionToBatch;
@@ -477,9 +477,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([237, 67, 201, 173, 33, 130, 88, 134])
+        new Uint8Array([237, 67, 201, 173, 33, 130, 88, 134]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.ExecuteBatchTransaction;
@@ -488,9 +488,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([132, 116, 68, 174, 216, 160, 198, 22])
+        new Uint8Array([132, 116, 68, 174, 216, 160, 198, 22]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CreateProposal;
@@ -499,9 +499,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([90, 186, 203, 234, 70, 185, 191, 21])
+        new Uint8Array([90, 186, 203, 234, 70, 185, 191, 21]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.ActivateProposal;
@@ -510,9 +510,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([136, 108, 102, 85, 98, 114, 7, 147])
+        new Uint8Array([136, 108, 102, 85, 98, 114, 7, 147]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.ApproveProposal;
@@ -521,9 +521,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([114, 162, 164, 82, 191, 11, 102, 25])
+        new Uint8Array([114, 162, 164, 82, 191, 11, 102, 25]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.RejectProposal;
@@ -532,9 +532,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([106, 74, 128, 146, 19, 65, 39, 23])
+        new Uint8Array([106, 74, 128, 146, 19, 65, 39, 23]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CancelProposal;
@@ -543,9 +543,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([41, 179, 70, 5, 194, 147, 239, 158])
+        new Uint8Array([41, 179, 70, 5, 194, 147, 239, 158]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.UseSpendingLimit;
@@ -554,9 +554,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([251, 112, 34, 108, 214, 13, 41, 116])
+        new Uint8Array([251, 112, 34, 108, 214, 13, 41, 116]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CloseSettingsTransaction;
@@ -565,9 +565,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([97, 46, 152, 170, 42, 215, 192, 218])
+        new Uint8Array([97, 46, 152, 170, 42, 215, 192, 218]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CloseTransaction;
@@ -576,9 +576,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([86, 144, 133, 225, 45, 209, 62, 251])
+        new Uint8Array([86, 144, 133, 225, 45, 209, 62, 251]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CloseBatchTransaction;
@@ -587,9 +587,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([166, 174, 35, 253, 209, 211, 181, 28])
+        new Uint8Array([166, 174, 35, 253, 209, 211, 181, 28]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.CloseBatch;
@@ -598,9 +598,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([43, 102, 248, 89, 231, 97, 104, 134])
+        new Uint8Array([43, 102, 248, 89, 231, 97, 104, 134]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.ExecuteTransactionSync;
@@ -609,9 +609,9 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([138, 209, 64, 163, 79, 67, 233, 76])
+        new Uint8Array([138, 209, 64, 163, 79, 67, 233, 76]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.ExecuteSettingsTransactionSync;
@@ -620,20 +620,20 @@ export function identifySquadsSmartAccountProgramInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([5, 9, 90, 141, 223, 134, 57, 217])
+        new Uint8Array([5, 9, 90, 141, 223, 134, 57, 217]),
       ),
-      0
+      0,
     )
   ) {
     return SquadsSmartAccountProgramInstruction.LogEvent;
   }
   throw new Error(
-    'The provided instruction could not be identified as a squadsSmartAccountProgram instruction.'
+    "The provided instruction could not be identified as a squadsSmartAccountProgram instruction.",
   );
 }
 
 export type ParsedSquadsSmartAccountProgramInstruction<
-  TProgram extends string = 'SMRTzfY6DfH5ik3TKiyLFfXexV8uSG3d2UksSCYdunG',
+  TProgram extends string = "SMRTzfY6DfH5ik3TKiyLFfXexV8uSG3d2UksSCYdunG",
 > =
   | ({
       instructionType: SquadsSmartAccountProgramInstruction.InitializeProgramConfig;

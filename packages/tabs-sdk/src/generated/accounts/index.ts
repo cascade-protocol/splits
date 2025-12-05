@@ -6,12 +6,12 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from './batch';
-export * from './batchTransaction';
-export * from './programConfig';
-export * from './proposal';
-export * from './settings';
-export * from './settingsTransaction';
-export * from './spendingLimit';
-export * from './transaction';
-export * from './transactionBuffer';
+export * from "./batch";
+export * from "./batchTransaction";
+export * from "./programConfig";
+export * from "./proposal";
+export * from "./settings";
+export * from "./settingsTransaction";
+export * from "./spendingLimit";
+export * from "./transaction";
+export * from "./transactionBuffer";

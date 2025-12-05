@@ -26,9 +26,9 @@ import {
   type ReadonlyAccount,
   type ReadonlyUint8Array,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const CLOSE_BATCH_DISCRIMINATOR = new Uint8Array([
   166, 174, 35, 253, 209, 211, 181, 28,
@@ -46,7 +46,7 @@ export type CloseBatchInstruction<
   TAccountProposalRentCollector extends string | AccountMeta<string> = string,
   TAccountBatchRentCollector extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -80,14 +80,14 @@ export type CloseBatchInstructionDataArgs = {};
 
 export function getCloseBatchInstructionDataEncoder(): FixedSizeEncoder<CloseBatchInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]),
-    (value) => ({ ...value, discriminator: CLOSE_BATCH_DISCRIMINATOR })
+    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
+    (value) => ({ ...value, discriminator: CLOSE_BATCH_DISCRIMINATOR }),
   );
 }
 
 export function getCloseBatchInstructionDataDecoder(): FixedSizeDecoder<CloseBatchInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
   ]);
 }
 
@@ -97,7 +97,7 @@ export function getCloseBatchInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getCloseBatchInstructionDataEncoder(),
-    getCloseBatchInstructionDataDecoder()
+    getCloseBatchInstructionDataDecoder(),
   );
 }
 
@@ -139,7 +139,7 @@ export function getCloseBatchInstruction<
     TAccountBatchRentCollector,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CloseBatchInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -176,10 +176,10 @@ export function getCloseBatchInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -228,11 +228,11 @@ export function parseCloseBatchInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCloseBatchInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 6) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {

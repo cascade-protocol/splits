@@ -39,7 +39,7 @@ import {
   type MaybeAccount,
   type MaybeEncodedAccount,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from "@solana/kit";
 
 export const BATCH_DISCRIMINATOR = new Uint8Array([
   156, 194, 70, 44, 22, 88, 137, 44,
@@ -108,34 +108,34 @@ export type BatchArgs = {
 export function getBatchEncoder(): FixedSizeEncoder<BatchArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['settings', getAddressEncoder()],
-      ['creator', getAddressEncoder()],
-      ['rentCollector', getAddressEncoder()],
-      ['index', getU64Encoder()],
-      ['bump', getU8Encoder()],
-      ['accountIndex', getU8Encoder()],
-      ['accountBump', getU8Encoder()],
-      ['size', getU32Encoder()],
-      ['executedTransactionIndex', getU32Encoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["settings", getAddressEncoder()],
+      ["creator", getAddressEncoder()],
+      ["rentCollector", getAddressEncoder()],
+      ["index", getU64Encoder()],
+      ["bump", getU8Encoder()],
+      ["accountIndex", getU8Encoder()],
+      ["accountBump", getU8Encoder()],
+      ["size", getU32Encoder()],
+      ["executedTransactionIndex", getU32Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: BATCH_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: BATCH_DISCRIMINATOR }),
   );
 }
 
 /** Gets the decoder for {@link Batch} account data. */
 export function getBatchDecoder(): FixedSizeDecoder<Batch> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['settings', getAddressDecoder()],
-    ['creator', getAddressDecoder()],
-    ['rentCollector', getAddressDecoder()],
-    ['index', getU64Decoder()],
-    ['bump', getU8Decoder()],
-    ['accountIndex', getU8Decoder()],
-    ['accountBump', getU8Decoder()],
-    ['size', getU32Decoder()],
-    ['executedTransactionIndex', getU32Decoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["settings", getAddressDecoder()],
+    ["creator", getAddressDecoder()],
+    ["rentCollector", getAddressDecoder()],
+    ["index", getU64Decoder()],
+    ["bump", getU8Decoder()],
+    ["accountIndex", getU8Decoder()],
+    ["accountBump", getU8Decoder()],
+    ["size", getU32Decoder()],
+    ["executedTransactionIndex", getU32Decoder()],
   ]);
 }
 
@@ -145,24 +145,24 @@ export function getBatchCodec(): FixedSizeCodec<BatchArgs, Batch> {
 }
 
 export function decodeBatch<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress>,
 ): Account<Batch, TAddress>;
 export function decodeBatch<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
+  encodedAccount: MaybeEncodedAccount<TAddress>,
 ): MaybeAccount<Batch, TAddress>;
 export function decodeBatch<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
 ): Account<Batch, TAddress> | MaybeAccount<Batch, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getBatchDecoder()
+    getBatchDecoder(),
   );
 }
 
 export async function fetchBatch<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<Account<Batch, TAddress>> {
   const maybeAccount = await fetchMaybeBatch(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -172,7 +172,7 @@ export async function fetchBatch<TAddress extends string = string>(
 export async function fetchMaybeBatch<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<MaybeAccount<Batch, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeBatch(maybeAccount);
@@ -181,7 +181,7 @@ export async function fetchMaybeBatch<TAddress extends string = string>(
 export async function fetchAllBatch(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<Account<Batch>[]> {
   const maybeAccounts = await fetchAllMaybeBatch(rpc, addresses, config);
   assertAccountsExist(maybeAccounts);
@@ -191,7 +191,7 @@ export async function fetchAllBatch(
 export async function fetchAllMaybeBatch(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<Batch>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) => decodeBatch(maybeAccount));

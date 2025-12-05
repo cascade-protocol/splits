@@ -29,9 +29,9 @@ import {
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const EXECUTE_BATCH_TRANSACTION_DISCRIMINATOR = new Uint8Array([
   237, 67, 201, 173, 33, 130, 88, 134,
@@ -39,7 +39,7 @@ export const EXECUTE_BATCH_TRANSACTION_DISCRIMINATOR = new Uint8Array([
 
 export function getExecuteBatchTransactionDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    EXECUTE_BATCH_TRANSACTION_DISCRIMINATOR
+    EXECUTE_BATCH_TRANSACTION_DISCRIMINATOR,
   );
 }
 
@@ -83,17 +83,17 @@ export type ExecuteBatchTransactionInstructionDataArgs = {};
 
 export function getExecuteBatchTransactionInstructionDataEncoder(): FixedSizeEncoder<ExecuteBatchTransactionInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]),
+    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
     (value) => ({
       ...value,
       discriminator: EXECUTE_BATCH_TRANSACTION_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getExecuteBatchTransactionInstructionDataDecoder(): FixedSizeDecoder<ExecuteBatchTransactionInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
   ]);
 }
 
@@ -103,7 +103,7 @@ export function getExecuteBatchTransactionInstructionDataCodec(): FixedSizeCodec
 > {
   return combineCodec(
     getExecuteBatchTransactionInstructionDataEncoder(),
-    getExecuteBatchTransactionInstructionDataDecoder()
+    getExecuteBatchTransactionInstructionDataDecoder(),
   );
 }
 
@@ -144,7 +144,7 @@ export function getExecuteBatchTransactionInstruction<
     TAccountBatch,
     TAccountTransaction
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): ExecuteBatchTransactionInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -170,7 +170,7 @@ export function getExecuteBatchTransactionInstruction<
     ResolvedAccount
   >;
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -219,11 +219,11 @@ export function parseExecuteBatchTransactionInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedExecuteBatchTransactionInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -241,7 +241,7 @@ export function parseExecuteBatchTransactionInstruction<
       transaction: getNextAccount(),
     },
     data: getExecuteBatchTransactionInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

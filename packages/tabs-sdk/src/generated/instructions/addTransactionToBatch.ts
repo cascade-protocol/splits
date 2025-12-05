@@ -36,9 +36,9 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const ADD_TRANSACTION_TO_BATCH_DISCRIMINATOR = new Uint8Array([
   147, 75, 197, 227, 20, 149, 150, 113,
@@ -46,7 +46,7 @@ export const ADD_TRANSACTION_TO_BATCH_DISCRIMINATOR = new Uint8Array([
 
 export function getAddTransactionToBatchDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    ADD_TRANSACTION_TO_BATCH_DISCRIMINATOR
+    ADD_TRANSACTION_TO_BATCH_DISCRIMINATOR,
   );
 }
 
@@ -59,7 +59,7 @@ export type AddTransactionToBatchInstruction<
   TAccountSigner extends string | AccountMeta<string> = string,
   TAccountRentPayer extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -108,26 +108,26 @@ export type AddTransactionToBatchInstructionDataArgs = {
 export function getAddTransactionToBatchInstructionDataEncoder(): Encoder<AddTransactionToBatchInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['ephemeralSigners', getU8Encoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["ephemeralSigners", getU8Encoder()],
       [
-        'transactionMessage',
+        "transactionMessage",
         addEncoderSizePrefix(getBytesEncoder(), getU32Encoder()),
       ],
     ]),
     (value) => ({
       ...value,
       discriminator: ADD_TRANSACTION_TO_BATCH_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getAddTransactionToBatchInstructionDataDecoder(): Decoder<AddTransactionToBatchInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['ephemeralSigners', getU8Decoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["ephemeralSigners", getU8Decoder()],
     [
-      'transactionMessage',
+      "transactionMessage",
       addDecoderSizePrefix(getBytesDecoder(), getU32Decoder()),
     ],
   ]);
@@ -139,7 +139,7 @@ export function getAddTransactionToBatchInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getAddTransactionToBatchInstructionDataEncoder(),
-    getAddTransactionToBatchInstructionDataDecoder()
+    getAddTransactionToBatchInstructionDataDecoder(),
   );
 }
 
@@ -164,8 +164,8 @@ export type AddTransactionToBatchInput<
   /** The payer for the batch transaction account rent. */
   rentPayer: TransactionSigner<TAccountRentPayer>;
   systemProgram?: Address<TAccountSystemProgram>;
-  ephemeralSigners: AddTransactionToBatchInstructionDataArgs['ephemeralSigners'];
-  transactionMessage: AddTransactionToBatchInstructionDataArgs['transactionMessage'];
+  ephemeralSigners: AddTransactionToBatchInstructionDataArgs["ephemeralSigners"];
+  transactionMessage: AddTransactionToBatchInstructionDataArgs["transactionMessage"];
 };
 
 export function getAddTransactionToBatchInstruction<
@@ -188,7 +188,7 @@ export function getAddTransactionToBatchInstruction<
     TAccountRentPayer,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): AddTransactionToBatchInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -224,10 +224,10 @@ export function getAddTransactionToBatchInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -239,7 +239,7 @@ export function getAddTransactionToBatchInstruction<
       getAccountMeta(accounts.systemProgram),
     ],
     data: getAddTransactionToBatchInstructionDataEncoder().encode(
-      args as AddTransactionToBatchInstructionDataArgs
+      args as AddTransactionToBatchInstructionDataArgs,
     ),
     programAddress,
   } as AddTransactionToBatchInstruction<
@@ -282,11 +282,11 @@ export function parseAddTransactionToBatchInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedAddTransactionToBatchInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 7) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -306,7 +306,7 @@ export function parseAddTransactionToBatchInstruction<
       systemProgram: getNextAccount(),
     },
     data: getAddTransactionToBatchInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

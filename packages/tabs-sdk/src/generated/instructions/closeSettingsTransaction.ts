@@ -26,9 +26,9 @@ import {
   type ReadonlyAccount,
   type ReadonlyUint8Array,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const CLOSE_SETTINGS_TRANSACTION_DISCRIMINATOR = new Uint8Array([
   251, 112, 34, 108, 214, 13, 41, 116,
@@ -36,7 +36,7 @@ export const CLOSE_SETTINGS_TRANSACTION_DISCRIMINATOR = new Uint8Array([
 
 export function getCloseSettingsTransactionDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CLOSE_SETTINGS_TRANSACTION_DISCRIMINATOR
+    CLOSE_SETTINGS_TRANSACTION_DISCRIMINATOR,
   );
 }
 
@@ -49,7 +49,7 @@ export type CloseSettingsTransactionInstruction<
   TAccountTransactionRentCollector extends string | AccountMeta<string> =
     string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -85,17 +85,17 @@ export type CloseSettingsTransactionInstructionDataArgs = {};
 
 export function getCloseSettingsTransactionInstructionDataEncoder(): FixedSizeEncoder<CloseSettingsTransactionInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]),
+    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
     (value) => ({
       ...value,
       discriminator: CLOSE_SETTINGS_TRANSACTION_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getCloseSettingsTransactionInstructionDataDecoder(): FixedSizeDecoder<CloseSettingsTransactionInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
   ]);
 }
 
@@ -105,7 +105,7 @@ export function getCloseSettingsTransactionInstructionDataCodec(): FixedSizeCode
 > {
   return combineCodec(
     getCloseSettingsTransactionInstructionDataEncoder(),
-    getCloseSettingsTransactionInstructionDataDecoder()
+    getCloseSettingsTransactionInstructionDataDecoder(),
   );
 }
 
@@ -147,7 +147,7 @@ export function getCloseSettingsTransactionInstruction<
     TAccountTransactionRentCollector,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CloseSettingsTransactionInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -184,10 +184,10 @@ export function getCloseSettingsTransactionInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -236,11 +236,11 @@ export function parseCloseSettingsTransactionInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCloseSettingsTransactionInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 6) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -259,7 +259,7 @@ export function parseCloseSettingsTransactionInstruction<
       systemProgram: getNextAccount(),
     },
     data: getCloseSettingsTransactionInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

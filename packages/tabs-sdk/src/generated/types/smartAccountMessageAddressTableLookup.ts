@@ -23,7 +23,7 @@ import {
   type Decoder,
   type Encoder,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from "@solana/kit";
 
 /**
  * Address table lookups describe an on-chain address lookup table to use
@@ -43,13 +43,13 @@ export type SmartAccountMessageAddressTableLookupArgs =
 
 export function getSmartAccountMessageAddressTableLookupEncoder(): Encoder<SmartAccountMessageAddressTableLookupArgs> {
   return getStructEncoder([
-    ['accountKey', getAddressEncoder()],
+    ["accountKey", getAddressEncoder()],
     [
-      'writableIndexes',
+      "writableIndexes",
       addEncoderSizePrefix(getBytesEncoder(), getU32Encoder()),
     ],
     [
-      'readonlyIndexes',
+      "readonlyIndexes",
       addEncoderSizePrefix(getBytesEncoder(), getU32Encoder()),
     ],
   ]);
@@ -57,13 +57,13 @@ export function getSmartAccountMessageAddressTableLookupEncoder(): Encoder<Smart
 
 export function getSmartAccountMessageAddressTableLookupDecoder(): Decoder<SmartAccountMessageAddressTableLookup> {
   return getStructDecoder([
-    ['accountKey', getAddressDecoder()],
+    ["accountKey", getAddressDecoder()],
     [
-      'writableIndexes',
+      "writableIndexes",
       addDecoderSizePrefix(getBytesDecoder(), getU32Decoder()),
     ],
     [
-      'readonlyIndexes',
+      "readonlyIndexes",
       addDecoderSizePrefix(getBytesDecoder(), getU32Decoder()),
     ],
   ]);
@@ -75,6 +75,6 @@ export function getSmartAccountMessageAddressTableLookupCodec(): Codec<
 > {
   return combineCodec(
     getSmartAccountMessageAddressTableLookupEncoder(),
-    getSmartAccountMessageAddressTableLookupDecoder()
+    getSmartAccountMessageAddressTableLookupDecoder(),
   );
 }

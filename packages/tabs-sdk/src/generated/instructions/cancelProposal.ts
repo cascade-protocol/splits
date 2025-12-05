@@ -29,15 +29,15 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 import {
   getVoteOnProposalArgsDecoder,
   getVoteOnProposalArgsEncoder,
   type VoteOnProposalArgs,
   type VoteOnProposalArgsArgs,
-} from '../types';
+} from "../types";
 
 export const CANCEL_PROPOSAL_DISCRIMINATOR = new Uint8Array([
   106, 74, 128, 146, 19, 65, 39, 23,
@@ -45,7 +45,7 @@ export const CANCEL_PROPOSAL_DISCRIMINATOR = new Uint8Array([
 
 export function getCancelProposalDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CANCEL_PROPOSAL_DISCRIMINATOR
+    CANCEL_PROPOSAL_DISCRIMINATOR,
   );
 }
 
@@ -89,17 +89,17 @@ export type CancelProposalInstructionDataArgs = {
 export function getCancelProposalInstructionDataEncoder(): Encoder<CancelProposalInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['args', getVoteOnProposalArgsEncoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["args", getVoteOnProposalArgsEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: CANCEL_PROPOSAL_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: CANCEL_PROPOSAL_DISCRIMINATOR }),
   );
 }
 
 export function getCancelProposalInstructionDataDecoder(): Decoder<CancelProposalInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['args', getVoteOnProposalArgsDecoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["args", getVoteOnProposalArgsDecoder()],
   ]);
 }
 
@@ -109,7 +109,7 @@ export function getCancelProposalInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getCancelProposalInstructionDataEncoder(),
-    getCancelProposalInstructionDataDecoder()
+    getCancelProposalInstructionDataDecoder(),
   );
 }
 
@@ -123,7 +123,7 @@ export type CancelProposalInput<
   signer: TransactionSigner<TAccountSigner>;
   proposal: Address<TAccountProposal>;
   systemProgram?: Address<TAccountSystemProgram>;
-  args: CancelProposalInstructionDataArgs['args'];
+  args: CancelProposalInstructionDataArgs["args"];
 };
 
 export function getCancelProposalInstruction<
@@ -140,7 +140,7 @@ export function getCancelProposalInstruction<
     TAccountProposal,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CancelProposalInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -167,7 +167,7 @@ export function getCancelProposalInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -176,7 +176,7 @@ export function getCancelProposalInstruction<
       getAccountMeta(accounts.systemProgram),
     ],
     data: getCancelProposalInstructionDataEncoder().encode(
-      args as CancelProposalInstructionDataArgs
+      args as CancelProposalInstructionDataArgs,
     ),
     programAddress,
   } as CancelProposalInstruction<
@@ -208,11 +208,11 @@ export function parseCancelProposalInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCancelProposalInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 4) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {

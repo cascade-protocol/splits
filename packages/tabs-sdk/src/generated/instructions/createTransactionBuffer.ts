@@ -38,9 +38,9 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const CREATE_TRANSACTION_BUFFER_DISCRIMINATOR = new Uint8Array([
   57, 97, 250, 156, 59, 211, 32, 208,
@@ -48,7 +48,7 @@ export const CREATE_TRANSACTION_BUFFER_DISCRIMINATOR = new Uint8Array([
 
 export function getCreateTransactionBufferDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CREATE_TRANSACTION_BUFFER_DISCRIMINATOR
+    CREATE_TRANSACTION_BUFFER_DISCRIMINATOR,
   );
 }
 
@@ -59,7 +59,7 @@ export type CreateTransactionBufferInstruction<
   TAccountCreator extends string | AccountMeta<string> = string,
   TAccountRentPayer extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -116,28 +116,28 @@ export type CreateTransactionBufferInstructionDataArgs = {
 export function getCreateTransactionBufferInstructionDataEncoder(): Encoder<CreateTransactionBufferInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['bufferIndex', getU8Encoder()],
-      ['accountIndex', getU8Encoder()],
-      ['finalBufferHash', fixEncoderSize(getBytesEncoder(), 32)],
-      ['finalBufferSize', getU16Encoder()],
-      ['buffer', addEncoderSizePrefix(getBytesEncoder(), getU32Encoder())],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["bufferIndex", getU8Encoder()],
+      ["accountIndex", getU8Encoder()],
+      ["finalBufferHash", fixEncoderSize(getBytesEncoder(), 32)],
+      ["finalBufferSize", getU16Encoder()],
+      ["buffer", addEncoderSizePrefix(getBytesEncoder(), getU32Encoder())],
     ]),
     (value) => ({
       ...value,
       discriminator: CREATE_TRANSACTION_BUFFER_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getCreateTransactionBufferInstructionDataDecoder(): Decoder<CreateTransactionBufferInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['bufferIndex', getU8Decoder()],
-    ['accountIndex', getU8Decoder()],
-    ['finalBufferHash', fixDecoderSize(getBytesDecoder(), 32)],
-    ['finalBufferSize', getU16Decoder()],
-    ['buffer', addDecoderSizePrefix(getBytesDecoder(), getU32Decoder())],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["bufferIndex", getU8Decoder()],
+    ["accountIndex", getU8Decoder()],
+    ["finalBufferHash", fixDecoderSize(getBytesDecoder(), 32)],
+    ["finalBufferSize", getU16Decoder()],
+    ["buffer", addDecoderSizePrefix(getBytesDecoder(), getU32Decoder())],
   ]);
 }
 
@@ -147,7 +147,7 @@ export function getCreateTransactionBufferInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getCreateTransactionBufferInstructionDataEncoder(),
-    getCreateTransactionBufferInstructionDataDecoder()
+    getCreateTransactionBufferInstructionDataDecoder(),
   );
 }
 
@@ -165,11 +165,11 @@ export type CreateTransactionBufferInput<
   /** The payer for the transaction account rent. */
   rentPayer: TransactionSigner<TAccountRentPayer>;
   systemProgram?: Address<TAccountSystemProgram>;
-  bufferIndex: CreateTransactionBufferInstructionDataArgs['bufferIndex'];
-  accountIndex: CreateTransactionBufferInstructionDataArgs['accountIndex'];
-  finalBufferHash: CreateTransactionBufferInstructionDataArgs['finalBufferHash'];
-  finalBufferSize: CreateTransactionBufferInstructionDataArgs['finalBufferSize'];
-  buffer: CreateTransactionBufferInstructionDataArgs['buffer'];
+  bufferIndex: CreateTransactionBufferInstructionDataArgs["bufferIndex"];
+  accountIndex: CreateTransactionBufferInstructionDataArgs["accountIndex"];
+  finalBufferHash: CreateTransactionBufferInstructionDataArgs["finalBufferHash"];
+  finalBufferSize: CreateTransactionBufferInstructionDataArgs["finalBufferSize"];
+  buffer: CreateTransactionBufferInstructionDataArgs["buffer"];
 };
 
 export function getCreateTransactionBufferInstruction<
@@ -188,7 +188,7 @@ export function getCreateTransactionBufferInstruction<
     TAccountRentPayer,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CreateTransactionBufferInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -223,10 +223,10 @@ export function getCreateTransactionBufferInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -236,7 +236,7 @@ export function getCreateTransactionBufferInstruction<
       getAccountMeta(accounts.systemProgram),
     ],
     data: getCreateTransactionBufferInstructionDataEncoder().encode(
-      args as CreateTransactionBufferInstructionDataArgs
+      args as CreateTransactionBufferInstructionDataArgs,
     ),
     programAddress,
   } as CreateTransactionBufferInstruction<
@@ -272,11 +272,11 @@ export function parseCreateTransactionBufferInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateTransactionBufferInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -294,7 +294,7 @@ export function parseCreateTransactionBufferInstruction<
       systemProgram: getNextAccount(),
     },
     data: getCreateTransactionBufferInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

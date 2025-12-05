@@ -43,15 +43,15 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 import {
   getSettingsActionDecoder,
   getSettingsActionEncoder,
   type SettingsAction,
   type SettingsActionArgs,
-} from '../types';
+} from "../types";
 
 export const EXECUTE_SETTINGS_TRANSACTION_SYNC_DISCRIMINATOR = new Uint8Array([
   138, 209, 64, 163, 79, 67, 233, 76,
@@ -59,7 +59,7 @@ export const EXECUTE_SETTINGS_TRANSACTION_SYNC_DISCRIMINATOR = new Uint8Array([
 
 export function getExecuteSettingsTransactionSyncDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    EXECUTE_SETTINGS_TRANSACTION_SYNC_DISCRIMINATOR
+    EXECUTE_SETTINGS_TRANSACTION_SYNC_DISCRIMINATOR,
   );
 }
 
@@ -111,30 +111,30 @@ export type ExecuteSettingsTransactionSyncInstructionDataArgs = {
 export function getExecuteSettingsTransactionSyncInstructionDataEncoder(): Encoder<ExecuteSettingsTransactionSyncInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['numSigners', getU8Encoder()],
-      ['actions', getArrayEncoder(getSettingsActionEncoder())],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["numSigners", getU8Encoder()],
+      ["actions", getArrayEncoder(getSettingsActionEncoder())],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
     (value) => ({
       ...value,
       discriminator: EXECUTE_SETTINGS_TRANSACTION_SYNC_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getExecuteSettingsTransactionSyncInstructionDataDecoder(): Decoder<ExecuteSettingsTransactionSyncInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['numSigners', getU8Decoder()],
-    ['actions', getArrayDecoder(getSettingsActionDecoder())],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["numSigners", getU8Decoder()],
+    ["actions", getArrayDecoder(getSettingsActionDecoder())],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -146,7 +146,7 @@ export function getExecuteSettingsTransactionSyncInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getExecuteSettingsTransactionSyncInstructionDataEncoder(),
-    getExecuteSettingsTransactionSyncInstructionDataDecoder()
+    getExecuteSettingsTransactionSyncInstructionDataDecoder(),
   );
 }
 
@@ -166,9 +166,9 @@ export type ExecuteSettingsTransactionSyncInput<
   /** We might need it in case reallocation is needed. */
   systemProgram?: Address<TAccountSystemProgram>;
   program: Address<TAccountProgram>;
-  numSigners: ExecuteSettingsTransactionSyncInstructionDataArgs['numSigners'];
-  actions: ExecuteSettingsTransactionSyncInstructionDataArgs['actions'];
-  memo: ExecuteSettingsTransactionSyncInstructionDataArgs['memo'];
+  numSigners: ExecuteSettingsTransactionSyncInstructionDataArgs["numSigners"];
+  actions: ExecuteSettingsTransactionSyncInstructionDataArgs["actions"];
+  memo: ExecuteSettingsTransactionSyncInstructionDataArgs["memo"];
 };
 
 export function getExecuteSettingsTransactionSyncInstruction<
@@ -185,7 +185,7 @@ export function getExecuteSettingsTransactionSyncInstruction<
     TAccountSystemProgram,
     TAccountProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): ExecuteSettingsTransactionSyncInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -212,7 +212,7 @@ export function getExecuteSettingsTransactionSyncInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -221,7 +221,7 @@ export function getExecuteSettingsTransactionSyncInstruction<
       getAccountMeta(accounts.program),
     ],
     data: getExecuteSettingsTransactionSyncInstructionDataEncoder().encode(
-      args as ExecuteSettingsTransactionSyncInstructionDataArgs
+      args as ExecuteSettingsTransactionSyncInstructionDataArgs,
     ),
     programAddress,
   } as ExecuteSettingsTransactionSyncInstruction<
@@ -259,11 +259,11 @@ export function parseExecuteSettingsTransactionSyncInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedExecuteSettingsTransactionSyncInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 4) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -286,7 +286,7 @@ export function parseExecuteSettingsTransactionSyncInstruction<
       program: getNextAccount(),
     },
     data: getExecuteSettingsTransactionSyncInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

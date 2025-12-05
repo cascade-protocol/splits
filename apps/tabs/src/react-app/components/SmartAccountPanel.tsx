@@ -5,7 +5,7 @@
  * spending limits, and API key display.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@/lib/zod-resolver";
@@ -18,11 +18,13 @@ import {
 	ArrowDownLeft,
 	Settings,
 	Loader2,
+	RefreshCw,
 } from "lucide-react";
 
 import { useSmartAccount } from "@/hooks/use-smart-account";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { formatUsdc, parseUsdc } from "@/lib/squads";
+import { TransactionHistory } from "./TransactionHistory";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -56,6 +58,7 @@ export function SmartAccountPanel() {
 		withdraw,
 		setSpendingLimit,
 		revokeSpendingLimit,
+		refresh,
 	} = useSmartAccount();
 
 	const [openDialog, setOpenDialog] = useState<DialogType>(null);
@@ -71,26 +74,31 @@ export function SmartAccountPanel() {
 	}
 
 	return (
-		<div className="space-y-6">
-			{/* Balance Card */}
-			<BalanceCard
-				balance={account.balance}
-				vaultAddress={account.vaultAddress}
-				onDeposit={() => setOpenDialog("deposit")}
-				onWithdraw={() => setOpenDialog("withdraw")}
-				isPending={isPending}
-			/>
+		<div className="space-y-4 md:space-y-6">
+			{/* Primary row: Balance + Spending side-by-side on md+ */}
+			<div className="grid gap-4 md:grid-cols-2">
+				<BalanceCard
+					balance={account.balance}
+					vaultAddress={account.vaultAddress}
+					onDeposit={() => setOpenDialog("deposit")}
+					onWithdraw={() => setOpenDialog("withdraw")}
+					onRefresh={refresh}
+					isPending={isPending}
+					isRefreshing={isLoading}
+				/>
+				<SpendingLimitCard
+					config={account.spendingLimit}
+					onConfigure={() => setOpenDialog("limits")}
+					onRevoke={revokeSpendingLimit}
+					isPending={isPending}
+				/>
+			</div>
 
-			{/* Spending Limit Card */}
-			<SpendingLimitCard
-				config={account.spendingLimit}
-				onConfigure={() => setOpenDialog("limits")}
-				onRevoke={revokeSpendingLimit}
-				isPending={isPending}
-			/>
-
-			{/* API Key Card */}
+			{/* Secondary: API Key (truncated by default) */}
 			{apiKey && <ApiKeyCard apiKey={apiKey} />}
+
+			{/* Tertiary: Transaction History (collapsible on mobile) */}
+			<TransactionHistory vaultAddress={account.vaultAddress} />
 
 			{/* Dialogs */}
 			<DepositDialog
@@ -139,27 +147,91 @@ function OnboardingCard({
 	isPending: boolean;
 }) {
 	return (
-		<Card>
-			<CardHeader className="text-center">
-				<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-					<Wallet className="h-6 w-6 text-primary" />
-				</div>
-				<CardTitle>Create Your Smart Account</CardTitle>
-				<CardDescription>
-					Set up a non-custodial Smart Account powered by Squads to get your API
-					key.
-				</CardDescription>
-			</CardHeader>
-			<CardContent className="text-center">
-				<Button onClick={onCreateAccount} disabled={isPending} size="lg">
-					{isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-					Create Smart Account
-				</Button>
-				<p className="mt-4 text-xs text-muted-foreground">
-					This will create a Squads Smart Account with you as the owner.
-				</p>
-			</CardContent>
-		</Card>
+		<div className="space-y-6">
+			{/* Hero */}
+			<Card>
+				<CardHeader className="text-center">
+					<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+						<Wallet className="h-6 w-6 text-primary" />
+					</div>
+					<CardTitle>Create Your Smart Account</CardTitle>
+					<CardDescription>
+						A non-custodial Squads account that lets you control API spending
+					</CardDescription>
+				</CardHeader>
+			</Card>
+
+			{/* How it works */}
+			<Card>
+				<CardHeader>
+					<CardTitle className="text-lg">How it works</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<div className="flex gap-3">
+						<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
+							1
+						</div>
+						<div>
+							<p className="font-medium">Create Account</p>
+							<p className="text-sm text-muted-foreground">
+								Creates a Squads smart account with you as the sole owner
+							</p>
+						</div>
+					</div>
+					<div className="flex gap-3">
+						<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
+							2
+						</div>
+						<div>
+							<p className="font-medium">Deposit USDC</p>
+							<p className="text-sm text-muted-foreground">
+								Fund your vault with USDC from your wallet
+							</p>
+						</div>
+					</div>
+					<div className="flex gap-3">
+						<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
+							3
+						</div>
+						<div>
+							<p className="font-medium">Set Spending Limit</p>
+							<p className="text-sm text-muted-foreground">
+								Configure daily limits to get your API key
+							</p>
+						</div>
+					</div>
+					<div className="flex gap-3">
+						<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
+							4
+						</div>
+						<div>
+							<p className="font-medium">Use API Key</p>
+							<p className="text-sm text-muted-foreground">
+								Third-party services can charge within your limits
+							</p>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* CTA */}
+			<Card>
+				<CardContent className="pt-6">
+					<Button
+						onClick={onCreateAccount}
+						disabled={isPending}
+						className="w-full"
+						size="lg"
+					>
+						{isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+						Create Smart Account
+					</Button>
+					<p className="mt-3 text-center text-xs text-muted-foreground">
+						You'll always retain full control. Withdraw anytime.
+					</p>
+				</CardContent>
+			</Card>
+		</div>
 	);
 }
 
@@ -168,42 +240,81 @@ function BalanceCard({
 	vaultAddress,
 	onDeposit,
 	onWithdraw,
+	onRefresh,
 	isPending,
+	isRefreshing,
 }: {
 	balance: bigint;
 	vaultAddress: string;
 	onDeposit: () => void;
 	onWithdraw: () => void;
+	onRefresh: () => Promise<void>;
 	isPending: boolean;
+	isRefreshing: boolean;
 }) {
-	const shortVault = `${vaultAddress.slice(0, 4)}...${vaultAddress.slice(-4)}`;
+	const { isCopied, copyToClipboard } = useCopyToClipboard();
 
 	return (
 		<Card>
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					<Wallet className="h-5 w-5" />
-					Balance
-				</CardTitle>
-				<CardDescription>
-					Vault: <code className="text-xs">{shortVault}</code>
-				</CardDescription>
+			<CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+				<div className="flex-1 min-w-0">
+					<CardTitle className="text-base flex items-center gap-2">
+						<Wallet className="size-4" />
+						Balance
+					</CardTitle>
+					<div className="flex items-center gap-1 mt-1">
+						<code className="text-[10px] font-mono text-muted-foreground break-all">
+							{vaultAddress}
+						</code>
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => copyToClipboard(vaultAddress)}
+							title="Copy vault address"
+							className="size-5 shrink-0"
+						>
+							{isCopied ? (
+								<Check className="size-3 text-green-500" />
+							) : (
+								<Copy className="size-3" />
+							)}
+						</Button>
+					</div>
+				</div>
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={onRefresh}
+					disabled={isRefreshing}
+					title="Refresh balance"
+					className="size-8 shrink-0"
+				>
+					<RefreshCw
+						className={`size-4 ${isRefreshing ? "animate-spin" : ""}`}
+					/>
+				</Button>
 			</CardHeader>
 			<CardContent>
-				<div className="mb-4">
-					<p className="text-3xl font-bold">{formatUsdc(balance)} USDC</p>
-				</div>
+				<p className="text-2xl md:text-3xl font-bold mb-3">
+					{formatUsdc(balance)} USDC
+				</p>
 				<div className="flex gap-2">
-					<Button onClick={onDeposit} disabled={isPending} variant="outline">
-						<ArrowDownLeft className="h-4 w-4" />
+					<Button
+						onClick={onDeposit}
+						disabled={isPending}
+						variant="outline"
+						size="sm"
+					>
+						<ArrowDownLeft className="size-4" />
 						Deposit
 					</Button>
 					<Button
 						onClick={onWithdraw}
 						disabled={isPending || balance === 0n}
 						variant="outline"
+						size="sm"
 					>
-						<ArrowUpRight className="h-4 w-4" />
+						<ArrowUpRight className="size-4" />
 						Withdraw
 					</Button>
 				</div>
@@ -220,7 +331,6 @@ function SpendingLimitCard({
 }: {
 	config: {
 		dailyLimit: bigint;
-		perTxLimit: bigint;
 		remainingToday: bigint;
 	} | null;
 	onConfigure: () => void;
@@ -229,21 +339,21 @@ function SpendingLimitCard({
 }) {
 	return (
 		<Card>
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					<Settings className="h-5 w-5" />
+			<CardHeader className="pb-2">
+				<CardTitle className="text-base flex items-center gap-2">
+					<Settings className="size-4" />
 					Spending Limit
 				</CardTitle>
-				<CardDescription>
+				<p className="text-xs text-muted-foreground">
 					{config
-						? "Controls how much the facilitator can spend on your behalf"
-						: "Set a spending limit to generate your API key"}
-				</CardDescription>
+						? "Facilitator spending allowance"
+						: "Set a limit to get your API key"}
+				</p>
 			</CardHeader>
 			<CardContent>
 				{config ? (
 					<>
-						<div className="mb-4 grid gap-2 text-sm">
+						<div className="mb-3 grid gap-1.5 text-sm">
 							<div className="flex justify-between">
 								<span className="text-muted-foreground">Daily Limit</span>
 								<span className="font-mono">
@@ -251,13 +361,7 @@ function SpendingLimitCard({
 								</span>
 							</div>
 							<div className="flex justify-between">
-								<span className="text-muted-foreground">Per Transaction</span>
-								<span className="font-mono">
-									{formatUsdc(config.perTxLimit)} USDC
-								</span>
-							</div>
-							<div className="flex justify-between">
-								<span className="text-muted-foreground">Remaining Today</span>
+								<span className="text-muted-foreground">Remaining</span>
 								<span className="font-mono">
 									{formatUsdc(config.remainingToday)} USDC
 								</span>
@@ -268,8 +372,9 @@ function SpendingLimitCard({
 								onClick={onConfigure}
 								disabled={isPending}
 								variant="outline"
+								size="sm"
 							>
-								Update Limits
+								Update
 							</Button>
 							<Button
 								onClick={onRevoke}
@@ -282,8 +387,8 @@ function SpendingLimitCard({
 						</div>
 					</>
 				) : (
-					<Button onClick={onConfigure} disabled={isPending}>
-						<Key className="h-4 w-4" />
+					<Button onClick={onConfigure} disabled={isPending} size="sm">
+						<Key className="size-4" />
 						Set Spending Limit
 					</Button>
 				)}
@@ -297,32 +402,31 @@ function ApiKeyCard({ apiKey }: { apiKey: string }) {
 
 	return (
 		<Card>
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					<Key className="h-5 w-5" />
-					API Key
-				</CardTitle>
-				<CardDescription>
-					Use this key to access x402-enabled APIs
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<div className="flex items-center gap-2">
-					<code className="flex-1 rounded bg-muted px-3 py-2 font-mono text-sm break-all">
-						{apiKey}
-					</code>
+			<CardHeader className="py-4">
+				<div className="flex items-center justify-between">
+					<CardTitle className="text-base flex items-center gap-2">
+						<Key className="size-4" />
+						API Key
+					</CardTitle>
 					<Button
-						variant="outline"
+						variant="ghost"
 						size="icon"
 						onClick={() => copyToClipboard(apiKey)}
+						title="Copy API key"
+						className="size-8"
 					>
 						{isCopied ? (
-							<Check className="h-4 w-4 text-green-500" />
+							<Check className="size-4 text-green-500" />
 						) : (
-							<Copy className="h-4 w-4" />
+							<Copy className="size-4" />
 						)}
 					</Button>
 				</div>
+			</CardHeader>
+			<CardContent className="pt-0">
+				<code className="block rounded bg-muted px-3 py-2 font-mono text-xs break-all">
+					{apiKey}
+				</code>
 				<p className="mt-2 text-xs text-muted-foreground">
 					Keep this key secret. Anyone with this key can spend up to your
 					per-transaction limit.
@@ -447,11 +551,21 @@ function WithdrawDialog({
 					<div className="grid gap-4 py-4">
 						<div className="grid gap-2">
 							<Label htmlFor="withdraw-amount">Amount (USDC)</Label>
-							<Input
-								id="withdraw-amount"
-								placeholder="0.00"
-								{...form.register("amount")}
-							/>
+							<div className="flex gap-2">
+								<Input
+									id="withdraw-amount"
+									placeholder="0.00"
+									{...form.register("amount")}
+								/>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => form.setValue("amount", formatUsdc(maxAmount))}
+								>
+									Max
+								</Button>
+							</div>
 							<p className="text-xs text-muted-foreground">
 								Available: {formatUsdc(maxAmount)} USDC
 							</p>
@@ -483,8 +597,13 @@ function WithdrawDialog({
 
 const limitsSchema = z.object({
 	dailyLimit: z.string().min(1, "Daily limit is required"),
-	perTxLimit: z.string().min(1, "Per-transaction limit is required"),
 });
+
+const LIMIT_PRESETS = [
+	{ label: "$10", value: "10" },
+	{ label: "$50", value: "50" },
+	{ label: "$100", value: "100" },
+];
 
 function SpendingLimitDialog({
 	open,
@@ -495,30 +614,29 @@ function SpendingLimitDialog({
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onSubmit: (dailyLimit: bigint, perTxLimit: bigint) => Promise<void>;
-	currentConfig: { dailyLimit: bigint; perTxLimit: bigint } | null;
+	onSubmit: (dailyLimit: bigint) => Promise<void>;
+	currentConfig: { dailyLimit: bigint } | null;
 	isPending: boolean;
 }) {
 	const form = useForm({
 		resolver: zodResolver(limitsSchema),
 		defaultValues: {
 			dailyLimit: currentConfig ? formatUsdc(currentConfig.dailyLimit) : "",
-			perTxLimit: currentConfig ? formatUsdc(currentConfig.perTxLimit) : "",
 		},
 	});
 
+	// Reset form when dialog opens or config changes
+	useEffect(() => {
+		if (open) {
+			form.reset({
+				dailyLimit: currentConfig ? formatUsdc(currentConfig.dailyLimit) : "",
+			});
+		}
+	}, [open, currentConfig, form]);
+
 	const handleSubmit = form.handleSubmit(async (data) => {
 		const dailyLimit = parseUsdc(data.dailyLimit);
-		const perTxLimit = parseUsdc(data.perTxLimit);
-
-		if (perTxLimit > dailyLimit) {
-			form.setError("perTxLimit", {
-				message: "Per-transaction limit cannot exceed daily limit",
-			});
-			return;
-		}
-
-		await onSubmit(dailyLimit, perTxLimit);
+		await onSubmit(dailyLimit);
 		form.reset();
 		onOpenChange(false);
 	});
@@ -531,12 +649,27 @@ function SpendingLimitDialog({
 						{currentConfig ? "Update Spending Limit" : "Set Spending Limit"}
 					</DialogTitle>
 					<DialogDescription>
-						Configure how much the facilitator can spend per day and per
-						transaction.
+						Configure how much the facilitator can spend per day.
 					</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={handleSubmit}>
 					<div className="grid gap-4 py-4">
+						{/* Preset buttons */}
+						<div className="flex gap-2">
+							{LIMIT_PRESETS.map((preset) => (
+								<Button
+									key={preset.value}
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										form.setValue("dailyLimit", preset.value);
+									}}
+								>
+									{preset.label}
+								</Button>
+							))}
+						</div>
 						<div className="grid gap-2">
 							<Label htmlFor="daily-limit">Daily Limit (USDC)</Label>
 							<Input
@@ -547,19 +680,6 @@ function SpendingLimitDialog({
 							{form.formState.errors.dailyLimit && (
 								<p className="text-sm text-destructive">
 									{form.formState.errors.dailyLimit.message}
-								</p>
-							)}
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="per-tx-limit">Per Transaction Limit (USDC)</Label>
-							<Input
-								id="per-tx-limit"
-								placeholder="10.00"
-								{...form.register("perTxLimit")}
-							/>
-							{form.formState.errors.perTxLimit && (
-								<p className="text-sm text-destructive">
-									{form.formState.errors.perTxLimit.message}
 								</p>
 							)}
 						</div>

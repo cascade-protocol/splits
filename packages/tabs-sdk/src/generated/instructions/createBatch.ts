@@ -42,9 +42,9 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const CREATE_BATCH_DISCRIMINATOR = new Uint8Array([
   159, 198, 248, 43, 248, 31, 235, 86,
@@ -52,7 +52,7 @@ export const CREATE_BATCH_DISCRIMINATOR = new Uint8Array([
 
 export function getCreateBatchDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CREATE_BATCH_DISCRIMINATOR
+    CREATE_BATCH_DISCRIMINATOR,
   );
 }
 
@@ -63,7 +63,7 @@ export type CreateBatchInstruction<
   TAccountCreator extends string | AccountMeta<string> = string,
   TAccountRentPayer extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -106,25 +106,25 @@ export type CreateBatchInstructionDataArgs = {
 export function getCreateBatchInstructionDataEncoder(): Encoder<CreateBatchInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['accountIndex', getU8Encoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["accountIndex", getU8Encoder()],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
-    (value) => ({ ...value, discriminator: CREATE_BATCH_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: CREATE_BATCH_DISCRIMINATOR }),
   );
 }
 
 export function getCreateBatchInstructionDataDecoder(): Decoder<CreateBatchInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['accountIndex', getU8Decoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["accountIndex", getU8Decoder()],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -136,7 +136,7 @@ export function getCreateBatchInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getCreateBatchInstructionDataEncoder(),
-    getCreateBatchInstructionDataDecoder()
+    getCreateBatchInstructionDataDecoder(),
   );
 }
 
@@ -154,8 +154,8 @@ export type CreateBatchInput<
   /** The payer for the batch account rent. */
   rentPayer: TransactionSigner<TAccountRentPayer>;
   systemProgram?: Address<TAccountSystemProgram>;
-  accountIndex: CreateBatchInstructionDataArgs['accountIndex'];
-  memo: CreateBatchInstructionDataArgs['memo'];
+  accountIndex: CreateBatchInstructionDataArgs["accountIndex"];
+  memo: CreateBatchInstructionDataArgs["memo"];
 };
 
 export function getCreateBatchInstruction<
@@ -174,7 +174,7 @@ export function getCreateBatchInstruction<
     TAccountRentPayer,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CreateBatchInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -206,10 +206,10 @@ export function getCreateBatchInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -219,7 +219,7 @@ export function getCreateBatchInstruction<
       getAccountMeta(accounts.systemProgram),
     ],
     data: getCreateBatchInstructionDataEncoder().encode(
-      args as CreateBatchInstructionDataArgs
+      args as CreateBatchInstructionDataArgs,
     ),
     programAddress,
   } as CreateBatchInstruction<
@@ -255,11 +255,11 @@ export function parseCreateBatchInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateBatchInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {

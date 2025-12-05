@@ -10,19 +10,17 @@ import {
   combineCodec,
   getAddressDecoder,
   getAddressEncoder,
+  getArrayDecoder,
+  getArrayEncoder,
   getStructDecoder,
   getStructEncoder,
+  getU8Decoder,
+  getU8Encoder,
   type Address,
   type Codec,
   type Decoder,
   type Encoder,
-} from '@solana/kit';
-import {
-  getSmallVecU8U8Decoder,
-  getSmallVecU8U8Encoder,
-  type SmallVecU8U8,
-  type SmallVecU8U8Args,
-} from '.';
+} from "@solana/kit";
 
 /**
  * Address table lookups describe an on-chain address lookup table to use
@@ -32,33 +30,38 @@ export type MessageAddressTableLookup = {
   /** Address lookup table account key */
   accountKey: Address;
   /** List of indexes used to load writable account addresses */
-  writableIndexes: SmallVecU8U8;
+  writableIndexes: Array<number>;
   /** List of indexes used to load readonly account addresses */
-  readonlyIndexes: SmallVecU8U8;
+  readonlyIndexes: Array<number>;
 };
 
-export type MessageAddressTableLookupArgs = {
-  /** Address lookup table account key */
-  accountKey: Address;
-  /** List of indexes used to load writable account addresses */
-  writableIndexes: SmallVecU8U8Args;
-  /** List of indexes used to load readonly account addresses */
-  readonlyIndexes: SmallVecU8U8Args;
-};
+export type MessageAddressTableLookupArgs = MessageAddressTableLookup;
 
 export function getMessageAddressTableLookupEncoder(): Encoder<MessageAddressTableLookupArgs> {
   return getStructEncoder([
-    ['accountKey', getAddressEncoder()],
-    ['writableIndexes', getSmallVecU8U8Encoder()],
-    ['readonlyIndexes', getSmallVecU8U8Encoder()],
+    ["accountKey", getAddressEncoder()],
+    [
+      "writableIndexes",
+      getArrayEncoder(getU8Encoder(), { size: getU8Encoder() }),
+    ],
+    [
+      "readonlyIndexes",
+      getArrayEncoder(getU8Encoder(), { size: getU8Encoder() }),
+    ],
   ]);
 }
 
 export function getMessageAddressTableLookupDecoder(): Decoder<MessageAddressTableLookup> {
   return getStructDecoder([
-    ['accountKey', getAddressDecoder()],
-    ['writableIndexes', getSmallVecU8U8Decoder()],
-    ['readonlyIndexes', getSmallVecU8U8Decoder()],
+    ["accountKey", getAddressDecoder()],
+    [
+      "writableIndexes",
+      getArrayDecoder(getU8Decoder(), { size: getU8Decoder() }),
+    ],
+    [
+      "readonlyIndexes",
+      getArrayDecoder(getU8Decoder(), { size: getU8Decoder() }),
+    ],
   ]);
 }
 
@@ -68,6 +71,6 @@ export function getMessageAddressTableLookupCodec(): Codec<
 > {
   return combineCodec(
     getMessageAddressTableLookupEncoder(),
-    getMessageAddressTableLookupDecoder()
+    getMessageAddressTableLookupDecoder(),
   );
 }

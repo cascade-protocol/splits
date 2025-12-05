@@ -22,7 +22,7 @@ import {
   type Decoder,
   type Encoder,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from "@solana/kit";
 
 /**
  * Concise serialization schema for instructions that make up a transaction.
@@ -41,23 +41,23 @@ export type SmartAccountCompiledInstructionArgs =
 
 export function getSmartAccountCompiledInstructionEncoder(): Encoder<SmartAccountCompiledInstructionArgs> {
   return getStructEncoder([
-    ['programIdIndex', getU8Encoder()],
+    ["programIdIndex", getU8Encoder()],
     [
-      'accountIndexes',
+      "accountIndexes",
       addEncoderSizePrefix(getBytesEncoder(), getU32Encoder()),
     ],
-    ['data', addEncoderSizePrefix(getBytesEncoder(), getU32Encoder())],
+    ["data", addEncoderSizePrefix(getBytesEncoder(), getU32Encoder())],
   ]);
 }
 
 export function getSmartAccountCompiledInstructionDecoder(): Decoder<SmartAccountCompiledInstruction> {
   return getStructDecoder([
-    ['programIdIndex', getU8Decoder()],
+    ["programIdIndex", getU8Decoder()],
     [
-      'accountIndexes',
+      "accountIndexes",
       addDecoderSizePrefix(getBytesDecoder(), getU32Decoder()),
     ],
-    ['data', addDecoderSizePrefix(getBytesDecoder(), getU32Decoder())],
+    ["data", addDecoderSizePrefix(getBytesDecoder(), getU32Decoder())],
   ]);
 }
 
@@ -67,6 +67,6 @@ export function getSmartAccountCompiledInstructionCodec(): Codec<
 > {
   return combineCodec(
     getSmartAccountCompiledInstructionEncoder(),
-    getSmartAccountCompiledInstructionDecoder()
+    getSmartAccountCompiledInstructionDecoder(),
   );
 }

@@ -49,13 +49,13 @@ import {
   type Option,
   type OptionOrNullable,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from "@solana/kit";
 import {
   getSmartAccountSignerDecoder,
   getSmartAccountSignerEncoder,
   type SmartAccountSigner,
   type SmartAccountSignerArgs,
-} from '../types';
+} from "../types";
 
 export const SETTINGS_DISCRIMINATOR = new Uint8Array([
   223, 179, 163, 190, 177, 224, 67, 173,
@@ -182,42 +182,42 @@ export type SettingsArgs = {
 export function getSettingsEncoder(): Encoder<SettingsArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['seed', getU128Encoder()],
-      ['settingsAuthority', getAddressEncoder()],
-      ['threshold', getU16Encoder()],
-      ['timeLock', getU32Encoder()],
-      ['transactionIndex', getU64Encoder()],
-      ['staleTransactionIndex', getU64Encoder()],
-      ['archivalAuthority', getOptionEncoder(getAddressEncoder())],
-      ['archivableAfter', getU64Encoder()],
-      ['bump', getU8Encoder()],
-      ['signers', getArrayEncoder(getSmartAccountSignerEncoder())],
-      ['accountUtilization', getU8Encoder()],
-      ['reserved1', getU8Encoder()],
-      ['reserved2', getU8Encoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["seed", getU128Encoder()],
+      ["settingsAuthority", getAddressEncoder()],
+      ["threshold", getU16Encoder()],
+      ["timeLock", getU32Encoder()],
+      ["transactionIndex", getU64Encoder()],
+      ["staleTransactionIndex", getU64Encoder()],
+      ["archivalAuthority", getOptionEncoder(getAddressEncoder())],
+      ["archivableAfter", getU64Encoder()],
+      ["bump", getU8Encoder()],
+      ["signers", getArrayEncoder(getSmartAccountSignerEncoder())],
+      ["accountUtilization", getU8Encoder()],
+      ["reserved1", getU8Encoder()],
+      ["reserved2", getU8Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: SETTINGS_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: SETTINGS_DISCRIMINATOR }),
   );
 }
 
 /** Gets the decoder for {@link Settings} account data. */
 export function getSettingsDecoder(): Decoder<Settings> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['seed', getU128Decoder()],
-    ['settingsAuthority', getAddressDecoder()],
-    ['threshold', getU16Decoder()],
-    ['timeLock', getU32Decoder()],
-    ['transactionIndex', getU64Decoder()],
-    ['staleTransactionIndex', getU64Decoder()],
-    ['archivalAuthority', getOptionDecoder(getAddressDecoder())],
-    ['archivableAfter', getU64Decoder()],
-    ['bump', getU8Decoder()],
-    ['signers', getArrayDecoder(getSmartAccountSignerDecoder())],
-    ['accountUtilization', getU8Decoder()],
-    ['reserved1', getU8Decoder()],
-    ['reserved2', getU8Decoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["seed", getU128Decoder()],
+    ["settingsAuthority", getAddressDecoder()],
+    ["threshold", getU16Decoder()],
+    ["timeLock", getU32Decoder()],
+    ["transactionIndex", getU64Decoder()],
+    ["staleTransactionIndex", getU64Decoder()],
+    ["archivalAuthority", getOptionDecoder(getAddressDecoder())],
+    ["archivableAfter", getU64Decoder()],
+    ["bump", getU8Decoder()],
+    ["signers", getArrayDecoder(getSmartAccountSignerDecoder())],
+    ["accountUtilization", getU8Decoder()],
+    ["reserved1", getU8Decoder()],
+    ["reserved2", getU8Decoder()],
   ]);
 }
 
@@ -227,24 +227,24 @@ export function getSettingsCodec(): Codec<SettingsArgs, Settings> {
 }
 
 export function decodeSettings<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress>,
 ): Account<Settings, TAddress>;
 export function decodeSettings<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
+  encodedAccount: MaybeEncodedAccount<TAddress>,
 ): MaybeAccount<Settings, TAddress>;
 export function decodeSettings<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
 ): Account<Settings, TAddress> | MaybeAccount<Settings, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getSettingsDecoder()
+    getSettingsDecoder(),
   );
 }
 
 export async function fetchSettings<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<Account<Settings, TAddress>> {
   const maybeAccount = await fetchMaybeSettings(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -254,7 +254,7 @@ export async function fetchSettings<TAddress extends string = string>(
 export async function fetchMaybeSettings<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<MaybeAccount<Settings, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeSettings(maybeAccount);
@@ -263,7 +263,7 @@ export async function fetchMaybeSettings<TAddress extends string = string>(
 export async function fetchAllSettings(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<Account<Settings>[]> {
   const maybeAccounts = await fetchAllMaybeSettings(rpc, addresses, config);
   assertAccountsExist(maybeAccounts);
@@ -273,7 +273,7 @@ export async function fetchAllSettings(
 export async function fetchAllMaybeSettings(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<Settings>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) => decodeSettings(maybeAccount));

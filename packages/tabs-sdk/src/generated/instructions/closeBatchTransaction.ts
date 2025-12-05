@@ -26,9 +26,9 @@ import {
   type ReadonlyAccount,
   type ReadonlyUint8Array,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const CLOSE_BATCH_TRANSACTION_DISCRIMINATOR = new Uint8Array([
   86, 144, 133, 225, 45, 209, 62, 251,
@@ -36,7 +36,7 @@ export const CLOSE_BATCH_TRANSACTION_DISCRIMINATOR = new Uint8Array([
 
 export function getCloseBatchTransactionDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CLOSE_BATCH_TRANSACTION_DISCRIMINATOR
+    CLOSE_BATCH_TRANSACTION_DISCRIMINATOR,
   );
 }
 
@@ -49,7 +49,7 @@ export type CloseBatchTransactionInstruction<
   TAccountTransactionRentCollector extends string | AccountMeta<string> =
     string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -85,17 +85,17 @@ export type CloseBatchTransactionInstructionDataArgs = {};
 
 export function getCloseBatchTransactionInstructionDataEncoder(): FixedSizeEncoder<CloseBatchTransactionInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]),
+    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
     (value) => ({
       ...value,
       discriminator: CLOSE_BATCH_TRANSACTION_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getCloseBatchTransactionInstructionDataDecoder(): FixedSizeDecoder<CloseBatchTransactionInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
   ]);
 }
 
@@ -105,7 +105,7 @@ export function getCloseBatchTransactionInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getCloseBatchTransactionInstructionDataEncoder(),
-    getCloseBatchTransactionInstructionDataDecoder()
+    getCloseBatchTransactionInstructionDataDecoder(),
   );
 }
 
@@ -149,7 +149,7 @@ export function getCloseBatchTransactionInstruction<
     TAccountTransactionRentCollector,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CloseBatchTransactionInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -183,10 +183,10 @@ export function getCloseBatchTransactionInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -237,11 +237,11 @@ export function parseCloseBatchTransactionInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCloseBatchTransactionInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 6) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -260,7 +260,7 @@ export function parseCloseBatchTransactionInstruction<
       systemProgram: getNextAccount(),
     },
     data: getCloseBatchTransactionInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

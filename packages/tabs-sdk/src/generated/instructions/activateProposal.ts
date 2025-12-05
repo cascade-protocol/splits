@@ -29,9 +29,9 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const ACTIVATE_PROPOSAL_DISCRIMINATOR = new Uint8Array([
   90, 186, 203, 234, 70, 185, 191, 21,
@@ -39,7 +39,7 @@ export const ACTIVATE_PROPOSAL_DISCRIMINATOR = new Uint8Array([
 
 export function getActivateProposalDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    ACTIVATE_PROPOSAL_DISCRIMINATOR
+    ACTIVATE_PROPOSAL_DISCRIMINATOR,
   );
 }
 
@@ -75,14 +75,14 @@ export type ActivateProposalInstructionDataArgs = {};
 
 export function getActivateProposalInstructionDataEncoder(): FixedSizeEncoder<ActivateProposalInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]),
-    (value) => ({ ...value, discriminator: ACTIVATE_PROPOSAL_DISCRIMINATOR })
+    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
+    (value) => ({ ...value, discriminator: ACTIVATE_PROPOSAL_DISCRIMINATOR }),
   );
 }
 
 export function getActivateProposalInstructionDataDecoder(): FixedSizeDecoder<ActivateProposalInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
   ]);
 }
 
@@ -92,7 +92,7 @@ export function getActivateProposalInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getActivateProposalInstructionDataEncoder(),
-    getActivateProposalInstructionDataDecoder()
+    getActivateProposalInstructionDataDecoder(),
   );
 }
 
@@ -118,7 +118,7 @@ export function getActivateProposalInstruction<
     TAccountSigner,
     TAccountProposal
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): ActivateProposalInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -140,7 +140,7 @@ export function getActivateProposalInstruction<
     ResolvedAccount
   >;
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -176,11 +176,11 @@ export function parseActivateProposalInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedActivateProposalInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {

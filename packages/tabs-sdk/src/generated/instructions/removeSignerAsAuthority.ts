@@ -42,9 +42,9 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const REMOVE_SIGNER_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
   58, 19, 149, 16, 181, 16, 125, 148,
@@ -52,7 +52,7 @@ export const REMOVE_SIGNER_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
 
 export function getRemoveSignerAsAuthorityDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    REMOVE_SIGNER_AS_AUTHORITY_DISCRIMINATOR
+    REMOVE_SIGNER_AS_AUTHORITY_DISCRIMINATOR,
   );
 }
 
@@ -105,28 +105,28 @@ export type RemoveSignerAsAuthorityInstructionDataArgs = {
 export function getRemoveSignerAsAuthorityInstructionDataEncoder(): Encoder<RemoveSignerAsAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['oldSigner', getAddressEncoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["oldSigner", getAddressEncoder()],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
     (value) => ({
       ...value,
       discriminator: REMOVE_SIGNER_AS_AUTHORITY_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getRemoveSignerAsAuthorityInstructionDataDecoder(): Decoder<RemoveSignerAsAuthorityInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['oldSigner', getAddressDecoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["oldSigner", getAddressDecoder()],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -138,7 +138,7 @@ export function getRemoveSignerAsAuthorityInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getRemoveSignerAsAuthorityInstructionDataEncoder(),
-    getRemoveSignerAsAuthorityInstructionDataDecoder()
+    getRemoveSignerAsAuthorityInstructionDataDecoder(),
   );
 }
 
@@ -161,8 +161,8 @@ export type RemoveSignerAsAuthorityInput<
   /** We might need it in case reallocation is needed. */
   systemProgram?: Address<TAccountSystemProgram>;
   program: Address<TAccountProgram>;
-  oldSigner: RemoveSignerAsAuthorityInstructionDataArgs['oldSigner'];
-  memo: RemoveSignerAsAuthorityInstructionDataArgs['memo'];
+  oldSigner: RemoveSignerAsAuthorityInstructionDataArgs["oldSigner"];
+  memo: RemoveSignerAsAuthorityInstructionDataArgs["memo"];
 };
 
 export function getRemoveSignerAsAuthorityInstruction<
@@ -181,7 +181,7 @@ export function getRemoveSignerAsAuthorityInstruction<
     TAccountSystemProgram,
     TAccountProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): RemoveSignerAsAuthorityInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -213,7 +213,7 @@ export function getRemoveSignerAsAuthorityInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -223,7 +223,7 @@ export function getRemoveSignerAsAuthorityInstruction<
       getAccountMeta(accounts.program),
     ],
     data: getRemoveSignerAsAuthorityInstructionDataEncoder().encode(
-      args as RemoveSignerAsAuthorityInstructionDataArgs
+      args as RemoveSignerAsAuthorityInstructionDataArgs,
     ),
     programAddress,
   } as RemoveSignerAsAuthorityInstruction<
@@ -264,11 +264,11 @@ export function parseRemoveSignerAsAuthorityInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedRemoveSignerAsAuthorityInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -292,7 +292,7 @@ export function parseRemoveSignerAsAuthorityInstruction<
       program: getNextAccount(),
     },
     data: getRemoveSignerAsAuthorityInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

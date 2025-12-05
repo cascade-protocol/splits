@@ -20,7 +20,7 @@ import {
   type Codec,
   type Decoder,
   type Encoder,
-} from '@solana/kit';
+} from "@solana/kit";
 import {
   getSmartAccountCompiledInstructionDecoder,
   getSmartAccountCompiledInstructionEncoder,
@@ -30,7 +30,7 @@ import {
   type SmartAccountCompiledInstructionArgs,
   type SmartAccountMessageAddressTableLookup,
   type SmartAccountMessageAddressTableLookupArgs,
-} from '.';
+} from ".";
 
 export type SmartAccountTransactionMessage = {
   /** The number of signer pubkeys in the account_keys vec. */
@@ -92,16 +92,16 @@ export type SmartAccountTransactionMessageArgs = {
 
 export function getSmartAccountTransactionMessageEncoder(): Encoder<SmartAccountTransactionMessageArgs> {
   return getStructEncoder([
-    ['numSigners', getU8Encoder()],
-    ['numWritableSigners', getU8Encoder()],
-    ['numWritableNonSigners', getU8Encoder()],
-    ['accountKeys', getArrayEncoder(getAddressEncoder())],
+    ["numSigners", getU8Encoder()],
+    ["numWritableSigners", getU8Encoder()],
+    ["numWritableNonSigners", getU8Encoder()],
+    ["accountKeys", getArrayEncoder(getAddressEncoder())],
     [
-      'instructions',
+      "instructions",
       getArrayEncoder(getSmartAccountCompiledInstructionEncoder()),
     ],
     [
-      'addressTableLookups',
+      "addressTableLookups",
       getArrayEncoder(getSmartAccountMessageAddressTableLookupEncoder()),
     ],
   ]);
@@ -109,16 +109,16 @@ export function getSmartAccountTransactionMessageEncoder(): Encoder<SmartAccount
 
 export function getSmartAccountTransactionMessageDecoder(): Decoder<SmartAccountTransactionMessage> {
   return getStructDecoder([
-    ['numSigners', getU8Decoder()],
-    ['numWritableSigners', getU8Decoder()],
-    ['numWritableNonSigners', getU8Decoder()],
-    ['accountKeys', getArrayDecoder(getAddressDecoder())],
+    ["numSigners", getU8Decoder()],
+    ["numWritableSigners", getU8Decoder()],
+    ["numWritableNonSigners", getU8Decoder()],
+    ["accountKeys", getArrayDecoder(getAddressDecoder())],
     [
-      'instructions',
+      "instructions",
       getArrayDecoder(getSmartAccountCompiledInstructionDecoder()),
     ],
     [
-      'addressTableLookups',
+      "addressTableLookups",
       getArrayDecoder(getSmartAccountMessageAddressTableLookupDecoder()),
     ],
   ]);
@@ -130,6 +130,6 @@ export function getSmartAccountTransactionMessageCodec(): Codec<
 > {
   return combineCodec(
     getSmartAccountTransactionMessageEncoder(),
-    getSmartAccountTransactionMessageDecoder()
+    getSmartAccountTransactionMessageDecoder(),
   );
 }

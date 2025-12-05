@@ -40,9 +40,9 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const SET_TIME_LOCK_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
   2, 234, 93, 93, 40, 92, 31, 234,
@@ -50,7 +50,7 @@ export const SET_TIME_LOCK_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
 
 export function getSetTimeLockAsAuthorityDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    SET_TIME_LOCK_AS_AUTHORITY_DISCRIMINATOR
+    SET_TIME_LOCK_AS_AUTHORITY_DISCRIMINATOR,
   );
 }
 
@@ -103,28 +103,28 @@ export type SetTimeLockAsAuthorityInstructionDataArgs = {
 export function getSetTimeLockAsAuthorityInstructionDataEncoder(): Encoder<SetTimeLockAsAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['timeLock', getU32Encoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["timeLock", getU32Encoder()],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
     (value) => ({
       ...value,
       discriminator: SET_TIME_LOCK_AS_AUTHORITY_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getSetTimeLockAsAuthorityInstructionDataDecoder(): Decoder<SetTimeLockAsAuthorityInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['timeLock', getU32Decoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["timeLock", getU32Decoder()],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -136,7 +136,7 @@ export function getSetTimeLockAsAuthorityInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getSetTimeLockAsAuthorityInstructionDataEncoder(),
-    getSetTimeLockAsAuthorityInstructionDataDecoder()
+    getSetTimeLockAsAuthorityInstructionDataDecoder(),
   );
 }
 
@@ -159,8 +159,8 @@ export type SetTimeLockAsAuthorityInput<
   /** We might need it in case reallocation is needed. */
   systemProgram?: Address<TAccountSystemProgram>;
   program: Address<TAccountProgram>;
-  timeLock: SetTimeLockAsAuthorityInstructionDataArgs['timeLock'];
-  memo: SetTimeLockAsAuthorityInstructionDataArgs['memo'];
+  timeLock: SetTimeLockAsAuthorityInstructionDataArgs["timeLock"];
+  memo: SetTimeLockAsAuthorityInstructionDataArgs["memo"];
 };
 
 export function getSetTimeLockAsAuthorityInstruction<
@@ -179,7 +179,7 @@ export function getSetTimeLockAsAuthorityInstruction<
     TAccountSystemProgram,
     TAccountProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): SetTimeLockAsAuthorityInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -211,7 +211,7 @@ export function getSetTimeLockAsAuthorityInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -221,7 +221,7 @@ export function getSetTimeLockAsAuthorityInstruction<
       getAccountMeta(accounts.program),
     ],
     data: getSetTimeLockAsAuthorityInstructionDataEncoder().encode(
-      args as SetTimeLockAsAuthorityInstructionDataArgs
+      args as SetTimeLockAsAuthorityInstructionDataArgs,
     ),
     programAddress,
   } as SetTimeLockAsAuthorityInstruction<
@@ -262,11 +262,11 @@ export function parseSetTimeLockAsAuthorityInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetTimeLockAsAuthorityInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -290,7 +290,7 @@ export function parseSetTimeLockAsAuthorityInstruction<
       program: getNextAccount(),
     },
     data: getSetTimeLockAsAuthorityInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

@@ -15,26 +15,26 @@ export function RootLayout() {
 	const showDashboard = location.pathname !== "/about" && connected;
 
 	return (
-		<div className="flex min-h-screen flex-col bg-background text-foreground">
+		<div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
 			<Header />
 
 			<ErrorBoundary>
 				{/* Activity automatically cleans up Effects when hidden */}
 				<Activity mode={showDashboard ? "visible" : "hidden"}>
-					<div className="flex flex-1 flex-col">
+					<div className="flex flex-1 flex-col min-h-0 overflow-auto">
 						<Dashboard />
 					</div>
 				</Activity>
 
 				<Activity mode={showDashboard ? "hidden" : "visible"}>
-					<div className="flex flex-1 flex-col">
+					<div className="flex flex-1 flex-col min-h-0 overflow-auto">
 						<About />
 					</div>
 				</Activity>
 			</ErrorBoundary>
 
 			{/* Footer */}
-			<footer className="border-t py-4 px-4 md:px-6 mt-auto">
+			<footer className="shrink-0 border-t py-4 px-4 md:px-6">
 				<div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
 					<div className="flex items-center gap-2">
 						<span>Cascade Tabs</span>

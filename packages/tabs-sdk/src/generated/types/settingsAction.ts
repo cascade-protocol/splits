@@ -36,7 +36,7 @@ import {
   type GetDiscriminatedUnionVariantContent,
   type Option,
   type OptionOrNullable,
-} from '@solana/kit';
+} from "@solana/kit";
 import {
   getPeriodDecoder,
   getPeriodEncoder,
@@ -46,15 +46,15 @@ import {
   type PeriodArgs,
   type SmartAccountSigner,
   type SmartAccountSignerArgs,
-} from '.';
+} from ".";
 
 export type SettingsAction =
-  | { __kind: 'AddSigner'; newSigner: SmartAccountSigner }
-  | { __kind: 'RemoveSigner'; oldSigner: Address }
-  | { __kind: 'ChangeThreshold'; newThreshold: number }
-  | { __kind: 'SetTimeLock'; newTimeLock: number }
+  | { __kind: "AddSigner"; newSigner: SmartAccountSigner }
+  | { __kind: "RemoveSigner"; oldSigner: Address }
+  | { __kind: "ChangeThreshold"; newThreshold: number }
+  | { __kind: "SetTimeLock"; newTimeLock: number }
   | {
-      __kind: 'AddSpendingLimit';
+      __kind: "AddSpendingLimit";
       /** Key that is used to seed the SpendingLimit PDA. */
       seed: Address;
       /** The index of the account that the spending limit is for. */
@@ -89,16 +89,16 @@ export type SettingsAction =
        */
       expiration: bigint;
     }
-  | { __kind: 'RemoveSpendingLimit'; spendingLimit: Address }
-  | { __kind: 'SetArchivalAuthority'; newArchivalAuthority: Option<Address> };
+  | { __kind: "RemoveSpendingLimit"; spendingLimit: Address }
+  | { __kind: "SetArchivalAuthority"; newArchivalAuthority: Option<Address> };
 
 export type SettingsActionArgs =
-  | { __kind: 'AddSigner'; newSigner: SmartAccountSignerArgs }
-  | { __kind: 'RemoveSigner'; oldSigner: Address }
-  | { __kind: 'ChangeThreshold'; newThreshold: number }
-  | { __kind: 'SetTimeLock'; newTimeLock: number }
+  | { __kind: "AddSigner"; newSigner: SmartAccountSignerArgs }
+  | { __kind: "RemoveSigner"; oldSigner: Address }
+  | { __kind: "ChangeThreshold"; newThreshold: number }
+  | { __kind: "SetTimeLock"; newTimeLock: number }
   | {
-      __kind: 'AddSpendingLimit';
+      __kind: "AddSpendingLimit";
       /** Key that is used to seed the SpendingLimit PDA. */
       seed: Address;
       /** The index of the account that the spending limit is for. */
@@ -133,42 +133,42 @@ export type SettingsActionArgs =
        */
       expiration: number | bigint;
     }
-  | { __kind: 'RemoveSpendingLimit'; spendingLimit: Address }
+  | { __kind: "RemoveSpendingLimit"; spendingLimit: Address }
   | {
-      __kind: 'SetArchivalAuthority';
+      __kind: "SetArchivalAuthority";
       newArchivalAuthority: OptionOrNullable<Address>;
     };
 
 export function getSettingsActionEncoder(): Encoder<SettingsActionArgs> {
   return getDiscriminatedUnionEncoder([
     [
-      'AddSigner',
-      getStructEncoder([['newSigner', getSmartAccountSignerEncoder()]]),
+      "AddSigner",
+      getStructEncoder([["newSigner", getSmartAccountSignerEncoder()]]),
     ],
-    ['RemoveSigner', getStructEncoder([['oldSigner', getAddressEncoder()]])],
-    ['ChangeThreshold', getStructEncoder([['newThreshold', getU16Encoder()]])],
-    ['SetTimeLock', getStructEncoder([['newTimeLock', getU32Encoder()]])],
+    ["RemoveSigner", getStructEncoder([["oldSigner", getAddressEncoder()]])],
+    ["ChangeThreshold", getStructEncoder([["newThreshold", getU16Encoder()]])],
+    ["SetTimeLock", getStructEncoder([["newTimeLock", getU32Encoder()]])],
     [
-      'AddSpendingLimit',
+      "AddSpendingLimit",
       getStructEncoder([
-        ['seed', getAddressEncoder()],
-        ['accountIndex', getU8Encoder()],
-        ['mint', getAddressEncoder()],
-        ['amount', getU64Encoder()],
-        ['period', getPeriodEncoder()],
-        ['signers', getArrayEncoder(getAddressEncoder())],
-        ['destinations', getArrayEncoder(getAddressEncoder())],
-        ['expiration', getI64Encoder()],
+        ["seed", getAddressEncoder()],
+        ["accountIndex", getU8Encoder()],
+        ["mint", getAddressEncoder()],
+        ["amount", getU64Encoder()],
+        ["period", getPeriodEncoder()],
+        ["signers", getArrayEncoder(getAddressEncoder())],
+        ["destinations", getArrayEncoder(getAddressEncoder())],
+        ["expiration", getI64Encoder()],
       ]),
     ],
     [
-      'RemoveSpendingLimit',
-      getStructEncoder([['spendingLimit', getAddressEncoder()]]),
+      "RemoveSpendingLimit",
+      getStructEncoder([["spendingLimit", getAddressEncoder()]]),
     ],
     [
-      'SetArchivalAuthority',
+      "SetArchivalAuthority",
       getStructEncoder([
-        ['newArchivalAuthority', getOptionEncoder(getAddressEncoder())],
+        ["newArchivalAuthority", getOptionEncoder(getAddressEncoder())],
       ]),
     ],
   ]);
@@ -177,33 +177,33 @@ export function getSettingsActionEncoder(): Encoder<SettingsActionArgs> {
 export function getSettingsActionDecoder(): Decoder<SettingsAction> {
   return getDiscriminatedUnionDecoder([
     [
-      'AddSigner',
-      getStructDecoder([['newSigner', getSmartAccountSignerDecoder()]]),
+      "AddSigner",
+      getStructDecoder([["newSigner", getSmartAccountSignerDecoder()]]),
     ],
-    ['RemoveSigner', getStructDecoder([['oldSigner', getAddressDecoder()]])],
-    ['ChangeThreshold', getStructDecoder([['newThreshold', getU16Decoder()]])],
-    ['SetTimeLock', getStructDecoder([['newTimeLock', getU32Decoder()]])],
+    ["RemoveSigner", getStructDecoder([["oldSigner", getAddressDecoder()]])],
+    ["ChangeThreshold", getStructDecoder([["newThreshold", getU16Decoder()]])],
+    ["SetTimeLock", getStructDecoder([["newTimeLock", getU32Decoder()]])],
     [
-      'AddSpendingLimit',
+      "AddSpendingLimit",
       getStructDecoder([
-        ['seed', getAddressDecoder()],
-        ['accountIndex', getU8Decoder()],
-        ['mint', getAddressDecoder()],
-        ['amount', getU64Decoder()],
-        ['period', getPeriodDecoder()],
-        ['signers', getArrayDecoder(getAddressDecoder())],
-        ['destinations', getArrayDecoder(getAddressDecoder())],
-        ['expiration', getI64Decoder()],
+        ["seed", getAddressDecoder()],
+        ["accountIndex", getU8Decoder()],
+        ["mint", getAddressDecoder()],
+        ["amount", getU64Decoder()],
+        ["period", getPeriodDecoder()],
+        ["signers", getArrayDecoder(getAddressDecoder())],
+        ["destinations", getArrayDecoder(getAddressDecoder())],
+        ["expiration", getI64Decoder()],
       ]),
     ],
     [
-      'RemoveSpendingLimit',
-      getStructDecoder([['spendingLimit', getAddressDecoder()]]),
+      "RemoveSpendingLimit",
+      getStructDecoder([["spendingLimit", getAddressDecoder()]]),
     ],
     [
-      'SetArchivalAuthority',
+      "SetArchivalAuthority",
       getStructDecoder([
-        ['newArchivalAuthority', getOptionDecoder(getAddressDecoder())],
+        ["newArchivalAuthority", getOptionDecoder(getAddressDecoder())],
       ]),
     ],
   ]);
@@ -218,89 +218,89 @@ export function getSettingsActionCodec(): Codec<
 
 // Data Enum Helpers.
 export function settingsAction(
-  kind: 'AddSigner',
+  kind: "AddSigner",
   data: GetDiscriminatedUnionVariantContent<
     SettingsActionArgs,
-    '__kind',
-    'AddSigner'
-  >
-): GetDiscriminatedUnionVariant<SettingsActionArgs, '__kind', 'AddSigner'>;
+    "__kind",
+    "AddSigner"
+  >,
+): GetDiscriminatedUnionVariant<SettingsActionArgs, "__kind", "AddSigner">;
 export function settingsAction(
-  kind: 'RemoveSigner',
+  kind: "RemoveSigner",
   data: GetDiscriminatedUnionVariantContent<
     SettingsActionArgs,
-    '__kind',
-    'RemoveSigner'
-  >
-): GetDiscriminatedUnionVariant<SettingsActionArgs, '__kind', 'RemoveSigner'>;
+    "__kind",
+    "RemoveSigner"
+  >,
+): GetDiscriminatedUnionVariant<SettingsActionArgs, "__kind", "RemoveSigner">;
 export function settingsAction(
-  kind: 'ChangeThreshold',
+  kind: "ChangeThreshold",
   data: GetDiscriminatedUnionVariantContent<
     SettingsActionArgs,
-    '__kind',
-    'ChangeThreshold'
-  >
+    "__kind",
+    "ChangeThreshold"
+  >,
 ): GetDiscriminatedUnionVariant<
   SettingsActionArgs,
-  '__kind',
-  'ChangeThreshold'
+  "__kind",
+  "ChangeThreshold"
 >;
 export function settingsAction(
-  kind: 'SetTimeLock',
+  kind: "SetTimeLock",
   data: GetDiscriminatedUnionVariantContent<
     SettingsActionArgs,
-    '__kind',
-    'SetTimeLock'
-  >
-): GetDiscriminatedUnionVariant<SettingsActionArgs, '__kind', 'SetTimeLock'>;
+    "__kind",
+    "SetTimeLock"
+  >,
+): GetDiscriminatedUnionVariant<SettingsActionArgs, "__kind", "SetTimeLock">;
 export function settingsAction(
-  kind: 'AddSpendingLimit',
+  kind: "AddSpendingLimit",
   data: GetDiscriminatedUnionVariantContent<
     SettingsActionArgs,
-    '__kind',
-    'AddSpendingLimit'
-  >
+    "__kind",
+    "AddSpendingLimit"
+  >,
 ): GetDiscriminatedUnionVariant<
   SettingsActionArgs,
-  '__kind',
-  'AddSpendingLimit'
+  "__kind",
+  "AddSpendingLimit"
 >;
 export function settingsAction(
-  kind: 'RemoveSpendingLimit',
+  kind: "RemoveSpendingLimit",
   data: GetDiscriminatedUnionVariantContent<
     SettingsActionArgs,
-    '__kind',
-    'RemoveSpendingLimit'
-  >
+    "__kind",
+    "RemoveSpendingLimit"
+  >,
 ): GetDiscriminatedUnionVariant<
   SettingsActionArgs,
-  '__kind',
-  'RemoveSpendingLimit'
+  "__kind",
+  "RemoveSpendingLimit"
 >;
 export function settingsAction(
-  kind: 'SetArchivalAuthority',
+  kind: "SetArchivalAuthority",
   data: GetDiscriminatedUnionVariantContent<
     SettingsActionArgs,
-    '__kind',
-    'SetArchivalAuthority'
-  >
+    "__kind",
+    "SetArchivalAuthority"
+  >,
 ): GetDiscriminatedUnionVariant<
   SettingsActionArgs,
-  '__kind',
-  'SetArchivalAuthority'
+  "__kind",
+  "SetArchivalAuthority"
 >;
-export function settingsAction<K extends SettingsActionArgs['__kind'], Data>(
+export function settingsAction<K extends SettingsActionArgs["__kind"], Data>(
   kind: K,
-  data?: Data
+  data?: Data,
 ) {
   return Array.isArray(data)
     ? { __kind: kind, fields: data }
     : { __kind: kind, ...(data ?? {}) };
 }
 
-export function isSettingsAction<K extends SettingsAction['__kind']>(
+export function isSettingsAction<K extends SettingsAction["__kind"]>(
   kind: K,
-  value: SettingsAction
+  value: SettingsAction,
 ): value is SettingsAction & { __kind: K } {
   return value.__kind === kind;
 }

@@ -33,9 +33,9 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const INITIALIZE_PROGRAM_CONFIG_DISCRIMINATOR = new Uint8Array([
   6, 131, 61, 237, 40, 110, 83, 124,
@@ -43,7 +43,7 @@ export const INITIALIZE_PROGRAM_CONFIG_DISCRIMINATOR = new Uint8Array([
 
 export function getInitializeProgramConfigDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    INITIALIZE_PROGRAM_CONFIG_DISCRIMINATOR
+    INITIALIZE_PROGRAM_CONFIG_DISCRIMINATOR,
   );
 }
 
@@ -52,7 +52,7 @@ export type InitializeProgramConfigInstruction<
   TAccountProgramConfig extends string | AccountMeta<string> = string,
   TAccountInitializer extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -94,24 +94,24 @@ export type InitializeProgramConfigInstructionDataArgs = {
 export function getInitializeProgramConfigInstructionDataEncoder(): FixedSizeEncoder<InitializeProgramConfigInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['authority', getAddressEncoder()],
-      ['smartAccountCreationFee', getU64Encoder()],
-      ['treasury', getAddressEncoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["authority", getAddressEncoder()],
+      ["smartAccountCreationFee", getU64Encoder()],
+      ["treasury", getAddressEncoder()],
     ]),
     (value) => ({
       ...value,
       discriminator: INITIALIZE_PROGRAM_CONFIG_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getInitializeProgramConfigInstructionDataDecoder(): FixedSizeDecoder<InitializeProgramConfigInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['authority', getAddressDecoder()],
-    ['smartAccountCreationFee', getU64Decoder()],
-    ['treasury', getAddressDecoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["authority", getAddressDecoder()],
+    ["smartAccountCreationFee", getU64Decoder()],
+    ["treasury", getAddressDecoder()],
   ]);
 }
 
@@ -121,7 +121,7 @@ export function getInitializeProgramConfigInstructionDataCodec(): FixedSizeCodec
 > {
   return combineCodec(
     getInitializeProgramConfigInstructionDataEncoder(),
-    getInitializeProgramConfigInstructionDataDecoder()
+    getInitializeProgramConfigInstructionDataDecoder(),
   );
 }
 
@@ -134,9 +134,9 @@ export type InitializeProgramConfigInput<
   /** The hard-coded account that is used to initialize the program config once. */
   initializer: TransactionSigner<TAccountInitializer>;
   systemProgram?: Address<TAccountSystemProgram>;
-  authority: InitializeProgramConfigInstructionDataArgs['authority'];
-  smartAccountCreationFee: InitializeProgramConfigInstructionDataArgs['smartAccountCreationFee'];
-  treasury: InitializeProgramConfigInstructionDataArgs['treasury'];
+  authority: InitializeProgramConfigInstructionDataArgs["authority"];
+  smartAccountCreationFee: InitializeProgramConfigInstructionDataArgs["smartAccountCreationFee"];
+  treasury: InitializeProgramConfigInstructionDataArgs["treasury"];
 };
 
 export function getInitializeProgramConfigInstruction<
@@ -151,7 +151,7 @@ export function getInitializeProgramConfigInstruction<
     TAccountInitializer,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): InitializeProgramConfigInstruction<
   TProgramAddress,
   TAccountProgramConfig,
@@ -179,10 +179,10 @@ export function getInitializeProgramConfigInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.programConfig),
@@ -190,7 +190,7 @@ export function getInitializeProgramConfigInstruction<
       getAccountMeta(accounts.systemProgram),
     ],
     data: getInitializeProgramConfigInstructionDataEncoder().encode(
-      args as InitializeProgramConfigInstructionDataArgs
+      args as InitializeProgramConfigInstructionDataArgs,
     ),
     programAddress,
   } as InitializeProgramConfigInstruction<
@@ -221,11 +221,11 @@ export function parseInitializeProgramConfigInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeProgramConfigInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -241,7 +241,7 @@ export function parseInitializeProgramConfigInstruction<
       systemProgram: getNextAccount(),
     },
     data: getInitializeProgramConfigInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

@@ -50,15 +50,15 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 import {
   getPeriodDecoder,
   getPeriodEncoder,
   type Period,
   type PeriodArgs,
-} from '../types';
+} from "../types";
 
 export const ADD_SPENDING_LIMIT_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
   169, 189, 84, 54, 30, 244, 223, 212,
@@ -66,7 +66,7 @@ export const ADD_SPENDING_LIMIT_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
 
 export function getAddSpendingLimitAsAuthorityDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    ADD_SPENDING_LIMIT_AS_AUTHORITY_DISCRIMINATOR
+    ADD_SPENDING_LIMIT_AS_AUTHORITY_DISCRIMINATOR,
   );
 }
 
@@ -77,7 +77,7 @@ export type AddSpendingLimitAsAuthorityInstruction<
   TAccountSpendingLimit extends string | AccountMeta<string> = string,
   TAccountRentPayer extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TAccountProgram extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
@@ -186,42 +186,42 @@ export type AddSpendingLimitAsAuthorityInstructionDataArgs = {
 export function getAddSpendingLimitAsAuthorityInstructionDataEncoder(): Encoder<AddSpendingLimitAsAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['seed', getAddressEncoder()],
-      ['accountIndex', getU8Encoder()],
-      ['mint', getAddressEncoder()],
-      ['amount', getU64Encoder()],
-      ['period', getPeriodEncoder()],
-      ['signers', getArrayEncoder(getAddressEncoder())],
-      ['destinations', getArrayEncoder(getAddressEncoder())],
-      ['expiration', getI64Encoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["seed", getAddressEncoder()],
+      ["accountIndex", getU8Encoder()],
+      ["mint", getAddressEncoder()],
+      ["amount", getU64Encoder()],
+      ["period", getPeriodEncoder()],
+      ["signers", getArrayEncoder(getAddressEncoder())],
+      ["destinations", getArrayEncoder(getAddressEncoder())],
+      ["expiration", getI64Encoder()],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
     (value) => ({
       ...value,
       discriminator: ADD_SPENDING_LIMIT_AS_AUTHORITY_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getAddSpendingLimitAsAuthorityInstructionDataDecoder(): Decoder<AddSpendingLimitAsAuthorityInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['seed', getAddressDecoder()],
-    ['accountIndex', getU8Decoder()],
-    ['mint', getAddressDecoder()],
-    ['amount', getU64Decoder()],
-    ['period', getPeriodDecoder()],
-    ['signers', getArrayDecoder(getAddressDecoder())],
-    ['destinations', getArrayDecoder(getAddressDecoder())],
-    ['expiration', getI64Decoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["seed", getAddressDecoder()],
+    ["accountIndex", getU8Decoder()],
+    ["mint", getAddressDecoder()],
+    ["amount", getU64Decoder()],
+    ["period", getPeriodDecoder()],
+    ["signers", getArrayDecoder(getAddressDecoder())],
+    ["destinations", getArrayDecoder(getAddressDecoder())],
+    ["expiration", getI64Decoder()],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -233,7 +233,7 @@ export function getAddSpendingLimitAsAuthorityInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getAddSpendingLimitAsAuthorityInstructionDataEncoder(),
-    getAddSpendingLimitAsAuthorityInstructionDataDecoder()
+    getAddSpendingLimitAsAuthorityInstructionDataDecoder(),
   );
 }
 
@@ -253,15 +253,15 @@ export type AddSpendingLimitAsAuthorityInput<
   rentPayer: TransactionSigner<TAccountRentPayer>;
   systemProgram?: Address<TAccountSystemProgram>;
   program: Address<TAccountProgram>;
-  seed: AddSpendingLimitAsAuthorityInstructionDataArgs['seed'];
-  accountIndex: AddSpendingLimitAsAuthorityInstructionDataArgs['accountIndex'];
-  mint: AddSpendingLimitAsAuthorityInstructionDataArgs['mint'];
-  amount: AddSpendingLimitAsAuthorityInstructionDataArgs['amount'];
-  period: AddSpendingLimitAsAuthorityInstructionDataArgs['period'];
-  signers: AddSpendingLimitAsAuthorityInstructionDataArgs['signers'];
-  destinations: AddSpendingLimitAsAuthorityInstructionDataArgs['destinations'];
-  expiration: AddSpendingLimitAsAuthorityInstructionDataArgs['expiration'];
-  memo: AddSpendingLimitAsAuthorityInstructionDataArgs['memo'];
+  seed: AddSpendingLimitAsAuthorityInstructionDataArgs["seed"];
+  accountIndex: AddSpendingLimitAsAuthorityInstructionDataArgs["accountIndex"];
+  mint: AddSpendingLimitAsAuthorityInstructionDataArgs["mint"];
+  amount: AddSpendingLimitAsAuthorityInstructionDataArgs["amount"];
+  period: AddSpendingLimitAsAuthorityInstructionDataArgs["period"];
+  signers: AddSpendingLimitAsAuthorityInstructionDataArgs["signers"];
+  destinations: AddSpendingLimitAsAuthorityInstructionDataArgs["destinations"];
+  expiration: AddSpendingLimitAsAuthorityInstructionDataArgs["expiration"];
+  memo: AddSpendingLimitAsAuthorityInstructionDataArgs["memo"];
 };
 
 export function getAddSpendingLimitAsAuthorityInstruction<
@@ -282,7 +282,7 @@ export function getAddSpendingLimitAsAuthorityInstruction<
     TAccountSystemProgram,
     TAccountProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): AddSpendingLimitAsAuthorityInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -319,10 +319,10 @@ export function getAddSpendingLimitAsAuthorityInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -333,7 +333,7 @@ export function getAddSpendingLimitAsAuthorityInstruction<
       getAccountMeta(accounts.program),
     ],
     data: getAddSpendingLimitAsAuthorityInstructionDataEncoder().encode(
-      args as AddSpendingLimitAsAuthorityInstructionDataArgs
+      args as AddSpendingLimitAsAuthorityInstructionDataArgs,
     ),
     programAddress,
   } as AddSpendingLimitAsAuthorityInstruction<
@@ -371,11 +371,11 @@ export function parseAddSpendingLimitAsAuthorityInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedAddSpendingLimitAsAuthorityInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 6) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -394,7 +394,7 @@ export function parseAddSpendingLimitAsAuthorityInstruction<
       program: getNextAccount(),
     },
     data: getAddSpendingLimitAsAuthorityInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

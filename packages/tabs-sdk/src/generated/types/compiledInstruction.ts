@@ -8,54 +8,48 @@
 
 import {
   combineCodec,
+  getArrayDecoder,
+  getArrayEncoder,
   getStructDecoder,
   getStructEncoder,
+  getU16Decoder,
+  getU16Encoder,
   getU8Decoder,
   getU8Encoder,
   type Codec,
   type Decoder,
   type Encoder,
-} from '@solana/kit';
-import {
-  getSmallVecU16U8Decoder,
-  getSmallVecU16U8Encoder,
-  getSmallVecU8U8Decoder,
-  getSmallVecU8U8Encoder,
-  type SmallVecU16U8,
-  type SmallVecU16U8Args,
-  type SmallVecU8U8,
-  type SmallVecU8U8Args,
-} from '.';
+} from "@solana/kit";
 
 export type CompiledInstruction = {
   programIdIndex: number;
   /** Indices into the tx's `account_keys` list indicating which accounts to pass to the instruction. */
-  accountIndexes: SmallVecU8U8;
+  accountIndexes: Array<number>;
   /** Instruction data. */
-  data: SmallVecU16U8;
+  data: Array<number>;
 };
 
-export type CompiledInstructionArgs = {
-  programIdIndex: number;
-  /** Indices into the tx's `account_keys` list indicating which accounts to pass to the instruction. */
-  accountIndexes: SmallVecU8U8Args;
-  /** Instruction data. */
-  data: SmallVecU16U8Args;
-};
+export type CompiledInstructionArgs = CompiledInstruction;
 
 export function getCompiledInstructionEncoder(): Encoder<CompiledInstructionArgs> {
   return getStructEncoder([
-    ['programIdIndex', getU8Encoder()],
-    ['accountIndexes', getSmallVecU8U8Encoder()],
-    ['data', getSmallVecU16U8Encoder()],
+    ["programIdIndex", getU8Encoder()],
+    [
+      "accountIndexes",
+      getArrayEncoder(getU8Encoder(), { size: getU8Encoder() }),
+    ],
+    ["data", getArrayEncoder(getU8Encoder(), { size: getU16Encoder() })],
   ]);
 }
 
 export function getCompiledInstructionDecoder(): Decoder<CompiledInstruction> {
   return getStructDecoder([
-    ['programIdIndex', getU8Decoder()],
-    ['accountIndexes', getSmallVecU8U8Decoder()],
-    ['data', getSmallVecU16U8Decoder()],
+    ["programIdIndex", getU8Decoder()],
+    [
+      "accountIndexes",
+      getArrayDecoder(getU8Decoder(), { size: getU8Decoder() }),
+    ],
+    ["data", getArrayDecoder(getU8Decoder(), { size: getU16Decoder() })],
   ]);
 }
 
@@ -65,6 +59,6 @@ export function getCompiledInstructionCodec(): Codec<
 > {
   return combineCodec(
     getCompiledInstructionEncoder(),
-    getCompiledInstructionDecoder()
+    getCompiledInstructionDecoder(),
   );
 }

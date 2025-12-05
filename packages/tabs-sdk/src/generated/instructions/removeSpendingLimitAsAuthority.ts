@@ -39,9 +39,9 @@ import {
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const REMOVE_SPENDING_LIMIT_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
   94, 32, 68, 127, 251, 44, 145, 7,
@@ -49,7 +49,7 @@ export const REMOVE_SPENDING_LIMIT_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
 
 export function getRemoveSpendingLimitAsAuthorityDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    REMOVE_SPENDING_LIMIT_AS_AUTHORITY_DISCRIMINATOR
+    REMOVE_SPENDING_LIMIT_AS_AUTHORITY_DISCRIMINATOR,
   );
 }
 
@@ -99,26 +99,26 @@ export type RemoveSpendingLimitAsAuthorityInstructionDataArgs = {
 export function getRemoveSpendingLimitAsAuthorityInstructionDataEncoder(): Encoder<RemoveSpendingLimitAsAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
     (value) => ({
       ...value,
       discriminator: REMOVE_SPENDING_LIMIT_AS_AUTHORITY_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getRemoveSpendingLimitAsAuthorityInstructionDataDecoder(): Decoder<RemoveSpendingLimitAsAuthorityInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -130,7 +130,7 @@ export function getRemoveSpendingLimitAsAuthorityInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getRemoveSpendingLimitAsAuthorityInstructionDataEncoder(),
-    getRemoveSpendingLimitAsAuthorityInstructionDataDecoder()
+    getRemoveSpendingLimitAsAuthorityInstructionDataDecoder(),
   );
 }
 
@@ -148,7 +148,7 @@ export type RemoveSpendingLimitAsAuthorityInput<
   /** This is usually the same as `settings_authority`, but can be a different account if needed. */
   rentCollector: Address<TAccountRentCollector>;
   program: Address<TAccountProgram>;
-  memo: RemoveSpendingLimitAsAuthorityInstructionDataArgs['memo'];
+  memo: RemoveSpendingLimitAsAuthorityInstructionDataArgs["memo"];
 };
 
 export function getRemoveSpendingLimitAsAuthorityInstruction<
@@ -167,7 +167,7 @@ export function getRemoveSpendingLimitAsAuthorityInstruction<
     TAccountRentCollector,
     TAccountProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): RemoveSpendingLimitAsAuthorityInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -199,7 +199,7 @@ export function getRemoveSpendingLimitAsAuthorityInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -209,7 +209,7 @@ export function getRemoveSpendingLimitAsAuthorityInstruction<
       getAccountMeta(accounts.program),
     ],
     data: getRemoveSpendingLimitAsAuthorityInstructionDataEncoder().encode(
-      args as RemoveSpendingLimitAsAuthorityInstructionDataArgs
+      args as RemoveSpendingLimitAsAuthorityInstructionDataArgs,
     ),
     programAddress,
   } as RemoveSpendingLimitAsAuthorityInstruction<
@@ -245,11 +245,11 @@ export function parseRemoveSpendingLimitAsAuthorityInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedRemoveSpendingLimitAsAuthorityInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -267,7 +267,7 @@ export function parseRemoveSpendingLimitAsAuthorityInstruction<
       program: getNextAccount(),
     },
     data: getRemoveSpendingLimitAsAuthorityInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

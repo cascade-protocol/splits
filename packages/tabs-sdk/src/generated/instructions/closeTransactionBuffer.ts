@@ -29,9 +29,9 @@ import {
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const CLOSE_TRANSACTION_BUFFER_DISCRIMINATOR = new Uint8Array([
   224, 221, 123, 213, 0, 204, 5, 191,
@@ -39,7 +39,7 @@ export const CLOSE_TRANSACTION_BUFFER_DISCRIMINATOR = new Uint8Array([
 
 export function getCloseTransactionBufferDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CLOSE_TRANSACTION_BUFFER_DISCRIMINATOR
+    CLOSE_TRANSACTION_BUFFER_DISCRIMINATOR,
   );
 }
 
@@ -75,17 +75,17 @@ export type CloseTransactionBufferInstructionDataArgs = {};
 
 export function getCloseTransactionBufferInstructionDataEncoder(): FixedSizeEncoder<CloseTransactionBufferInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]),
+    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
     (value) => ({
       ...value,
       discriminator: CLOSE_TRANSACTION_BUFFER_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getCloseTransactionBufferInstructionDataDecoder(): FixedSizeDecoder<CloseTransactionBufferInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
   ]);
 }
 
@@ -95,7 +95,7 @@ export function getCloseTransactionBufferInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getCloseTransactionBufferInstructionDataEncoder(),
-    getCloseTransactionBufferInstructionDataDecoder()
+    getCloseTransactionBufferInstructionDataDecoder(),
   );
 }
 
@@ -122,7 +122,7 @@ export function getCloseTransactionBufferInstruction<
     TAccountTransactionBuffer,
     TAccountCreator
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CloseTransactionBufferInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -147,7 +147,7 @@ export function getCloseTransactionBufferInstruction<
     ResolvedAccount
   >;
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -184,11 +184,11 @@ export function parseCloseTransactionBufferInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCloseTransactionBufferInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -204,7 +204,7 @@ export function parseCloseTransactionBufferInstruction<
       creator: getNextAccount(),
     },
     data: getCloseTransactionBufferInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

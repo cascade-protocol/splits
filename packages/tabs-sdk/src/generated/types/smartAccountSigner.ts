@@ -16,13 +16,13 @@ import {
   type FixedSizeCodec,
   type FixedSizeDecoder,
   type FixedSizeEncoder,
-} from '@solana/kit';
+} from "@solana/kit";
 import {
   getPermissionsDecoder,
   getPermissionsEncoder,
   type Permissions,
   type PermissionsArgs,
-} from '.';
+} from ".";
 
 export type SmartAccountSigner = { key: Address; permissions: Permissions };
 
@@ -33,15 +33,15 @@ export type SmartAccountSignerArgs = {
 
 export function getSmartAccountSignerEncoder(): FixedSizeEncoder<SmartAccountSignerArgs> {
   return getStructEncoder([
-    ['key', getAddressEncoder()],
-    ['permissions', getPermissionsEncoder()],
+    ["key", getAddressEncoder()],
+    ["permissions", getPermissionsEncoder()],
   ]);
 }
 
 export function getSmartAccountSignerDecoder(): FixedSizeDecoder<SmartAccountSigner> {
   return getStructDecoder([
-    ['key', getAddressDecoder()],
-    ['permissions', getPermissionsDecoder()],
+    ["key", getAddressDecoder()],
+    ["permissions", getPermissionsDecoder()],
   ]);
 }
 
@@ -51,6 +51,6 @@ export function getSmartAccountSignerCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getSmartAccountSignerEncoder(),
-    getSmartAccountSignerDecoder()
+    getSmartAccountSignerDecoder(),
   );
 }

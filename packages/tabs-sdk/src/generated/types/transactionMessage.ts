@@ -8,28 +8,29 @@
 
 import {
   combineCodec,
+  getAddressDecoder,
+  getAddressEncoder,
+  getArrayDecoder,
+  getArrayEncoder,
   getStructDecoder,
   getStructEncoder,
   getU8Decoder,
   getU8Encoder,
+  type Address,
   type Codec,
   type Decoder,
   type Encoder,
-} from '@solana/kit';
+} from "@solana/kit";
 import {
-  getSmallVecU8CompiledInstructionDecoder,
-  getSmallVecU8CompiledInstructionEncoder,
-  getSmallVecU8MessageAddressTableLookupDecoder,
-  getSmallVecU8MessageAddressTableLookupEncoder,
-  getSmallVecU8PubkeyDecoder,
-  getSmallVecU8PubkeyEncoder,
-  type SmallVecU8CompiledInstruction,
-  type SmallVecU8CompiledInstructionArgs,
-  type SmallVecU8MessageAddressTableLookup,
-  type SmallVecU8MessageAddressTableLookupArgs,
-  type SmallVecU8Pubkey,
-  type SmallVecU8PubkeyArgs,
-} from '.';
+  getCompiledInstructionDecoder,
+  getCompiledInstructionEncoder,
+  getMessageAddressTableLookupDecoder,
+  getMessageAddressTableLookupEncoder,
+  type CompiledInstruction,
+  type CompiledInstructionArgs,
+  type MessageAddressTableLookup,
+  type MessageAddressTableLookupArgs,
+} from ".";
 
 /** Unvalidated instruction data, must be treated as untrusted. */
 export type TransactionMessage = {
@@ -40,14 +41,14 @@ export type TransactionMessage = {
   /** The number of writable non-signer pubkeys in the account_keys vec. */
   numWritableNonSigners: number;
   /** The list of unique account public keys (including program IDs) that will be used in the provided instructions. */
-  accountKeys: SmallVecU8Pubkey;
+  accountKeys: Array<Address>;
   /** The list of instructions to execute. */
-  instructions: SmallVecU8CompiledInstruction;
+  instructions: Array<CompiledInstruction>;
   /**
    * List of address table lookups used to load additional accounts
    * for this transaction.
    */
-  addressTableLookups: SmallVecU8MessageAddressTableLookup;
+  addressTableLookups: Array<MessageAddressTableLookup>;
 };
 
 export type TransactionMessageArgs = {
@@ -58,35 +59,61 @@ export type TransactionMessageArgs = {
   /** The number of writable non-signer pubkeys in the account_keys vec. */
   numWritableNonSigners: number;
   /** The list of unique account public keys (including program IDs) that will be used in the provided instructions. */
-  accountKeys: SmallVecU8PubkeyArgs;
+  accountKeys: Array<Address>;
   /** The list of instructions to execute. */
-  instructions: SmallVecU8CompiledInstructionArgs;
+  instructions: Array<CompiledInstructionArgs>;
   /**
    * List of address table lookups used to load additional accounts
    * for this transaction.
    */
-  addressTableLookups: SmallVecU8MessageAddressTableLookupArgs;
+  addressTableLookups: Array<MessageAddressTableLookupArgs>;
 };
 
 export function getTransactionMessageEncoder(): Encoder<TransactionMessageArgs> {
   return getStructEncoder([
-    ['numSigners', getU8Encoder()],
-    ['numWritableSigners', getU8Encoder()],
-    ['numWritableNonSigners', getU8Encoder()],
-    ['accountKeys', getSmallVecU8PubkeyEncoder()],
-    ['instructions', getSmallVecU8CompiledInstructionEncoder()],
-    ['addressTableLookups', getSmallVecU8MessageAddressTableLookupEncoder()],
+    ["numSigners", getU8Encoder()],
+    ["numWritableSigners", getU8Encoder()],
+    ["numWritableNonSigners", getU8Encoder()],
+    [
+      "accountKeys",
+      getArrayEncoder(getAddressEncoder(), { size: getU8Encoder() }),
+    ],
+    [
+      "instructions",
+      getArrayEncoder(getCompiledInstructionEncoder(), {
+        size: getU8Encoder(),
+      }),
+    ],
+    [
+      "addressTableLookups",
+      getArrayEncoder(getMessageAddressTableLookupEncoder(), {
+        size: getU8Encoder(),
+      }),
+    ],
   ]);
 }
 
 export function getTransactionMessageDecoder(): Decoder<TransactionMessage> {
   return getStructDecoder([
-    ['numSigners', getU8Decoder()],
-    ['numWritableSigners', getU8Decoder()],
-    ['numWritableNonSigners', getU8Decoder()],
-    ['accountKeys', getSmallVecU8PubkeyDecoder()],
-    ['instructions', getSmallVecU8CompiledInstructionDecoder()],
-    ['addressTableLookups', getSmallVecU8MessageAddressTableLookupDecoder()],
+    ["numSigners", getU8Decoder()],
+    ["numWritableSigners", getU8Decoder()],
+    ["numWritableNonSigners", getU8Decoder()],
+    [
+      "accountKeys",
+      getArrayDecoder(getAddressDecoder(), { size: getU8Decoder() }),
+    ],
+    [
+      "instructions",
+      getArrayDecoder(getCompiledInstructionDecoder(), {
+        size: getU8Decoder(),
+      }),
+    ],
+    [
+      "addressTableLookups",
+      getArrayDecoder(getMessageAddressTableLookupDecoder(), {
+        size: getU8Decoder(),
+      }),
+    ],
   ]);
 }
 
@@ -96,6 +123,6 @@ export function getTransactionMessageCodec(): Codec<
 > {
   return combineCodec(
     getTransactionMessageEncoder(),
-    getTransactionMessageDecoder()
+    getTransactionMessageDecoder(),
   );
 }

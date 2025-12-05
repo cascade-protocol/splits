@@ -33,9 +33,9 @@ import {
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const EXTEND_TRANSACTION_BUFFER_DISCRIMINATOR = new Uint8Array([
   190, 86, 246, 95, 231, 154, 229, 91,
@@ -43,7 +43,7 @@ export const EXTEND_TRANSACTION_BUFFER_DISCRIMINATOR = new Uint8Array([
 
 export function getExtendTransactionBufferDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    EXTEND_TRANSACTION_BUFFER_DISCRIMINATOR
+    EXTEND_TRANSACTION_BUFFER_DISCRIMINATOR,
   );
 }
 
@@ -83,20 +83,20 @@ export type ExtendTransactionBufferInstructionDataArgs = {
 export function getExtendTransactionBufferInstructionDataEncoder(): Encoder<ExtendTransactionBufferInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['buffer', addEncoderSizePrefix(getBytesEncoder(), getU32Encoder())],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["buffer", addEncoderSizePrefix(getBytesEncoder(), getU32Encoder())],
     ]),
     (value) => ({
       ...value,
       discriminator: EXTEND_TRANSACTION_BUFFER_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getExtendTransactionBufferInstructionDataDecoder(): Decoder<ExtendTransactionBufferInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['buffer', addDecoderSizePrefix(getBytesDecoder(), getU32Decoder())],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["buffer", addDecoderSizePrefix(getBytesDecoder(), getU32Decoder())],
   ]);
 }
 
@@ -106,7 +106,7 @@ export function getExtendTransactionBufferInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getExtendTransactionBufferInstructionDataEncoder(),
-    getExtendTransactionBufferInstructionDataDecoder()
+    getExtendTransactionBufferInstructionDataDecoder(),
   );
 }
 
@@ -119,7 +119,7 @@ export type ExtendTransactionBufferInput<
   transactionBuffer: Address<TAccountTransactionBuffer>;
   /** The signer on the smart account that created the TransactionBuffer. */
   creator: TransactionSigner<TAccountCreator>;
-  buffer: ExtendTransactionBufferInstructionDataArgs['buffer'];
+  buffer: ExtendTransactionBufferInstructionDataArgs["buffer"];
 };
 
 export function getExtendTransactionBufferInstruction<
@@ -134,7 +134,7 @@ export function getExtendTransactionBufferInstruction<
     TAccountTransactionBuffer,
     TAccountCreator
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): ExtendTransactionBufferInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -162,7 +162,7 @@ export function getExtendTransactionBufferInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -170,7 +170,7 @@ export function getExtendTransactionBufferInstruction<
       getAccountMeta(accounts.creator),
     ],
     data: getExtendTransactionBufferInstructionDataEncoder().encode(
-      args as ExtendTransactionBufferInstructionDataArgs
+      args as ExtendTransactionBufferInstructionDataArgs,
     ),
     programAddress,
   } as ExtendTransactionBufferInstruction<
@@ -201,11 +201,11 @@ export function parseExtendTransactionBufferInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedExtendTransactionBufferInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -221,7 +221,7 @@ export function parseExtendTransactionBufferInstruction<
       creator: getNextAccount(),
     },
     data: getExtendTransactionBufferInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

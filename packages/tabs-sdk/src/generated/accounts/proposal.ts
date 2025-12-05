@@ -39,13 +39,13 @@ import {
   type MaybeAccount,
   type MaybeEncodedAccount,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from "@solana/kit";
 import {
   getProposalStatusDecoder,
   getProposalStatusEncoder,
   type ProposalStatus,
   type ProposalStatusArgs,
-} from '../types';
+} from "../types";
 
 export const PROPOSAL_DISCRIMINATOR = new Uint8Array([
   26, 94, 189, 187, 116, 136, 53, 33,
@@ -103,32 +103,32 @@ export type ProposalArgs = {
 export function getProposalEncoder(): Encoder<ProposalArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['settings', getAddressEncoder()],
-      ['transactionIndex', getU64Encoder()],
-      ['rentCollector', getAddressEncoder()],
-      ['status', getProposalStatusEncoder()],
-      ['bump', getU8Encoder()],
-      ['approved', getArrayEncoder(getAddressEncoder())],
-      ['rejected', getArrayEncoder(getAddressEncoder())],
-      ['cancelled', getArrayEncoder(getAddressEncoder())],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["settings", getAddressEncoder()],
+      ["transactionIndex", getU64Encoder()],
+      ["rentCollector", getAddressEncoder()],
+      ["status", getProposalStatusEncoder()],
+      ["bump", getU8Encoder()],
+      ["approved", getArrayEncoder(getAddressEncoder())],
+      ["rejected", getArrayEncoder(getAddressEncoder())],
+      ["cancelled", getArrayEncoder(getAddressEncoder())],
     ]),
-    (value) => ({ ...value, discriminator: PROPOSAL_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: PROPOSAL_DISCRIMINATOR }),
   );
 }
 
 /** Gets the decoder for {@link Proposal} account data. */
 export function getProposalDecoder(): Decoder<Proposal> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['settings', getAddressDecoder()],
-    ['transactionIndex', getU64Decoder()],
-    ['rentCollector', getAddressDecoder()],
-    ['status', getProposalStatusDecoder()],
-    ['bump', getU8Decoder()],
-    ['approved', getArrayDecoder(getAddressDecoder())],
-    ['rejected', getArrayDecoder(getAddressDecoder())],
-    ['cancelled', getArrayDecoder(getAddressDecoder())],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["settings", getAddressDecoder()],
+    ["transactionIndex", getU64Decoder()],
+    ["rentCollector", getAddressDecoder()],
+    ["status", getProposalStatusDecoder()],
+    ["bump", getU8Decoder()],
+    ["approved", getArrayDecoder(getAddressDecoder())],
+    ["rejected", getArrayDecoder(getAddressDecoder())],
+    ["cancelled", getArrayDecoder(getAddressDecoder())],
   ]);
 }
 
@@ -138,24 +138,24 @@ export function getProposalCodec(): Codec<ProposalArgs, Proposal> {
 }
 
 export function decodeProposal<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress>,
 ): Account<Proposal, TAddress>;
 export function decodeProposal<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
+  encodedAccount: MaybeEncodedAccount<TAddress>,
 ): MaybeAccount<Proposal, TAddress>;
 export function decodeProposal<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
 ): Account<Proposal, TAddress> | MaybeAccount<Proposal, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getProposalDecoder()
+    getProposalDecoder(),
   );
 }
 
 export async function fetchProposal<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<Account<Proposal, TAddress>> {
   const maybeAccount = await fetchMaybeProposal(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -165,7 +165,7 @@ export async function fetchProposal<TAddress extends string = string>(
 export async function fetchMaybeProposal<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<MaybeAccount<Proposal, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeProposal(maybeAccount);
@@ -174,7 +174,7 @@ export async function fetchMaybeProposal<TAddress extends string = string>(
 export async function fetchAllProposal(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<Account<Proposal>[]> {
   const maybeAccounts = await fetchAllMaybeProposal(rpc, addresses, config);
   assertAccountsExist(maybeAccounts);
@@ -184,7 +184,7 @@ export async function fetchAllProposal(
 export async function fetchAllMaybeProposal(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<Proposal>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) => decodeProposal(maybeAccount));

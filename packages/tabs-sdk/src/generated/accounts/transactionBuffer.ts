@@ -41,7 +41,7 @@ import {
   type MaybeAccount,
   type MaybeEncodedAccount,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from "@solana/kit";
 
 export const TRANSACTION_BUFFER_DISCRIMINATOR = new Uint8Array([
   90, 36, 35, 219, 93, 225, 110, 96,
@@ -49,7 +49,7 @@ export const TRANSACTION_BUFFER_DISCRIMINATOR = new Uint8Array([
 
 export function getTransactionBufferDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    TRANSACTION_BUFFER_DISCRIMINATOR
+    TRANSACTION_BUFFER_DISCRIMINATOR,
   );
 }
 
@@ -92,30 +92,30 @@ export type TransactionBufferArgs = {
 export function getTransactionBufferEncoder(): Encoder<TransactionBufferArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['settings', getAddressEncoder()],
-      ['creator', getAddressEncoder()],
-      ['bufferIndex', getU8Encoder()],
-      ['accountIndex', getU8Encoder()],
-      ['finalBufferHash', fixEncoderSize(getBytesEncoder(), 32)],
-      ['finalBufferSize', getU16Encoder()],
-      ['buffer', addEncoderSizePrefix(getBytesEncoder(), getU32Encoder())],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["settings", getAddressEncoder()],
+      ["creator", getAddressEncoder()],
+      ["bufferIndex", getU8Encoder()],
+      ["accountIndex", getU8Encoder()],
+      ["finalBufferHash", fixEncoderSize(getBytesEncoder(), 32)],
+      ["finalBufferSize", getU16Encoder()],
+      ["buffer", addEncoderSizePrefix(getBytesEncoder(), getU32Encoder())],
     ]),
-    (value) => ({ ...value, discriminator: TRANSACTION_BUFFER_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: TRANSACTION_BUFFER_DISCRIMINATOR }),
   );
 }
 
 /** Gets the decoder for {@link TransactionBuffer} account data. */
 export function getTransactionBufferDecoder(): Decoder<TransactionBuffer> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['settings', getAddressDecoder()],
-    ['creator', getAddressDecoder()],
-    ['bufferIndex', getU8Decoder()],
-    ['accountIndex', getU8Decoder()],
-    ['finalBufferHash', fixDecoderSize(getBytesDecoder(), 32)],
-    ['finalBufferSize', getU16Decoder()],
-    ['buffer', addDecoderSizePrefix(getBytesDecoder(), getU32Decoder())],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["settings", getAddressDecoder()],
+    ["creator", getAddressDecoder()],
+    ["bufferIndex", getU8Decoder()],
+    ["accountIndex", getU8Decoder()],
+    ["finalBufferHash", fixDecoderSize(getBytesDecoder(), 32)],
+    ["finalBufferSize", getU16Decoder()],
+    ["buffer", addDecoderSizePrefix(getBytesDecoder(), getU32Decoder())],
   ]);
 }
 
@@ -126,31 +126,31 @@ export function getTransactionBufferCodec(): Codec<
 > {
   return combineCodec(
     getTransactionBufferEncoder(),
-    getTransactionBufferDecoder()
+    getTransactionBufferDecoder(),
   );
 }
 
 export function decodeTransactionBuffer<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress>,
 ): Account<TransactionBuffer, TAddress>;
 export function decodeTransactionBuffer<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
+  encodedAccount: MaybeEncodedAccount<TAddress>,
 ): MaybeAccount<TransactionBuffer, TAddress>;
 export function decodeTransactionBuffer<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
 ):
   | Account<TransactionBuffer, TAddress>
   | MaybeAccount<TransactionBuffer, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getTransactionBufferDecoder()
+    getTransactionBufferDecoder(),
   );
 }
 
 export async function fetchTransactionBuffer<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<Account<TransactionBuffer, TAddress>> {
   const maybeAccount = await fetchMaybeTransactionBuffer(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -162,7 +162,7 @@ export async function fetchMaybeTransactionBuffer<
 >(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<MaybeAccount<TransactionBuffer, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeTransactionBuffer(maybeAccount);
@@ -171,12 +171,12 @@ export async function fetchMaybeTransactionBuffer<
 export async function fetchAllTransactionBuffer(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<Account<TransactionBuffer>[]> {
   const maybeAccounts = await fetchAllMaybeTransactionBuffer(
     rpc,
     addresses,
-    config
+    config,
   );
   assertAccountsExist(maybeAccounts);
   return maybeAccounts;
@@ -185,10 +185,10 @@ export async function fetchAllTransactionBuffer(
 export async function fetchAllMaybeTransactionBuffer(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<TransactionBuffer>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) =>
-    decodeTransactionBuffer(maybeAccount)
+    decodeTransactionBuffer(maybeAccount),
   );
 }

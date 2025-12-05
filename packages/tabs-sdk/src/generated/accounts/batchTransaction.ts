@@ -39,13 +39,13 @@ import {
   type MaybeAccount,
   type MaybeEncodedAccount,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from "@solana/kit";
 import {
   getSmartAccountTransactionMessageDecoder,
   getSmartAccountTransactionMessageEncoder,
   type SmartAccountTransactionMessage,
   type SmartAccountTransactionMessageArgs,
-} from '../types';
+} from "../types";
 
 export const BATCH_TRANSACTION_DISCRIMINATOR = new Uint8Array([
   92, 20, 61, 146, 155, 62, 112, 72,
@@ -53,7 +53,7 @@ export const BATCH_TRANSACTION_DISCRIMINATOR = new Uint8Array([
 
 export function getBatchTransactionDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    BATCH_TRANSACTION_DISCRIMINATOR
+    BATCH_TRANSACTION_DISCRIMINATOR,
   );
 }
 
@@ -101,30 +101,30 @@ export type BatchTransactionArgs = {
 export function getBatchTransactionEncoder(): Encoder<BatchTransactionArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['bump', getU8Encoder()],
-      ['rentCollector', getAddressEncoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["bump", getU8Encoder()],
+      ["rentCollector", getAddressEncoder()],
       [
-        'ephemeralSignerBumps',
+        "ephemeralSignerBumps",
         addEncoderSizePrefix(getBytesEncoder(), getU32Encoder()),
       ],
-      ['message', getSmartAccountTransactionMessageEncoder()],
+      ["message", getSmartAccountTransactionMessageEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: BATCH_TRANSACTION_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: BATCH_TRANSACTION_DISCRIMINATOR }),
   );
 }
 
 /** Gets the decoder for {@link BatchTransaction} account data. */
 export function getBatchTransactionDecoder(): Decoder<BatchTransaction> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['bump', getU8Decoder()],
-    ['rentCollector', getAddressDecoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["bump", getU8Decoder()],
+    ["rentCollector", getAddressDecoder()],
     [
-      'ephemeralSignerBumps',
+      "ephemeralSignerBumps",
       addDecoderSizePrefix(getBytesDecoder(), getU32Decoder()),
     ],
-    ['message', getSmartAccountTransactionMessageDecoder()],
+    ["message", getSmartAccountTransactionMessageDecoder()],
   ]);
 }
 
@@ -135,31 +135,31 @@ export function getBatchTransactionCodec(): Codec<
 > {
   return combineCodec(
     getBatchTransactionEncoder(),
-    getBatchTransactionDecoder()
+    getBatchTransactionDecoder(),
   );
 }
 
 export function decodeBatchTransaction<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress>,
 ): Account<BatchTransaction, TAddress>;
 export function decodeBatchTransaction<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
+  encodedAccount: MaybeEncodedAccount<TAddress>,
 ): MaybeAccount<BatchTransaction, TAddress>;
 export function decodeBatchTransaction<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
 ):
   | Account<BatchTransaction, TAddress>
   | MaybeAccount<BatchTransaction, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getBatchTransactionDecoder()
+    getBatchTransactionDecoder(),
   );
 }
 
 export async function fetchBatchTransaction<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<Account<BatchTransaction, TAddress>> {
   const maybeAccount = await fetchMaybeBatchTransaction(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -171,7 +171,7 @@ export async function fetchMaybeBatchTransaction<
 >(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<MaybeAccount<BatchTransaction, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeBatchTransaction(maybeAccount);
@@ -180,12 +180,12 @@ export async function fetchMaybeBatchTransaction<
 export async function fetchAllBatchTransaction(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<Account<BatchTransaction>[]> {
   const maybeAccounts = await fetchAllMaybeBatchTransaction(
     rpc,
     addresses,
-    config
+    config,
   );
   assertAccountsExist(maybeAccounts);
   return maybeAccounts;
@@ -194,10 +194,10 @@ export async function fetchAllBatchTransaction(
 export async function fetchAllMaybeBatchTransaction(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<BatchTransaction>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) =>
-    decodeBatchTransaction(maybeAccount)
+    decodeBatchTransaction(maybeAccount),
   );
 }

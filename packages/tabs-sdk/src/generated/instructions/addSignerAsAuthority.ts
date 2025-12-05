@@ -40,15 +40,15 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 import {
   getSmartAccountSignerDecoder,
   getSmartAccountSignerEncoder,
   type SmartAccountSigner,
   type SmartAccountSignerArgs,
-} from '../types';
+} from "../types";
 
 export const ADD_SIGNER_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
   80, 198, 228, 154, 7, 234, 99, 56,
@@ -56,7 +56,7 @@ export const ADD_SIGNER_AS_AUTHORITY_DISCRIMINATOR = new Uint8Array([
 
 export function getAddSignerAsAuthorityDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    ADD_SIGNER_AS_AUTHORITY_DISCRIMINATOR
+    ADD_SIGNER_AS_AUTHORITY_DISCRIMINATOR,
   );
 }
 
@@ -109,28 +109,28 @@ export type AddSignerAsAuthorityInstructionDataArgs = {
 export function getAddSignerAsAuthorityInstructionDataEncoder(): Encoder<AddSignerAsAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['newSigner', getSmartAccountSignerEncoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["newSigner", getSmartAccountSignerEncoder()],
       [
-        'memo',
+        "memo",
         getOptionEncoder(
-          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())
+          addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
         ),
       ],
     ]),
     (value) => ({
       ...value,
       discriminator: ADD_SIGNER_AS_AUTHORITY_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getAddSignerAsAuthorityInstructionDataDecoder(): Decoder<AddSignerAsAuthorityInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['newSigner', getSmartAccountSignerDecoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["newSigner", getSmartAccountSignerDecoder()],
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -142,7 +142,7 @@ export function getAddSignerAsAuthorityInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getAddSignerAsAuthorityInstructionDataEncoder(),
-    getAddSignerAsAuthorityInstructionDataDecoder()
+    getAddSignerAsAuthorityInstructionDataDecoder(),
   );
 }
 
@@ -165,8 +165,8 @@ export type AddSignerAsAuthorityInput<
   /** We might need it in case reallocation is needed. */
   systemProgram?: Address<TAccountSystemProgram>;
   program: Address<TAccountProgram>;
-  newSigner: AddSignerAsAuthorityInstructionDataArgs['newSigner'];
-  memo: AddSignerAsAuthorityInstructionDataArgs['memo'];
+  newSigner: AddSignerAsAuthorityInstructionDataArgs["newSigner"];
+  memo: AddSignerAsAuthorityInstructionDataArgs["memo"];
 };
 
 export function getAddSignerAsAuthorityInstruction<
@@ -185,7 +185,7 @@ export function getAddSignerAsAuthorityInstruction<
     TAccountSystemProgram,
     TAccountProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): AddSignerAsAuthorityInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -217,7 +217,7 @@ export function getAddSignerAsAuthorityInstruction<
   // Original args.
   const args = { ...input };
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -227,7 +227,7 @@ export function getAddSignerAsAuthorityInstruction<
       getAccountMeta(accounts.program),
     ],
     data: getAddSignerAsAuthorityInstructionDataEncoder().encode(
-      args as AddSignerAsAuthorityInstructionDataArgs
+      args as AddSignerAsAuthorityInstructionDataArgs,
     ),
     programAddress,
   } as AddSignerAsAuthorityInstruction<
@@ -268,11 +268,11 @@ export function parseAddSignerAsAuthorityInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedAddSignerAsAuthorityInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -296,7 +296,7 @@ export function parseAddSignerAsAuthorityInstruction<
       program: getNextAccount(),
     },
     data: getAddSignerAsAuthorityInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

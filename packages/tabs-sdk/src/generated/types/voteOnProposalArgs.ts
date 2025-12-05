@@ -23,7 +23,7 @@ import {
   type Encoder,
   type Option,
   type OptionOrNullable,
-} from '@solana/kit';
+} from "@solana/kit";
 
 export type VoteOnProposalArgs = { memo: Option<string> };
 
@@ -32,7 +32,7 @@ export type VoteOnProposalArgsArgs = { memo: OptionOrNullable<string> };
 export function getVoteOnProposalArgsEncoder(): Encoder<VoteOnProposalArgsArgs> {
   return getStructEncoder([
     [
-      'memo',
+      "memo",
       getOptionEncoder(addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())),
     ],
   ]);
@@ -41,7 +41,7 @@ export function getVoteOnProposalArgsEncoder(): Encoder<VoteOnProposalArgsArgs> 
 export function getVoteOnProposalArgsDecoder(): Decoder<VoteOnProposalArgs> {
   return getStructDecoder([
     [
-      'memo',
+      "memo",
       getOptionDecoder(addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())),
     ],
   ]);
@@ -53,6 +53,6 @@ export function getVoteOnProposalArgsCodec(): Codec<
 > {
   return combineCodec(
     getVoteOnProposalArgsEncoder(),
-    getVoteOnProposalArgsDecoder()
+    getVoteOnProposalArgsDecoder(),
   );
 }

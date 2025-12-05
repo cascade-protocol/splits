@@ -34,9 +34,9 @@ import {
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 
 export const CREATE_PROPOSAL_DISCRIMINATOR = new Uint8Array([
   132, 116, 68, 174, 216, 160, 198, 22,
@@ -44,7 +44,7 @@ export const CREATE_PROPOSAL_DISCRIMINATOR = new Uint8Array([
 
 export function getCreateProposalDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CREATE_PROPOSAL_DISCRIMINATOR
+    CREATE_PROPOSAL_DISCRIMINATOR,
   );
 }
 
@@ -55,7 +55,7 @@ export type CreateProposalInstruction<
   TAccountCreator extends string | AccountMeta<string> = string,
   TAccountRentPayer extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -100,19 +100,19 @@ export type CreateProposalInstructionDataArgs = {
 export function getCreateProposalInstructionDataEncoder(): FixedSizeEncoder<CreateProposalInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['transactionIndex', getU64Encoder()],
-      ['draft', getBooleanEncoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["transactionIndex", getU64Encoder()],
+      ["draft", getBooleanEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: CREATE_PROPOSAL_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: CREATE_PROPOSAL_DISCRIMINATOR }),
   );
 }
 
 export function getCreateProposalInstructionDataDecoder(): FixedSizeDecoder<CreateProposalInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['transactionIndex', getU64Decoder()],
-    ['draft', getBooleanDecoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["transactionIndex", getU64Decoder()],
+    ["draft", getBooleanDecoder()],
   ]);
 }
 
@@ -122,7 +122,7 @@ export function getCreateProposalInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getCreateProposalInstructionDataEncoder(),
-    getCreateProposalInstructionDataDecoder()
+    getCreateProposalInstructionDataDecoder(),
   );
 }
 
@@ -140,8 +140,8 @@ export type CreateProposalInput<
   /** The payer for the proposal account rent. */
   rentPayer: TransactionSigner<TAccountRentPayer>;
   systemProgram?: Address<TAccountSystemProgram>;
-  transactionIndex: CreateProposalInstructionDataArgs['transactionIndex'];
-  draft: CreateProposalInstructionDataArgs['draft'];
+  transactionIndex: CreateProposalInstructionDataArgs["transactionIndex"];
+  draft: CreateProposalInstructionDataArgs["draft"];
 };
 
 export function getCreateProposalInstruction<
@@ -160,7 +160,7 @@ export function getCreateProposalInstruction<
     TAccountRentPayer,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CreateProposalInstruction<
   TProgramAddress,
   TAccountSettings,
@@ -192,10 +192,10 @@ export function getCreateProposalInstruction<
   // Resolve default values.
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.settings),
@@ -205,7 +205,7 @@ export function getCreateProposalInstruction<
       getAccountMeta(accounts.systemProgram),
     ],
     data: getCreateProposalInstructionDataEncoder().encode(
-      args as CreateProposalInstructionDataArgs
+      args as CreateProposalInstructionDataArgs,
     ),
     programAddress,
   } as CreateProposalInstruction<
@@ -241,11 +241,11 @@ export function parseCreateProposalInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateProposalInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {

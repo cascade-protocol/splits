@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { useWalletConnection } from "@solana/react-hooks";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,10 +14,10 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Key, Shield, Zap, Wallet } from "lucide-react";
+import { Key, Shield, Zap, Wallet, ArrowRight } from "lucide-react";
 
 export function About() {
-	const { connect, connectors, connecting } = useWalletConnection();
+	const { connect, connectors, connecting, connected } = useWalletConnection();
 
 	return (
 		<main className="flex flex-1 items-center justify-center px-4 py-12">
@@ -73,34 +74,47 @@ export function About() {
 
 				{/* CTA */}
 				<div className="text-center space-y-4">
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button size="lg" disabled={connecting}>
-								<Wallet className="h-4 w-4" />
-								{connecting ? "Connecting..." : "Connect Wallet to Get Started"}
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="center">
-							{connectors.map((connector) => (
-								<DropdownMenuItem
-									key={connector.id}
-									onClick={() => connect(connector.id)}
-								>
-									{connector.icon && (
-										<img
-											src={connector.icon}
-											alt={connector.name}
-											className="h-4 w-4"
-										/>
-									)}
-									{connector.name}
-								</DropdownMenuItem>
-							))}
-						</DropdownMenuContent>
-					</DropdownMenu>
-					<p className="text-sm text-muted-foreground">
-						Requires a Solana wallet with USDC for deposits
-					</p>
+					{connected ? (
+						<Button size="lg" asChild>
+							<Link to="/">
+								<ArrowRight className="h-4 w-4" />
+								Go to Dashboard
+							</Link>
+						</Button>
+					) : (
+						<>
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button size="lg" disabled={connecting}>
+										<Wallet className="h-4 w-4" />
+										{connecting
+											? "Connecting..."
+											: "Connect Wallet to Get Started"}
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="center">
+									{connectors.map((connector) => (
+										<DropdownMenuItem
+											key={connector.id}
+											onClick={() => connect(connector.id)}
+										>
+											{connector.icon && (
+												<img
+													src={connector.icon}
+													alt={connector.name}
+													className="h-4 w-4"
+												/>
+											)}
+											{connector.name}
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuContent>
+							</DropdownMenu>
+							<p className="text-sm text-muted-foreground">
+								Requires a Solana wallet with USDC for deposits
+							</p>
+						</>
+					)}
 				</div>
 			</div>
 		</main>

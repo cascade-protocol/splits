@@ -12,7 +12,7 @@
 		"test:rust": "cargo test --package cascade-splits",
 		"test:sdk": "pnpm --filter @cascade-fyi/splits-sdk test",
 		"test:all": "pnpm test:rust && pnpm test:sdk && pnpm test",
-		"check": "pnpm type-check:all && biome check --write",
+		"check": "nx run-many -t check",
 		"release": "nx release",
 		"release:version": "nx release version",
 		"release:changelog": "nx release changelog",

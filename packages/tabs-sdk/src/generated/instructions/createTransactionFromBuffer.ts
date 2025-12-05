@@ -16,7 +16,6 @@ import {
   getStructEncoder,
   transformEncoder,
   type AccountMeta,
-  type AccountSignerMeta,
   type Address,
   type Codec,
   type Decoder,
@@ -25,20 +24,16 @@ import {
   type InstructionWithAccounts,
   type InstructionWithData,
   type ReadonlyAccount,
-  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
-  type TransactionSigner,
-  type WritableAccount,
-  type WritableSignerAccount,
-} from '@solana/kit';
-import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+} from "@solana/kit";
+import { SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS } from "../programs";
+import { getAccountMetaFactory, type ResolvedAccount } from "../shared";
 import {
   getCreateTransactionArgsDecoder,
   getCreateTransactionArgsEncoder,
   type CreateTransactionArgs,
   type CreateTransactionArgsArgs,
-} from '../types';
+} from "../types";
 
 export const CREATE_TRANSACTION_FROM_BUFFER_DISCRIMINATOR = new Uint8Array([
   53, 192, 39, 239, 124, 84, 43, 249,
@@ -46,18 +41,22 @@ export const CREATE_TRANSACTION_FROM_BUFFER_DISCRIMINATOR = new Uint8Array([
 
 export function getCreateTransactionFromBufferDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CREATE_TRANSACTION_FROM_BUFFER_DISCRIMINATOR
+    CREATE_TRANSACTION_FROM_BUFFER_DISCRIMINATOR,
   );
 }
 
 export type CreateTransactionFromBufferInstruction<
   TProgram extends string = typeof SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS,
-  TAccountSettings extends string | AccountMeta<string> = string,
-  TAccountTransaction extends string | AccountMeta<string> = string,
-  TAccountCreator extends string | AccountMeta<string> = string,
-  TAccountRentPayer extends string | AccountMeta<string> = string,
-  TAccountSystemProgram extends string | AccountMeta<string> =
-    '11111111111111111111111111111111',
+  TAccountTransactionCreateSettings extends string | AccountMeta<string> =
+    string,
+  TAccountTransactionCreateTransaction extends string | AccountMeta<string> =
+    string,
+  TAccountTransactionCreateCreator extends string | AccountMeta<string> =
+    string,
+  TAccountTransactionCreateRentPayer extends string | AccountMeta<string> =
+    string,
+  TAccountTransactionCreateSystemProgram extends string | AccountMeta<string> =
+    string,
   TAccountTransactionBuffer extends string | AccountMeta<string> = string,
   TAccountCreator extends string | AccountMeta<string> = string,
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -65,29 +64,26 @@ export type CreateTransactionFromBufferInstruction<
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
-      TAccountSettings extends string
-        ? WritableAccount<TAccountSettings>
-        : TAccountSettings,
-      TAccountTransaction extends string
-        ? WritableAccount<TAccountTransaction>
-        : TAccountTransaction,
-      TAccountCreator extends string
-        ? ReadonlySignerAccount<TAccountCreator> &
-            AccountSignerMeta<TAccountCreator>
-        : TAccountCreator,
-      TAccountRentPayer extends string
-        ? WritableSignerAccount<TAccountRentPayer> &
-            AccountSignerMeta<TAccountRentPayer>
-        : TAccountRentPayer,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
+      TAccountTransactionCreateSettings extends string
+        ? ReadonlyAccount<TAccountTransactionCreateSettings>
+        : TAccountTransactionCreateSettings,
+      TAccountTransactionCreateTransaction extends string
+        ? ReadonlyAccount<TAccountTransactionCreateTransaction>
+        : TAccountTransactionCreateTransaction,
+      TAccountTransactionCreateCreator extends string
+        ? ReadonlyAccount<TAccountTransactionCreateCreator>
+        : TAccountTransactionCreateCreator,
+      TAccountTransactionCreateRentPayer extends string
+        ? ReadonlyAccount<TAccountTransactionCreateRentPayer>
+        : TAccountTransactionCreateRentPayer,
+      TAccountTransactionCreateSystemProgram extends string
+        ? ReadonlyAccount<TAccountTransactionCreateSystemProgram>
+        : TAccountTransactionCreateSystemProgram,
       TAccountTransactionBuffer extends string
-        ? WritableAccount<TAccountTransactionBuffer>
+        ? ReadonlyAccount<TAccountTransactionBuffer>
         : TAccountTransactionBuffer,
       TAccountCreator extends string
-        ? WritableSignerAccount<TAccountCreator> &
-            AccountSignerMeta<TAccountCreator>
+        ? ReadonlyAccount<TAccountCreator>
         : TAccountCreator,
       ...TRemainingAccounts,
     ]
@@ -105,20 +101,20 @@ export type CreateTransactionFromBufferInstructionDataArgs = {
 export function getCreateTransactionFromBufferInstructionDataEncoder(): Encoder<CreateTransactionFromBufferInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['args', getCreateTransactionArgsEncoder()],
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["args", getCreateTransactionArgsEncoder()],
     ]),
     (value) => ({
       ...value,
       discriminator: CREATE_TRANSACTION_FROM_BUFFER_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
 export function getCreateTransactionFromBufferInstructionDataDecoder(): Decoder<CreateTransactionFromBufferInstructionData> {
   return getStructDecoder([
-    ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['args', getCreateTransactionArgsDecoder()],
+    ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["args", getCreateTransactionArgsDecoder()],
   ]);
 }
 
@@ -128,59 +124,57 @@ export function getCreateTransactionFromBufferInstructionDataCodec(): Codec<
 > {
   return combineCodec(
     getCreateTransactionFromBufferInstructionDataEncoder(),
-    getCreateTransactionFromBufferInstructionDataDecoder()
+    getCreateTransactionFromBufferInstructionDataDecoder(),
   );
 }
 
 export type CreateTransactionFromBufferInput<
-  TAccountSettings extends string = string,
-  TAccountTransaction extends string = string,
-  TAccountCreator extends string = string,
-  TAccountRentPayer extends string = string,
-  TAccountSystemProgram extends string = string,
+  TAccountTransactionCreateSettings extends string = string,
+  TAccountTransactionCreateTransaction extends string = string,
+  TAccountTransactionCreateCreator extends string = string,
+  TAccountTransactionCreateRentPayer extends string = string,
+  TAccountTransactionCreateSystemProgram extends string = string,
   TAccountTransactionBuffer extends string = string,
   TAccountCreator extends string = string,
 > = {
-  settings: Address<TAccountSettings>;
-  transaction: Address<TAccountTransaction>;
-  /** The member of the multisig that is creating the transaction. */
-  creator: TransactionSigner<TAccountCreator>;
-  /** The payer for the transaction account rent. */
-  rentPayer: TransactionSigner<TAccountRentPayer>;
-  systemProgram?: Address<TAccountSystemProgram>;
+  transactionCreateSettings: Address<TAccountTransactionCreateSettings>;
+  transactionCreateTransaction: Address<TAccountTransactionCreateTransaction>;
+  transactionCreateCreator: Address<TAccountTransactionCreateCreator>;
+  transactionCreateRentPayer: Address<TAccountTransactionCreateRentPayer>;
+  transactionCreateSystemProgram: Address<TAccountTransactionCreateSystemProgram>;
   transactionBuffer: Address<TAccountTransactionBuffer>;
-  creator: TransactionSigner<TAccountCreator>;
-  args: CreateTransactionFromBufferInstructionDataArgs['args'];
+  creator: Address<TAccountCreator>;
+  args: CreateTransactionFromBufferInstructionDataArgs["args"];
 };
 
 export function getCreateTransactionFromBufferInstruction<
-  TAccountSettings extends string,
-  TAccountTransaction extends string,
-  TAccountCreator extends string,
-  TAccountRentPayer extends string,
-  TAccountSystemProgram extends string,
+  TAccountTransactionCreateSettings extends string,
+  TAccountTransactionCreateTransaction extends string,
+  TAccountTransactionCreateCreator extends string,
+  TAccountTransactionCreateRentPayer extends string,
+  TAccountTransactionCreateSystemProgram extends string,
   TAccountTransactionBuffer extends string,
   TAccountCreator extends string,
   TProgramAddress extends Address =
     typeof SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS,
 >(
   input: CreateTransactionFromBufferInput<
-    TAccountSettings,
-    TAccountTransaction,
-    TAccountCreator,
-    TAccountRentPayer,
-    TAccountSystemProgram,
+    TAccountTransactionCreateSettings,
+    TAccountTransactionCreateTransaction,
+    TAccountTransactionCreateCreator,
+    TAccountTransactionCreateRentPayer,
+    TAccountTransactionCreateSystemProgram,
     TAccountTransactionBuffer,
     TAccountCreator
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): CreateTransactionFromBufferInstruction<
   TProgramAddress,
-  TAccountSettings,
-  TAccountTransaction,
-  TAccountCreator,
-  TAccountRentPayer,
-  TAccountSystemProgram,
+  TAccountTransactionCreateSettings,
+  TAccountTransactionCreateTransaction,
+  TAccountTransactionCreateCreator,
+  TAccountTransactionCreateRentPayer,
+  TAccountTransactionCreateSystemProgram,
   TAccountTransactionBuffer,
   TAccountCreator
 > {
@@ -190,16 +184,31 @@ export function getCreateTransactionFromBufferInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    settings: { value: input.settings ?? null, isWritable: true },
-    transaction: { value: input.transaction ?? null, isWritable: true },
-    creator: { value: input.creator ?? null, isWritable: false },
-    rentPayer: { value: input.rentPayer ?? null, isWritable: true },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    transactionCreateSettings: {
+      value: input.transactionCreateSettings ?? null,
+      isWritable: false,
+    },
+    transactionCreateTransaction: {
+      value: input.transactionCreateTransaction ?? null,
+      isWritable: false,
+    },
+    transactionCreateCreator: {
+      value: input.transactionCreateCreator ?? null,
+      isWritable: false,
+    },
+    transactionCreateRentPayer: {
+      value: input.transactionCreateRentPayer ?? null,
+      isWritable: false,
+    },
+    transactionCreateSystemProgram: {
+      value: input.transactionCreateSystemProgram ?? null,
+      isWritable: false,
+    },
     transactionBuffer: {
       value: input.transactionBuffer ?? null,
-      isWritable: true,
+      isWritable: false,
     },
-    creator: { value: input.creator ?? null, isWritable: true },
+    creator: { value: input.creator ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -207,36 +216,30 @@ export function getCreateTransactionFromBufferInstruction<
   >;
 
   // Original args.
-  const args = { ...input, creator: input.creatorArg };
+  const args = { ...input };
 
-  // Resolve default values.
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
-  }
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta(accounts.settings),
-      getAccountMeta(accounts.transaction),
-      getAccountMeta(accounts.creator),
-      getAccountMeta(accounts.rentPayer),
-      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.transactionCreateSettings),
+      getAccountMeta(accounts.transactionCreateTransaction),
+      getAccountMeta(accounts.transactionCreateCreator),
+      getAccountMeta(accounts.transactionCreateRentPayer),
+      getAccountMeta(accounts.transactionCreateSystemProgram),
       getAccountMeta(accounts.transactionBuffer),
       getAccountMeta(accounts.creator),
     ],
     data: getCreateTransactionFromBufferInstructionDataEncoder().encode(
-      args as CreateTransactionFromBufferInstructionDataArgs
+      args as CreateTransactionFromBufferInstructionDataArgs,
     ),
     programAddress,
   } as CreateTransactionFromBufferInstruction<
     TProgramAddress,
-    TAccountSettings,
-    TAccountTransaction,
-    TAccountCreator,
-    TAccountRentPayer,
-    TAccountSystemProgram,
+    TAccountTransactionCreateSettings,
+    TAccountTransactionCreateTransaction,
+    TAccountTransactionCreateCreator,
+    TAccountTransactionCreateRentPayer,
+    TAccountTransactionCreateSystemProgram,
     TAccountTransactionBuffer,
     TAccountCreator
   >);
@@ -248,13 +251,11 @@ export type ParsedCreateTransactionFromBufferInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    settings: TAccountMetas[0];
-    transaction: TAccountMetas[1];
-    /** The member of the multisig that is creating the transaction. */
-    creator: TAccountMetas[2];
-    /** The payer for the transaction account rent. */
-    rentPayer: TAccountMetas[3];
-    systemProgram: TAccountMetas[4];
+    transactionCreateSettings: TAccountMetas[0];
+    transactionCreateTransaction: TAccountMetas[1];
+    transactionCreateCreator: TAccountMetas[2];
+    transactionCreateRentPayer: TAccountMetas[3];
+    transactionCreateSystemProgram: TAccountMetas[4];
     transactionBuffer: TAccountMetas[5];
     creator: TAccountMetas[6];
   };
@@ -267,11 +268,11 @@ export function parseCreateTransactionFromBufferInstruction<
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateTransactionFromBufferInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 7) {
     // TODO: Coded error.
-    throw new Error('Not enough accounts');
+    throw new Error("Not enough accounts");
   }
   let accountIndex = 0;
   const getNextAccount = () => {
@@ -282,16 +283,16 @@ export function parseCreateTransactionFromBufferInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      settings: getNextAccount(),
-      transaction: getNextAccount(),
-      creator: getNextAccount(),
-      rentPayer: getNextAccount(),
-      systemProgram: getNextAccount(),
+      transactionCreateSettings: getNextAccount(),
+      transactionCreateTransaction: getNextAccount(),
+      transactionCreateCreator: getNextAccount(),
+      transactionCreateRentPayer: getNextAccount(),
+      transactionCreateSystemProgram: getNextAccount(),
       transactionBuffer: getNextAccount(),
       creator: getNextAccount(),
     },
     data: getCreateTransactionFromBufferInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }
