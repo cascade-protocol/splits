@@ -1,7 +1,7 @@
 {
-	"name": "dashboard",
+	"name": "tabs",
 	"$schema": "../../node_modules/nx/schemas/project-schema.json",
-	"sourceRoot": "apps/dashboard/src",
+	"sourceRoot": "apps/tabs/src",
 	"projectType": "application",
 	"tags": ["type:app", "platform:web", "scope:apps"],
 	"targets": {
@@ -20,9 +20,5 @@
 			"dependsOn": ["build"],
 			"cache": false
 		}
-	},
-	"implicitDependencies": [
-		"@cascade-fyi/splits-sdk",
-		"@cascade-fyi/splits-sdk-evm"
-	]
+	}
 }
