@@ -12,13 +12,15 @@
 			"scripts/**/*.ts",
 			"packages/**/*.ts",
 			"packages/**/*.tsx",
+			"apps/**/*.ts",
+			"apps/**/*.tsx",
 			"**/*.json",
 			"!!**/dist",
 			"!**/idl.json",
-			"!packages/dashboard/src/components/ui",
-			"!packages/sdk/src/solana/generated",
-			"!packages/docs/.source",
-			"!packages/docs/.react-router"
+			"!apps/dashboard/src/components/ui",
+			"!packages/splits-sdk/src/solana/generated",
+			"!apps/docs/.source",
+			"!apps/docs/.react-router"
 		]
 	},
 	"formatter": {

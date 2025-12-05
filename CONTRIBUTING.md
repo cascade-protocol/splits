@@ -51,7 +51,7 @@ Scopes: `sdk`, `program`, `docs`, or omit for repo-wide changes.
 
 | Component | Location | Tag Format | Package |
 |-----------|----------|------------|---------|
-| `splits-sdk` | `packages/sdk` | `sdk@vX.Y.Z` | [@cascade-fyi/splits-sdk](https://npmjs.com/package/@cascade-fyi/splits-sdk) |
+| `splits-sdk` | `packages/splits-sdk` | `sdk@vX.Y.Z` | [@cascade-fyi/splits-sdk](https://npmjs.com/package/@cascade-fyi/splits-sdk) |
 | `solana-program` | `programs/cascade-splits` | `solana-program@vX.Y.Z` | — |
 
 GitHub releases and git tags follow this naming convention.
@@ -83,9 +83,12 @@ See [.claude/CLAUDE.md](.claude/CLAUDE.md#release-process) for the full release 
 │   ├── src/                   # Program source
 │   ├── tests/                 # Mollusk unit tests
 │   └── benches/               # CU benchmarks
-├── packages/sdk/              # TypeScript SDK
+├── packages/splits-sdk/       # TypeScript SDK (Solana)
 │   ├── src/                   # SDK source
 │   └── tests/                 # Vitest tests
+├── packages/splits-sdk-evm/   # TypeScript SDK (EVM)
+├── apps/dashboard/            # Dashboard app
+├── apps/docs/                 # Documentation site
 ├── tests/                     # Anchor integration tests
 └── docs/                      # Documentation
 ```

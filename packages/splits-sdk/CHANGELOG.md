@@ -1,3 +1,7 @@
+## 0.10.1 (2025-12-05)
+
+This was a version bump only for @cascade-fyi/splits-sdk to align it with other projects, there were no code changes.
+
 # Changelog
 
 ## [0.10.0] - 2025-12-03

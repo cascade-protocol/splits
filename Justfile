@@ -1,36 +1,36 @@
 deployer := "~/.config/solana/deployer.json"
-idl_output := "packages/sdk/src/idl/"
+idl_output := "packages/splits-sdk/src/idl/"
 
 check: build lint test-integration bench
 
 build:
   anchor build
-  cp target/idl/cascade_splits.json packages/sdk/idl.json
-  cd packages/sdk && pnpm build
+  cp target/idl/cascade_splits.json packages/splits-sdk/idl.json
+  cd packages/splits-sdk && pnpm build
 
 build-verifiable:
   anchor build --verifiable
-  cp target/idl/cascade_splits.json packages/sdk/idl.json
-  cd packages/sdk && pnpm build
+  cp target/idl/cascade_splits.json packages/splits-sdk/idl.json
+  cd packages/splits-sdk && pnpm build
 
 test-integration:
   cd programs/cascade-splits && cargo test
   cd programs/cascade-splits && cargo bench
-  cd packages/sdk && pnpm test
+  cd packages/splits-sdk && pnpm test
 
 test-localnet:
   anchor test --provider.cluster localnet
 
 lint:
 	cd programs/cascade-splits && cargo check
-	cd packages/sdk && pnpm type-check
+	cd packages/splits-sdk && pnpm type-check
 
 bench:
   cd programs/cascade-splits && cargo bench
 
 clean:
 	anchor clean
-	cd packages/sdk && pnpm clean
+	cd packages/splits-sdk && pnpm clean
 
 deploy-devnet:
   anchor deploy --provider.cluster devnet --provider.wallet {{deployer}}

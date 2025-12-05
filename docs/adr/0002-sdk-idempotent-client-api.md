@@ -521,7 +521,7 @@ export class RecipientAtasMissingError extends SplitsError {
 ### 7.1 New Files
 
 ```
-packages/sdk/src/
+packages/splits-sdk/src/
 ├── index.ts                        # Types, constants (unchanged)
 ├── errors.ts                       # Error classes (add new errors)
 └── solana/

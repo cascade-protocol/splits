@@ -182,7 +182,7 @@ export function SplitExplainer() {
 					<ExternalLink className="h-3.5 w-3.5" />
 				</a>
 				<a
-					href="https://github.com/cascade-protocol/splits/blob/main/packages/sdk/README.md"
+					href="https://github.com/cascade-protocol/splits/blob/main/packages/splits-sdk/README.md"
 					target="_blank"
 					rel="noopener noreferrer"
 					className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"

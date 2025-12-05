@@ -59,7 +59,7 @@ Two separate packages for Solana and EVM:
 
 ### @cascade-fyi/splits-sdk (Solana)
 
-See `packages/sdk/ARCHITECTURE.md` for design rationale.
+See `packages/splits-sdk/ARCHITECTURE.md` for design rationale.
 
 ```typescript
 // Core module - instructions + helpers (kit-agnostic, works with any kit version >=2.0.0)
@@ -124,8 +124,8 @@ Result types: `CREATED`, `NO_CHANGE`, `FAILED` for ensure; `EXECUTED`, `SKIPPED`
    - Update `**Version:** X.Y` (top)
    - Update `**Last Updated:** YYYY-MM-DD` (bottom)
 
-4. **splits-sdk Version** (`packages/sdk/package.json`) - ONLY if splits-sdk API changes
-   - Update splits-sdk CHANGELOG (`packages/sdk/CHANGELOG.md`)
+4. **splits-sdk Version** (`packages/splits-sdk/package.json`) - ONLY if splits-sdk API changes
+   - Update splits-sdk CHANGELOG (`packages/splits-sdk/CHANGELOG.md`)
    - Skip if only on-chain validation changed
 
 5. **Commit Version Updates** (conventional commits)
@@ -163,7 +163,7 @@ anchor build --verifiable
 
 # 4. Sync build artifacts for testing
 cp target/verifiable/cascade_splits.so target/deploy/cascade_splits.so
-cp target/idl/cascade_splits.json packages/sdk/idl.json
+cp target/idl/cascade_splits.json packages/splits-sdk/idl.json
 
 # 5. Test on localnet with EXACT verifiable build (no rebuild)
 anchor test --skip-build --provider.cluster localnet
@@ -229,7 +229,7 @@ pnpm --filter @cascade-fyi/splits-sdk test
 pnpm --filter @cascade-fyi/splits-sdk publish
 
 # 4. Tag and release splits-sdk
-python3 scripts/extract-changelog.py "$SDK_VERSION" packages/sdk/CHANGELOG.md > /tmp/sdk-release-notes.md
+python3 scripts/extract-changelog.py "$SDK_VERSION" packages/splits-sdk/CHANGELOG.md > /tmp/sdk-release-notes.md
 git tag "sdk@v${SDK_VERSION}"
 git push origin "sdk@v${SDK_VERSION}"
 gh release create "sdk@v${SDK_VERSION}" --title "splits-sdk v${SDK_VERSION}" --notes-file /tmp/sdk-release-notes.md
@@ -255,11 +255,30 @@ gh release create "sdk@v${SDK_VERSION}" --title "splits-sdk v${SDK_VERSION}" --n
 
 **Principle:** Mollusk tests all errors. Smoke tests only Token-2022 CPI and real network behavior.
 
-# General Guidelines for working with Nx
+# Nx Monorepo
 
-- When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
-- You have access to the Nx MCP server and its tools, use them to help the user
-- When answering questions about the repository, use the `nx_workspace` tool first to gain an understanding of the workspace architecture where applicable.
-- When working in individual projects, use the `nx_project_details` mcp tool to analyze and understand the specific project structure and dependencies
-- For questions around nx configuration, best practices or if you're unsure, use the `nx_docs` tool to get relevant, up-to-date docs. Always use this instead of assuming things about nx configuration
-- If the user needs help with an Nx configuration or project graph error, use the `nx_workspace` tool to get any errors
+## Nx Commands
+
+| Command | Description |
+|---------|-------------|
+| `nx run-many -t build` | Build all projects |
+| `nx run-many -t test` | Test all projects |
+| `nx run-many -t check` | Type-check + lint all projects |
+| `nx show projects` | List all projects |
+| `nx show project <name>` | Show project details |
+| `nx graph` | Visualize project graph |
+
+## SDK Release
+
+```bash
+# Preview release
+pnpm release --dry-run
+
+# Execute release (prompts for version)
+pnpm release
+
+# Or run phases separately:
+pnpm release:version patch
+pnpm release:changelog
+pnpm release:publish
+```

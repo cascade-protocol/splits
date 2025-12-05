@@ -394,9 +394,9 @@ For facilitators processing many payments:
 
 ## Resources
 
-- **Architecture:** [ARCHITECTURE.md](https://github.com/cascade-protocol/splits/blob/main/packages/sdk/ARCHITECTURE.md) — why the SDK is structured this way
+- **Architecture:** [ARCHITECTURE.md](https://github.com/cascade-protocol/splits/blob/main/packages/splits-sdk/ARCHITECTURE.md) — why the SDK is structured this way
 - **Specification:** [docs/specification.md](https://github.com/cascade-protocol/splits/blob/main/docs/specification.md)
-- **Changelog:** [CHANGELOG.md](https://github.com/cascade-protocol/splits/blob/main/packages/sdk/CHANGELOG.md)
+- **Changelog:** [CHANGELOG.md](https://github.com/cascade-protocol/splits/blob/main/packages/splits-sdk/CHANGELOG.md)
 - **Issues:** [GitHub Issues](https://github.com/cascade-protocol/splits/issues)
 - **Contact:** hello@cascade.fyi
 

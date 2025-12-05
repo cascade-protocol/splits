@@ -145,7 +145,7 @@ const { instruction, vault } = await createSplitConfig({
 // Sign and send instruction, then share `vault` with payers
 ```
 
-See [SDK documentation](packages/sdk/README.md) for complete API reference.
+See [SDK documentation](packages/splits-sdk/README.md) for complete API reference.
 
 ## Architecture
 
@@ -217,7 +217,10 @@ See [specification](docs/specification.md) for complete integration guide.
 │   │   └── events.rs        # Event definitions
 │   ├── tests/               # Mollusk unit tests
 │   └── benches/             # Compute unit benchmarks
-├── packages/sdk/            # TypeScript SDK
+├── packages/splits-sdk/     # TypeScript SDK (Solana)
+├── packages/splits-sdk-evm/ # TypeScript SDK (EVM)
+├── apps/dashboard/          # Dashboard app
+├── apps/docs/               # Documentation site
 └── docs/
     └── specification.md     # Full specification
 ```
@@ -242,7 +245,7 @@ pnpm build
 ## Documentation
 
 - [Full Specification](docs/specification.md) - Detailed protocol documentation
-- [SDK Documentation](packages/sdk/README.md) - TypeScript SDK reference
+- [SDK Documentation](packages/splits-sdk/README.md) - TypeScript SDK reference
 - [Error Codes](docs/specification.md#error-codes) - All error codes and descriptions
 - [Events](docs/specification.md#events) - Event definitions for indexing
 

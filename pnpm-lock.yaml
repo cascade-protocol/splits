@@ -67,14 +67,14 @@ importers:
         specifier: ^4.0.12
         version: 4.0.12(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(lightningcss@1.30.2)(msw@2.12.2(@types/node@24.10.1)(typescript@5.9.3))(terser@5.44.1)(tsx@4.20.6)(yaml@2.8.1)
 
-  packages/dashboard:
+  apps/dashboard:
     dependencies:
       '@cascade-fyi/splits-sdk':
         specifier: workspace:*
-        version: link:../sdk
+        version: link:../../packages/splits-sdk
       '@cascade-fyi/splits-sdk-evm':
         specifier: workspace:*
-        version: link:../sdk-evm
+        version: link:../../packages/splits-sdk-evm
       '@coinbase/wallet-sdk':
         specifier: ^4.3.7
         version: 4.3.7(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.1.12)
@@ -182,7 +182,7 @@ importers:
         specifier: npm:rolldown-vite@7.2.5
         version: rolldown-vite@7.2.5(@types/node@24.10.1)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.20.6)(yaml@2.8.1)
 
-  packages/docs:
+  apps/docs:
     dependencies:
       '@orama/orama':
         specifier: ^3.1.16
@@ -252,7 +252,7 @@ importers:
         specifier: ^5.1.4
         version: 5.1.4(typescript@5.9.3)(vite@7.2.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.20.6)(yaml@2.8.1))
 
-  packages/sdk:
+  packages/splits-sdk:
     dependencies:
       '@solana-program/compute-budget':
         specifier: ^0.11.0
@@ -307,7 +307,7 @@ importers:
         specifier: ^4.0.12
         version: 4.0.12(@types/debug@4.1.12)(@types/node@24.10.1)(jiti@2.6.1)(jsdom@26.1.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(lightningcss@1.30.2)(msw@2.12.2(@types/node@24.10.1)(typescript@5.9.3))(terser@5.44.1)(tsx@4.20.6)(yaml@2.8.1)
 
-  packages/sdk-evm:
+  packages/splits-sdk-evm:
     dependencies:
       viem:
         specifier: ^2.41.2
@@ -13964,7 +13964,7 @@ snapshots:
       combined-stream: 1.0.8
       es-set-tostringtag: 2.1.0
       hasown: 2.0.2
-      mime-types: 2.1.18
+      mime-types: 2.1.35
 
   formdata-polyfill@4.0.10:
     dependencies:

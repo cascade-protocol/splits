@@ -235,7 +235,7 @@ import type {
 ## Resources
 
 - **Specification:** [docs/specification-evm.md](https://github.com/cascade-protocol/splits/blob/main/docs/specification-evm.md)
-- **Changelog:** [CHANGELOG.md](https://github.com/cascade-protocol/splits/blob/main/packages/sdk-evm/CHANGELOG.md)
+- **Changelog:** [CHANGELOG.md](https://github.com/cascade-protocol/splits/blob/main/packages/splits-sdk-evm/CHANGELOG.md)
 - **Solana SDK:** [@cascade-fyi/splits-sdk](https://www.npmjs.com/package/@cascade-fyi/splits-sdk)
 - **Issues:** [GitHub Issues](https://github.com/cascade-protocol/splits/issues)
 - **Contact:** hello@cascade.fyi

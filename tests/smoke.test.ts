@@ -22,7 +22,7 @@ import {
 import { describe, test, expect, beforeAll } from "vitest";
 import type { CascadeSplits } from "../target/types/cascade_splits";
 // Use SDK's IDL for consistency and early detection of IDL sync issues
-import idl from "../packages/sdk/idl.json";
+import idl from "../packages/splits-sdk/idl.json";
 
 // Helper to create program from SDK's IDL
 function createProgram(

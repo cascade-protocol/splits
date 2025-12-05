@@ -1,40 +1,62 @@
 {
 	"$schema": "./node_modules/nx/schemas/nx-schema.json",
-	"plugins": ["@nx/vite/plugin"],
+	"defaultBase": "main",
+	"namedInputs": {
+		"default": ["{projectRoot}/**/*", "sharedGlobals"],
+		"production": [
+			"default",
+			"!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+			"!{projectRoot}/tsconfig.spec.json",
+			"!{projectRoot}/**/*.stories.@(js|jsx|ts|tsx|mdx)"
+		],
+		"sharedGlobals": ["{workspaceRoot}/biome.json"]
+	},
 	"targetDefaults": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": ["{projectRoot}/dist"],
-			"cache": true
-		},
-		"prepublishOnly": {
-			"dependsOn": ["^prepublishOnly"]
-		},
-		"generate": {
-			"outputs": ["{projectRoot}/packages/sdk/src/solana/generated"],
-			"cache": true
-		},
-		"lint": {
-			"cache": true
-		},
-		"type-check": {
-			"cache": true
-		},
-		"check": {
-			"cache": true
-		},
-		"types:check": {
-			"cache": true
-		},
-		"format": {
 			"cache": true
 		},
 		"test": {
 			"cache": true
 		},
-		"@nx/vitest:test": {
-			"cache": true,
-			"inputs": ["default", "^default"]
+		"type-check": {
+			"cache": true
+		},
+		"lint": {
+			"cache": true
+		},
+		"check": {
+			"dependsOn": ["type-check"],
+			"cache": true
 		}
+	},
+	"release": {
+		"projectsRelationship": "independent",
+		"projects": ["packages/*"],
+		"releaseTag": {
+			"pattern": "{projectName}@{version}"
+		},
+		"git": {
+			"commitMessage": "chore(release): {projectName}@{version}"
+		},
+		"version": {
+			"preVersionCommand": "pnpm check",
+			"versionActionsOptions": {
+				"packageRoot": "{projectRoot}",
+				"currentVersionResolver": "git-tag"
+			}
+		},
+		"changelog": {
+			"projectChangelogs": {
+				"createRelease": "github",
+				"file": "{projectRoot}/CHANGELOG.md",
+				"renderOptions": {
+					"authors": false,
+					"commitReferences": true,
+					"versionTitleDate": true
+				}
+			}
+		},
+		"publish": false
 	}
 }
