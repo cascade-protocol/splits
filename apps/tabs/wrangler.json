@@ -1,6 +1,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "cascade-tabs",
+	"account_id": "3db7dd8ff22ae68593205855d8bc0b25",
 	"main": "./src/worker/index.ts",
 	"compatibility_date": "2025-12-01",
 	"compatibility_flags": ["nodejs_compat"],
@@ -12,8 +13,5 @@
 		"directory": "./dist/client",
 		"not_found_handling": "single-page-application"
 	},
-	"vars": {
-		"HELIUS_RPC_URL": "",
-		"EXECUTOR_KEY": ""
-	}
+	"routes": [{ "pattern": "tabs.cascade.fyi", "custom_domain": true }]
 }

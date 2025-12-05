@@ -34,7 +34,7 @@ export function parseTransaction(
 	vaultAddress: string,
 ): ParsedTransaction {
 	const base: ParsedTransaction = {
-		signature: tx.signature,
+		signature: tx.transaction.signatures[0],
 		type: "unknown",
 		timestamp: new Date(tx.blockTime * 1000),
 		fee: tx.meta.fee,

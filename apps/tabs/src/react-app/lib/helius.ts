@@ -6,11 +6,15 @@
 
 const HELIUS_RPC = import.meta.env.VITE_MAINNET_RPC;
 
+/**
+ * Helius full transaction response structure.
+ * Note: signature is in transaction.signatures[0], not at root level.
+ */
 export interface HeliusTransaction {
-	signature: string;
 	slot: number;
 	blockTime: number;
 	transaction: {
+		signatures: string[];
 		message: {
 			accountKeys: Array<{
 				pubkey: string;

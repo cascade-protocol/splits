@@ -98,7 +98,10 @@ export function SmartAccountPanel() {
 			{apiKey && <ApiKeyCard apiKey={apiKey} />}
 
 			{/* Tertiary: Transaction History (collapsible on mobile) */}
-			<TransactionHistory vaultAddress={account.vaultAddress} />
+			<TransactionHistory
+				vaultAtaAddress={account.vaultAtaAddress}
+				vaultOwnerAddress={account.vaultAddress}
+			/>
 
 			{/* Dialogs */}
 			<DepositDialog

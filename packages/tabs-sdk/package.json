@@ -1,12 +1,12 @@
 {
 	"name": "@cascade-fyi/tabs-sdk",
-	"version": "0.0.1",
-	"private": true,
+	"version": "0.1.0",
 	"type": "module",
-	"description": "Codama-generated client for Squads Smart Account Program",
+	"description": "TypeScript SDK for Cascade Tabs - x402 payment authorization via Squads Smart Accounts",
 	"scripts": {
 		"generate": "tsx scripts/generate-clients.ts",
 		"build": "pnpm generate && tsdown",
+		"prepublishOnly": "pnpm build",
 		"type-check": "tsc --noEmit",
 		"check": "pnpm type-check && biome check --write",
 		"test": "vitest run",
@@ -55,6 +55,30 @@
 	},
 	"files": [
 		"dist/**",
+		"README.md",
 		"idl.json"
-	]
+	],
+	"keywords": [
+		"solana",
+		"x402",
+		"squads",
+		"smart-account",
+		"spending-limit",
+		"tabs",
+		"cascade",
+		"payment-authorization"
+	],
+	"author": "Cascade <hello@cascade.fyi>",
+	"license": "Apache-2.0",
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cascade-protocol/splits"
+	},
+	"bugs": {
+		"url": "https://github.com/cascade-protocol/splits/issues"
+	},
+	"homepage": "https://github.com/cascade-protocol/splits#readme"
 }

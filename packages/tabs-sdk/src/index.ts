@@ -64,6 +64,12 @@ export {
 	// Utilities
 	decodeBase64,
 	readBigUInt64LE,
+	base58Decode,
+	// API Key encoding/decoding
+	decodeTabsApiKey,
+	encodeTabsApiKey,
+	type TabsApiKeyPayload,
+	type EncodeTabsApiKeyInput,
 } from "./helpers.js";
 
 // =============================================================================
@@ -78,3 +84,14 @@ export {
 	type SmartAccountState,
 	type SpendingLimitConfig,
 } from "./discovery.js";
+
+// =============================================================================
+// tabsFetch - x402 Payment Client
+// =============================================================================
+
+export {
+	tabsFetch,
+	TabsPaymentError,
+	type TabsFetchOptions,
+	type PaymentRequirements,
+} from "./tabsFetch.js";

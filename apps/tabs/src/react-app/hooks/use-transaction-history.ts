@@ -21,29 +21,32 @@ export interface UseTransactionHistoryReturn {
 }
 
 export function useTransactionHistory(
-	vaultAddress: string | undefined,
+	vaultAtaAddress: string | undefined,
+	vaultOwnerAddress: string | undefined,
 ): UseTransactionHistoryReturn {
 	const query = useInfiniteQuery({
-		queryKey: ["tx-history", vaultAddress],
+		queryKey: ["tx-history", vaultAtaAddress],
 		queryFn: async ({ pageParam }) => {
-			if (!vaultAddress) {
+			if (!vaultAtaAddress || !vaultOwnerAddress) {
 				return { data: [] as ParsedTransaction[], paginationToken: undefined };
 			}
 
-			const result = await fetchTransactionHistory(vaultAddress, {
+			// Fetch by ATA address (direct participant in SPL transfers)
+			const result = await fetchTransactionHistory(vaultAtaAddress, {
 				limit: 20,
 				paginationToken: pageParam,
 			});
 
+			// Parse with owner address (for balance change detection)
 			const parsed = result.data.map((tx) =>
-				parseTransaction(tx, vaultAddress),
+				parseTransaction(tx, vaultOwnerAddress),
 			);
 
 			return { data: parsed, paginationToken: result.paginationToken };
 		},
 		initialPageParam: undefined as string | undefined,
 		getNextPageParam: (lastPage) => lastPage.paginationToken,
-		enabled: !!vaultAddress,
+		enabled: !!vaultAtaAddress && !!vaultOwnerAddress,
 		staleTime: 60_000, // 1 minute
 	});
 

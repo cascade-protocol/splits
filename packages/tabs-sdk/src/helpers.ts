@@ -607,3 +607,137 @@ export function buildRemoveSpendingLimitInstruction(
 		memo: input.memo ?? null,
 	});
 }
+
+// =============================================================================
+// Base58 Utilities
+// =============================================================================
+
+const BASE58_ALPHABET =
+	"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+/**
+ * Decode a base58 string to bytes.
+ * Used for decoding Solana secret keys stored as base58 strings.
+ */
+export function base58Decode(str: string): Uint8Array {
+	const bytes: number[] = [];
+	for (const char of str) {
+		const value = BASE58_ALPHABET.indexOf(char);
+		if (value === -1) throw new Error(`Invalid base58 character: ${char}`);
+
+		let carry = value;
+		for (let i = 0; i < bytes.length; i++) {
+			carry += (bytes[i] as number) * 58;
+			bytes[i] = carry & 0xff;
+			carry >>= 8;
+		}
+		while (carry > 0) {
+			bytes.push(carry & 0xff);
+			carry >>= 8;
+		}
+	}
+
+	// Handle leading zeros
+	for (const char of str) {
+		if (char !== "1") break;
+		bytes.push(0);
+	}
+
+	return new Uint8Array(bytes.reverse());
+}
+
+// =============================================================================
+// API Key Encoding/Decoding
+// =============================================================================
+
+const API_KEY_PREFIX = "tabs_";
+const API_KEY_VERSION = 1;
+
+/**
+ * Decoded Tabs API key payload.
+ */
+export interface TabsApiKeyPayload {
+	/** Settings PDA address (base58) */
+	settingsPda: string;
+	/** Spending limit PDA address (base58) */
+	spendingLimitPda: string;
+	/** Maximum amount per transaction (in base units) */
+	perTxMax: bigint;
+	/** API key version */
+	version: number;
+}
+
+/**
+ * Decode a Tabs API key into its payload.
+ *
+ * @param key - The API key string (starts with 'tabs_')
+ * @returns The decoded payload, or null if invalid
+ *
+ * @example
+ * ```typescript
+ * const payload = decodeTabsApiKey('tabs_eyJzZXR0aW5nc1BkYS...');
+ * if (payload) {
+ *   console.log('Settings PDA:', payload.settingsPda);
+ *   console.log('Per-tx max:', payload.perTxMax);
+ * }
+ * ```
+ */
+export function decodeTabsApiKey(key: string): TabsApiKeyPayload | null {
+	if (!key.startsWith(API_KEY_PREFIX)) return null;
+	try {
+		const base64 = key
+			.slice(API_KEY_PREFIX.length)
+			.replace(/-/g, "+")
+			.replace(/_/g, "/");
+		const parsed = JSON.parse(atob(base64));
+		return {
+			settingsPda: parsed.settingsPda,
+			spendingLimitPda: parsed.spendingLimitPda,
+			perTxMax: BigInt(parsed.perTxMax),
+			version: parsed.version,
+		};
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Input for encoding a Tabs API key.
+ */
+export interface EncodeTabsApiKeyInput {
+	/** Settings PDA address (base58) */
+	settingsPda: string;
+	/** Spending limit PDA address (base58) */
+	spendingLimitPda: string;
+	/** Maximum amount per transaction (in base units) */
+	perTxMax: bigint;
+}
+
+/**
+ * Encode a Tabs API key from its components.
+ *
+ * @param input - The API key components
+ * @returns The encoded API key string (starts with 'tabs_')
+ *
+ * @example
+ * ```typescript
+ * const apiKey = encodeTabsApiKey({
+ *   settingsPda: '5T1d69cj2r89PqsUs9CHMQheGY5zs1vJEbwqhTE31Frp',
+ *   spendingLimitPda: '4cocmbXwdUTmbcVVWUovJhAEhsvCFhksiB3i3c3FuXVM',
+ *   perTxMax: 10_000_000n, // 10 USDC
+ * });
+ * ```
+ */
+export function encodeTabsApiKey(input: EncodeTabsApiKeyInput): string {
+	const payload = {
+		settingsPda: input.settingsPda,
+		spendingLimitPda: input.spendingLimitPda,
+		perTxMax: input.perTxMax.toString(),
+		version: API_KEY_VERSION,
+	};
+	const base64 = btoa(JSON.stringify(payload))
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_")
+		.replace(/=+$/, "");
+	return API_KEY_PREFIX + base64;
+}

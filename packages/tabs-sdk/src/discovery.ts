@@ -36,8 +36,10 @@ import {
 export interface SmartAccountState {
 	/** Smart account settings address (PDA) */
 	address: Address;
-	/** Vault address (where tokens are held) */
+	/** Vault address - the Smart Account PDA that owns the token account */
 	vaultAddress: Address;
+	/** Vault ATA address - the actual token account holding USDC */
+	vaultAtaAddress: Address;
 	/** Token balance in base units */
 	balance: bigint;
 	/** Current spending limit config, null if not set */
@@ -201,14 +203,16 @@ export async function fetchSmartAccountStateByOwner(
 
 	// Fetch vault balance if mint is provided
 	let balance = 0n;
+	let vaultAtaAddress = vaultAddress; // Default to vault PDA if no mint
 	if (mint) {
-		const vaultAta = await deriveAta(vaultAddress, mint);
-		balance = await getTokenBalance(rpc, vaultAta);
+		vaultAtaAddress = await deriveAta(vaultAddress, mint);
+		balance = await getTokenBalance(rpc, vaultAtaAddress);
 	}
 
 	return {
 		address: settingsAddress,
 		vaultAddress,
+		vaultAtaAddress,
 		balance,
 		spendingLimit,
 	};

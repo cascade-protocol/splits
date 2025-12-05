@@ -40,10 +40,14 @@ const TX_TYPE_CONFIG: Record<
 };
 
 interface TransactionHistoryProps {
-	vaultAddress: string;
+	vaultAtaAddress: string;
+	vaultOwnerAddress: string;
 }
 
-export function TransactionHistory({ vaultAddress }: TransactionHistoryProps) {
+export function TransactionHistory({
+	vaultAtaAddress,
+	vaultOwnerAddress,
+}: TransactionHistoryProps) {
 	const {
 		transactions,
 		isLoading,
@@ -51,7 +55,7 @@ export function TransactionHistory({ vaultAddress }: TransactionHistoryProps) {
 		hasNextPage,
 		fetchNextPage,
 		isFetchingNextPage,
-	} = useTransactionHistory(vaultAddress);
+	} = useTransactionHistory(vaultAtaAddress, vaultOwnerAddress);
 
 	if (isLoading) {
 		return (
