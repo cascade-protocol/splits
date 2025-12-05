@@ -25,6 +25,7 @@ import { useSmartAccount } from "@/hooks/use-smart-account";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { formatUsdc, parseUsdc } from "@/lib/squads";
 import { TransactionHistory } from "./TransactionHistory";
+import { DemoPanel } from "./DemoPanel";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +45,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// Truncate string in the middle for display
+function truncateMiddle(str: string, maxLen = 28) {
+	if (str.length <= maxLen) return str;
+	const start = str.slice(0, 14);
+	const end = str.slice(-10);
+	return `${start}...${end}`;
+}
 
 type DialogType = "deposit" | "withdraw" | "limits" | null;
 
@@ -88,14 +102,15 @@ export function SmartAccountPanel() {
 				/>
 				<SpendingLimitCard
 					config={account.spendingLimit}
+					apiKey={apiKey}
 					onConfigure={() => setOpenDialog("limits")}
 					onRevoke={revokeSpendingLimit}
 					isPending={isPending}
 				/>
 			</div>
 
-			{/* Secondary: API Key (truncated by default) */}
-			{apiKey && <ApiKeyCard apiKey={apiKey} />}
+			{/* Demo Panel */}
+			<DemoPanel apiKey={apiKey} hasSpendingLimit={!!account?.spendingLimit} />
 
 			{/* Tertiary: Transaction History (collapsible on mobile) */}
 			<TransactionHistory
@@ -328,6 +343,7 @@ function BalanceCard({
 
 function SpendingLimitCard({
 	config,
+	apiKey,
 	onConfigure,
 	onRevoke,
 	isPending,
@@ -336,10 +352,13 @@ function SpendingLimitCard({
 		dailyLimit: bigint;
 		remainingToday: bigint;
 	} | null;
+	apiKey: string | null;
 	onConfigure: () => void;
 	onRevoke: () => Promise<void>;
 	isPending: boolean;
 }) {
+	const { isCopied, copyToClipboard } = useCopyToClipboard();
+
 	return (
 		<Card>
 			<CardHeader className="pb-2">
@@ -370,6 +389,35 @@ function SpendingLimitCard({
 								</span>
 							</div>
 						</div>
+						{/* API Key inline */}
+						{apiKey && (
+							<div className="mb-3 flex items-center gap-2 rounded bg-muted px-2 py-1.5">
+								<Key className="size-3 shrink-0 text-muted-foreground" />
+								<Tooltip delayDuration={400}>
+									<TooltipTrigger asChild>
+										<code className="flex-1 cursor-help text-[10px] font-mono">
+											{truncateMiddle(apiKey)}
+										</code>
+									</TooltipTrigger>
+									<TooltipContent side="top" className="max-w-xs">
+										<code className="text-xs break-all">{apiKey}</code>
+									</TooltipContent>
+								</Tooltip>
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={() => copyToClipboard(apiKey)}
+									title="Copy API key"
+									className="size-6 shrink-0"
+								>
+									{isCopied ? (
+										<Check className="size-3 text-green-500" />
+									) : (
+										<Copy className="size-3" />
+									)}
+								</Button>
+							</div>
+						)}
 						<div className="flex gap-2">
 							<Button
 								onClick={onConfigure}
@@ -395,45 +443,6 @@ function SpendingLimitCard({
 						Set Spending Limit
 					</Button>
 				)}
-			</CardContent>
-		</Card>
-	);
-}
-
-function ApiKeyCard({ apiKey }: { apiKey: string }) {
-	const { isCopied, copyToClipboard } = useCopyToClipboard();
-
-	return (
-		<Card>
-			<CardHeader className="py-4">
-				<div className="flex items-center justify-between">
-					<CardTitle className="text-base flex items-center gap-2">
-						<Key className="size-4" />
-						API Key
-					</CardTitle>
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => copyToClipboard(apiKey)}
-						title="Copy API key"
-						className="size-8"
-					>
-						{isCopied ? (
-							<Check className="size-4 text-green-500" />
-						) : (
-							<Copy className="size-4" />
-						)}
-					</Button>
-				</div>
-			</CardHeader>
-			<CardContent className="pt-0">
-				<code className="block rounded bg-muted px-3 py-2 font-mono text-xs break-all">
-					{apiKey}
-				</code>
-				<p className="mt-2 text-xs text-muted-foreground">
-					Keep this key secret. Anyone with this key can spend up to your
-					per-transaction limit.
-				</p>
 			</CardContent>
 		</Card>
 	);
@@ -624,7 +633,7 @@ function SpendingLimitDialog({
 	const form = useForm({
 		resolver: zodResolver(limitsSchema),
 		defaultValues: {
-			dailyLimit: currentConfig ? formatUsdc(currentConfig.dailyLimit) : "",
+			dailyLimit: currentConfig ? formatUsdc(currentConfig.dailyLimit) : "10",
 		},
 	});
 
@@ -632,7 +641,7 @@ function SpendingLimitDialog({
 	useEffect(() => {
 		if (open) {
 			form.reset({
-				dailyLimit: currentConfig ? formatUsdc(currentConfig.dailyLimit) : "",
+				dailyLimit: currentConfig ? formatUsdc(currentConfig.dailyLimit) : "10",
 			});
 		}
 	}, [open, currentConfig, form]);
