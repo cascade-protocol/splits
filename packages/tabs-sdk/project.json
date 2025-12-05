@@ -1,0 +1,24 @@
+{
+	"name": "@cascade-fyi/tabs-sdk",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/tabs-sdk/src",
+	"projectType": "library",
+	"tags": ["type:sdk", "platform:solana", "scope:packages"],
+	"targets": {
+		"build": {
+			"inputs": ["production", "^production"],
+			"outputs": ["{projectRoot}/dist"]
+		},
+		"type-check": {
+			"inputs": ["default", "^production"]
+		},
+		"generate": {
+			"inputs": [
+				"{projectRoot}/idl.json",
+				"{projectRoot}/scripts/generate-clients.ts"
+			],
+			"outputs": ["{projectRoot}/src/generated"],
+			"cache": true
+		}
+	}
+}

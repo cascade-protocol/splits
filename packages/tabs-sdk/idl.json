@@ -1,0 +1,3967 @@
+{
+  "accounts": [
+    {
+      "docs": [
+        "Stores data required for serial execution of a batch of smart account transactions.",
+        "A smart account transaction is a transaction that's executed on behalf of the smart account",
+        "and wraps arbitrary Solana instructions, typically calling into other Solana programs.",
+        "The transactions themselves are stored in separate PDAs associated with the this account."
+      ],
+      "name": "Batch",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The settings this belongs to."
+            ],
+            "name": "settings",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Signer of the smart account who submitted the batch."
+            ],
+            "name": "creator",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "The rent collector for the batch account."
+            ],
+            "name": "rentCollector",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Index of this batch within the smart account transactions."
+            ],
+            "name": "index",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "PDA bump."
+            ],
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Index of the smart account this batch belongs to."
+            ],
+            "name": "accountIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Derivation bump of the smart account PDA this batch belongs to."
+            ],
+            "name": "accountBump",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Number of transactions in the batch."
+            ],
+            "name": "size",
+            "type": "u32"
+          },
+          {
+            "docs": [
+              "Index of the last executed transaction within the batch.",
+              "0 means that no transactions have been executed yet."
+            ],
+            "name": "executedTransactionIndex",
+            "type": "u32"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "docs": [
+        "Stores data required for execution of one transaction from a batch."
+      ],
+      "name": "BatchTransaction",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "PDA bump."
+            ],
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "The rent collector for the batch transaction account."
+            ],
+            "name": "rentCollector",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Derivation bumps for additional signers.",
+              "Some transactions require multiple signers. Often these additional signers are \"ephemeral\" keypairs",
+              "that are generated on the client with a sole purpose of signing the transaction and be discarded immediately after.",
+              "When wrapping such transactions into Smart Account ones, we replace these \"ephemeral\" signing keypairs",
+              "with PDAs derived from the transaction's `transaction_index` and controlled by the Smart Account Program;",
+              "during execution the program includes the seeds of these PDAs into the `invoke_signed` calls,",
+              "thus \"signing\" on behalf of these PDAs."
+            ],
+            "name": "ephemeralSignerBumps",
+            "type": "bytes"
+          },
+          {
+            "docs": [
+              "data required for executing the transaction."
+            ],
+            "name": "message",
+            "type": {
+              "defined": "SmartAccountTransactionMessage"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "docs": [
+        "Global program configuration account."
+      ],
+      "name": "ProgramConfig",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "Counter for the number of smart accounts created."
+            ],
+            "name": "smartAccountIndex",
+            "type": "u128"
+          },
+          {
+            "docs": [
+              "The authority which can update the config."
+            ],
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "The lamports amount charged for creating a new smart account.",
+              "This fee is sent to the `treasury` account."
+            ],
+            "name": "smartAccountCreationFee",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "The treasury account to send charged fees to."
+            ],
+            "name": "treasury",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Reserved for future use."
+            ],
+            "name": "reserved",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "docs": [
+        "Stores the data required for tracking the status of a smart account proposal.",
+        "Each `Proposal` has a 1:1 association with a transaction account, e.g. a `Transaction` or a `SettingsTransaction`;",
+        "the latter can be executed only after the `Proposal` has been approved and its time lock is released."
+      ],
+      "name": "Proposal",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The settings this belongs to."
+            ],
+            "name": "settings",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Index of the smart account transaction this proposal is associated with."
+            ],
+            "name": "transactionIndex",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "The rent collector for the proposal account."
+            ],
+            "name": "rentCollector",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "The status of the transaction."
+            ],
+            "name": "status",
+            "type": {
+              "defined": "ProposalStatus"
+            }
+          },
+          {
+            "docs": [
+              "PDA bump."
+            ],
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Keys that have approved/signed."
+            ],
+            "name": "approved",
+            "type": {
+              "vec": "publicKey"
+            }
+          },
+          {
+            "docs": [
+              "Keys that have rejected."
+            ],
+            "name": "rejected",
+            "type": {
+              "vec": "publicKey"
+            }
+          },
+          {
+            "docs": [
+              "Keys that have cancelled (Approved only)."
+            ],
+            "name": "cancelled",
+            "type": {
+              "vec": "publicKey"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "docs": [
+        "Stores data required for execution of a settings configuration transaction.",
+        "Settings transactions can perform a predefined set of actions on the Settings PDA, such as adding/removing members,",
+        "changing the threshold, etc."
+      ],
+      "name": "SettingsTransaction",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The settings this belongs to."
+            ],
+            "name": "settings",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Signer on the settings who submitted the transaction."
+            ],
+            "name": "creator",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "The rent collector for the settings transaction account."
+            ],
+            "name": "rentCollector",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Index of this transaction within the settings."
+            ],
+            "name": "index",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "bump for the transaction seeds."
+            ],
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Action to be performed on the settings."
+            ],
+            "name": "actions",
+            "type": {
+              "vec": {
+                "defined": "SettingsAction"
+              }
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "Settings",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "An integer that is used seed the settings PDA. Its incremented by 1",
+              "inside the program conifg by 1 for each smart account created. This is",
+              "to ensure uniqueness of each settings PDA without relying on user input.",
+              "",
+              "Note: As this represents a DOS vector in the current creation architecture,",
+              "account creation will be permissioned until compression is implemented."
+            ],
+            "name": "seed",
+            "type": "u128"
+          },
+          {
+            "docs": [
+              "The authority that can change the smart account settings.",
+              "This is a very important parameter as this authority can change the signers and threshold.",
+              "",
+              "The convention is to set this to `Pubkey::default()`.",
+              "In this case, the smart account becomes autonomous, so every settings change goes through",
+              "the normal process of voting by the signers.",
+              "",
+              "However, if this parameter is set to any other key, all the setting changes for this smart account settings",
+              "will need to be signed by the `settings_authority`. We call such a smart account a \"controlled smart account\"."
+            ],
+            "name": "settingsAuthority",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Threshold for signatures."
+            ],
+            "name": "threshold",
+            "type": "u16"
+          },
+          {
+            "docs": [
+              "How many seconds must pass between transaction voting settlement and execution."
+            ],
+            "name": "timeLock",
+            "type": "u32"
+          },
+          {
+            "docs": [
+              "Last transaction index. 0 means no transactions have been created."
+            ],
+            "name": "transactionIndex",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "Last stale transaction index. All transactions up until this index are stale.",
+              "This index is updated when smart account settings (signers/threshold/time_lock) change."
+            ],
+            "name": "staleTransactionIndex",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "Field reserved for when archival/compression is implemented.",
+              "Will be set to Pubkey::default() to mark accounts that should",
+              "be eligible for archival before the feature is implemented."
+            ],
+            "name": "archivalAuthority",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "docs": [
+              "Field that will prevent a smart account from being archived immediately after unarchival.",
+              "This is to prevent a DOS vector where the archival authority could",
+              "constantly unarchive and archive the smart account to prevent it from",
+              "being used."
+            ],
+            "name": "archivableAfter",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "Bump for the smart account PDA seed."
+            ],
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Signers attached to the smart account"
+            ],
+            "name": "signers",
+            "type": {
+              "vec": {
+                "defined": "SmartAccountSigner"
+              }
+            }
+          },
+          {
+            "docs": [
+              "Counter for how many sub accounts are in use (improves off-chain indexing)"
+            ],
+            "name": "accountUtilization",
+            "type": "u8"
+          },
+          {
+            "name": "reserved1",
+            "type": "u8"
+          },
+          {
+            "name": "reserved2",
+            "type": "u8"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "SpendingLimit",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The settings this belongs to."
+            ],
+            "name": "settings",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Key that is used to seed the SpendingLimit PDA."
+            ],
+            "name": "seed",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "The index of the smart account that the spending limit is for."
+            ],
+            "name": "accountIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "The token mint the spending limit is for.",
+              "Pubkey::default() means SOL.",
+              "use NATIVE_MINT for Wrapped SOL."
+            ],
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "The amount of tokens that can be spent in a period.",
+              "This amount is in decimals of the mint,",
+              "so 1 SOL would be `1_000_000_000` and 1 USDC would be `1_000_000`."
+            ],
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "The reset period of the spending limit.",
+              "When it passes, the remaining amount is reset, unless it's `Period::OneTime`."
+            ],
+            "name": "period",
+            "type": {
+              "defined": "Period"
+            }
+          },
+          {
+            "docs": [
+              "The remaining amount of tokens that can be spent in the current period.",
+              "When reaches 0, the spending limit cannot be used anymore until the period reset."
+            ],
+            "name": "remainingAmount",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "Unix timestamp marking the last time the spending limit was reset (or created)."
+            ],
+            "name": "lastReset",
+            "type": "i64"
+          },
+          {
+            "docs": [
+              "PDA bump."
+            ],
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Signers that can use the spending limit."
+            ],
+            "name": "signers",
+            "type": {
+              "vec": "publicKey"
+            }
+          },
+          {
+            "docs": [
+              "The destination addresses the spending limit is allowed to sent funds to.",
+              "If empty, funds can be sent to any address."
+            ],
+            "name": "destinations",
+            "type": {
+              "vec": "publicKey"
+            }
+          },
+          {
+            "docs": [
+              "The expiration timestamp of the spending limit."
+            ],
+            "name": "expiration",
+            "type": "i64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "TransactionBuffer",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The settings this belongs to."
+            ],
+            "name": "settings",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Signer of the smart account who created the TransactionBuffer."
+            ],
+            "name": "creator",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Index to seed address derivation"
+            ],
+            "name": "bufferIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Smart account index of the transaction this buffer belongs to."
+            ],
+            "name": "accountIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Hash of the final assembled transaction message."
+            ],
+            "name": "finalBufferHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "docs": [
+              "The size of the final assembled transaction message."
+            ],
+            "name": "finalBufferSize",
+            "type": "u16"
+          },
+          {
+            "docs": [
+              "The buffer of the transaction message."
+            ],
+            "name": "buffer",
+            "type": "bytes"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "docs": [
+        "Stores data required for tracking the voting and execution status of a smart",
+        "account transaction.",
+        "Smart Account transaction is a transaction that's executed on behalf of the",
+        "smart account PDA",
+        "and wraps arbitrary Solana instructions, typically calling into other Solana programs."
+      ],
+      "name": "Transaction",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The settings this belongs to."
+            ],
+            "name": "settings",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Signer of the Smart Account who submitted the transaction."
+            ],
+            "name": "creator",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "The rent collector for the transaction account."
+            ],
+            "name": "rentCollector",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Index of this transaction within the smart account."
+            ],
+            "name": "index",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "bump for the transaction seeds."
+            ],
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "The account index of the smart account this transaction belongs to."
+            ],
+            "name": "accountIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Derivation bump of the smart account PDA this transaction belongs to."
+            ],
+            "name": "accountBump",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Derivation bumps for additional signers.",
+              "Some transactions require multiple signers. Often these additional signers are \"ephemeral\" keypairs",
+              "that are generated on the client with a sole purpose of signing the transaction and be discarded immediately after.",
+              "When wrapping such transactions into smart account ones, we replace these \"ephemeral\" signing keypairs",
+              "with PDAs derived from the SmartAccountTransaction's `transaction_index`",
+              "and controlled by the Smart Account Program;",
+              "during execution the program includes the seeds of these PDAs into the `invoke_signed` calls,",
+              "thus \"signing\" on behalf of these PDAs."
+            ],
+            "name": "ephemeralSignerBumps",
+            "type": "bytes"
+          },
+          {
+            "docs": [
+              "data required for executing the transaction."
+            ],
+            "name": "message",
+            "type": {
+              "defined": "SmartAccountTransactionMessage"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "msg": "Account is not empty",
+      "name": "AccountNotEmpty"
+    },
+    {
+      "code": 6001,
+      "msg": "Found multiple signers with the same pubkey",
+      "name": "DuplicateSigner"
+    },
+    {
+      "code": 6002,
+      "msg": "Signers array is empty",
+      "name": "EmptySigners"
+    },
+    {
+      "code": 6003,
+      "msg": "Too many signers, can be up to 65535",
+      "name": "TooManySigners"
+    },
+    {
+      "code": 6004,
+      "msg": "Invalid threshold, must be between 1 and number of signers with vote permissions",
+      "name": "InvalidThreshold"
+    },
+    {
+      "code": 6005,
+      "msg": "Attempted to perform an unauthorized action",
+      "name": "Unauthorized"
+    },
+    {
+      "code": 6006,
+      "msg": "Provided pubkey is not a signer of the smart account",
+      "name": "NotASigner"
+    },
+    {
+      "code": 6007,
+      "msg": "TransactionMessage is malformed.",
+      "name": "InvalidTransactionMessage"
+    },
+    {
+      "code": 6008,
+      "msg": "Proposal is stale",
+      "name": "StaleProposal"
+    },
+    {
+      "code": 6009,
+      "msg": "Invalid proposal status",
+      "name": "InvalidProposalStatus"
+    },
+    {
+      "code": 6010,
+      "msg": "Invalid transaction index",
+      "name": "InvalidTransactionIndex"
+    },
+    {
+      "code": 6011,
+      "msg": "Signer already approved the transaction",
+      "name": "AlreadyApproved"
+    },
+    {
+      "code": 6012,
+      "msg": "Signer already rejected the transaction",
+      "name": "AlreadyRejected"
+    },
+    {
+      "code": 6013,
+      "msg": "Signer already cancelled the transaction",
+      "name": "AlreadyCancelled"
+    },
+    {
+      "code": 6014,
+      "msg": "Wrong number of accounts provided",
+      "name": "InvalidNumberOfAccounts"
+    },
+    {
+      "code": 6015,
+      "msg": "Invalid account provided",
+      "name": "InvalidAccount"
+    },
+    {
+      "code": 6016,
+      "msg": "Cannot remove last signer",
+      "name": "RemoveLastSigner"
+    },
+    {
+      "code": 6017,
+      "msg": "Signers don't include any voters",
+      "name": "NoVoters"
+    },
+    {
+      "code": 6018,
+      "msg": "Signers don't include any proposers",
+      "name": "NoProposers"
+    },
+    {
+      "code": 6019,
+      "msg": "Signers don't include any executors",
+      "name": "NoExecutors"
+    },
+    {
+      "code": 6020,
+      "msg": "`stale_transaction_index` must be <= `transaction_index`",
+      "name": "InvalidStaleTransactionIndex"
+    },
+    {
+      "code": 6021,
+      "msg": "Instruction not supported for controlled smart account",
+      "name": "NotSupportedForControlled"
+    },
+    {
+      "code": 6022,
+      "msg": "Proposal time lock has not been released",
+      "name": "TimeLockNotReleased"
+    },
+    {
+      "code": 6023,
+      "msg": "Config transaction must have at least one action",
+      "name": "NoActions"
+    },
+    {
+      "code": 6024,
+      "msg": "Missing account",
+      "name": "MissingAccount"
+    },
+    {
+      "code": 6025,
+      "msg": "Invalid mint",
+      "name": "InvalidMint"
+    },
+    {
+      "code": 6026,
+      "msg": "Invalid destination",
+      "name": "InvalidDestination"
+    },
+    {
+      "code": 6027,
+      "msg": "Spending limit exceeded",
+      "name": "SpendingLimitExceeded"
+    },
+    {
+      "code": 6028,
+      "msg": "Decimals don't match the mint",
+      "name": "DecimalsMismatch"
+    },
+    {
+      "code": 6029,
+      "msg": "Spending limit is expired",
+      "name": "SpendingLimitExpired"
+    },
+    {
+      "code": 6030,
+      "msg": "Signer has unknown permission",
+      "name": "UnknownPermission"
+    },
+    {
+      "code": 6031,
+      "msg": "Account is protected, it cannot be passed into a CPI as writable",
+      "name": "ProtectedAccount"
+    },
+    {
+      "code": 6032,
+      "msg": "Time lock exceeds the maximum allowed (90 days)",
+      "name": "TimeLockExceedsMaxAllowed"
+    },
+    {
+      "code": 6033,
+      "msg": "Account is not owned by Smart Account program",
+      "name": "IllegalAccountOwner"
+    },
+    {
+      "code": 6034,
+      "msg": "Rent reclamation is disabled for this smart account",
+      "name": "RentReclamationDisabled"
+    },
+    {
+      "code": 6035,
+      "msg": "Invalid rent collector address",
+      "name": "InvalidRentCollector"
+    },
+    {
+      "code": 6036,
+      "msg": "Proposal is for another smart account",
+      "name": "ProposalForAnotherSmartAccount"
+    },
+    {
+      "code": 6037,
+      "msg": "Transaction is for another smart account",
+      "name": "TransactionForAnotherSmartAccount"
+    },
+    {
+      "code": 6038,
+      "msg": "Transaction doesn't match proposal",
+      "name": "TransactionNotMatchingProposal"
+    },
+    {
+      "code": 6039,
+      "msg": "Transaction is not last in batch",
+      "name": "TransactionNotLastInBatch"
+    },
+    {
+      "code": 6040,
+      "msg": "Batch is not empty",
+      "name": "BatchNotEmpty"
+    },
+    {
+      "code": 6041,
+      "msg": "Invalid SpendingLimit amount",
+      "name": "SpendingLimitInvalidAmount"
+    },
+    {
+      "code": 6042,
+      "msg": "Invalid Instruction Arguments",
+      "name": "InvalidInstructionArgs"
+    },
+    {
+      "code": 6043,
+      "msg": "Final message buffer hash doesnt match the expected hash",
+      "name": "FinalBufferHashMismatch"
+    },
+    {
+      "code": 6044,
+      "msg": "Final buffer size cannot exceed 4000 bytes",
+      "name": "FinalBufferSizeExceeded"
+    },
+    {
+      "code": 6045,
+      "msg": "Final buffer size mismatch",
+      "name": "FinalBufferSizeMismatch"
+    },
+    {
+      "code": 6046,
+      "msg": "smart_account_create has been deprecated. Use smart_account_create_v2 instead.",
+      "name": "SmartAccountCreateDeprecated"
+    },
+    {
+      "code": 6047,
+      "msg": "Signers do not reach consensus threshold",
+      "name": "ThresholdNotReached"
+    },
+    {
+      "code": 6048,
+      "msg": "Invalid number of signer accounts. Must be greater or equal to the threshold",
+      "name": "InvalidSignerCount"
+    },
+    {
+      "code": 6049,
+      "msg": "Missing signature",
+      "name": "MissingSignature"
+    },
+    {
+      "code": 6050,
+      "msg": "Insufficient aggregate permissions across signing members",
+      "name": "InsufficientAggregatePermissions"
+    },
+    {
+      "code": 6051,
+      "msg": "Insufficient vote permissions across signing members",
+      "name": "InsufficientVotePermissions"
+    },
+    {
+      "code": 6052,
+      "msg": "Smart account must not be time locked",
+      "name": "TimeLockNotZero"
+    },
+    {
+      "code": 6053,
+      "msg": "Feature not implemented",
+      "name": "NotImplemented"
+    }
+  ],
+  "instructions": [
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "programConfig"
+        },
+        {
+          "docs": [
+            "The hard-coded account that is used to initialize the program config once."
+          ],
+          "isMut": true,
+          "isSigner": true,
+          "name": "initializer"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "InitProgramConfigArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Initialize the program config."
+      ],
+      "name": "initializeProgramConfig"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "programConfig"
+        },
+        {
+          "isMut": false,
+          "isSigner": true,
+          "name": "authority"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "ProgramConfigSetAuthorityArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Set the `authority` parameter of the program config."
+      ],
+      "name": "setProgramConfigAuthority"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "programConfig"
+        },
+        {
+          "isMut": false,
+          "isSigner": true,
+          "name": "authority"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "ProgramConfigSetSmartAccountCreationFeeArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Set the `smart_account_creation_fee` parameter of the program config."
+      ],
+      "name": "setProgramConfigSmartAccountCreationFee"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "programConfig"
+        },
+        {
+          "isMut": false,
+          "isSigner": true,
+          "name": "authority"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "ProgramConfigSetTreasuryArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Set the `treasury` parameter of the program config."
+      ],
+      "name": "setProgramConfigTreasury"
+    },
+    {
+      "accounts": [
+        {
+          "docs": [
+            "Global program config account."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "programConfig"
+        },
+        {
+          "docs": [
+            "The treasury where the creation fee is transferred to."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "treasury"
+        },
+        {
+          "docs": [
+            "The creator of the smart account."
+          ],
+          "isMut": true,
+          "isSigner": true,
+          "name": "creator"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "CreateSmartAccountArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Create a smart account."
+      ],
+      "name": "createSmartAccount"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "Settings `settings_authority` that must authorize the configuration change."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "settingsAuthority"
+        },
+        {
+          "docs": [
+            "The account that will be charged or credited in case the settings account needs to reallocate space,",
+            "for example when adding a new signer or a spending limit.",
+            "This is usually the same as `settings_authority`, but can be a different account if needed."
+          ],
+          "isMut": true,
+          "isOptional": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "docs": [
+            "We might need it in case reallocation is needed."
+          ],
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "AddSignerArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Add a new signer to the controlled smart account."
+      ],
+      "name": "addSignerAsAuthority"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "Settings `settings_authority` that must authorize the configuration change."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "settingsAuthority"
+        },
+        {
+          "docs": [
+            "The account that will be charged or credited in case the settings account needs to reallocate space,",
+            "for example when adding a new signer or a spending limit.",
+            "This is usually the same as `settings_authority`, but can be a different account if needed."
+          ],
+          "isMut": true,
+          "isOptional": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "docs": [
+            "We might need it in case reallocation is needed."
+          ],
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "RemoveSignerArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Remove a signer from the controlled smart account."
+      ],
+      "name": "removeSignerAsAuthority"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "Settings `settings_authority` that must authorize the configuration change."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "settingsAuthority"
+        },
+        {
+          "docs": [
+            "The account that will be charged or credited in case the settings account needs to reallocate space,",
+            "for example when adding a new signer or a spending limit.",
+            "This is usually the same as `settings_authority`, but can be a different account if needed."
+          ],
+          "isMut": true,
+          "isOptional": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "docs": [
+            "We might need it in case reallocation is needed."
+          ],
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "SetTimeLockArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Set the `time_lock` config parameter for the controlled smart account."
+      ],
+      "name": "setTimeLockAsAuthority"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "Settings `settings_authority` that must authorize the configuration change."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "settingsAuthority"
+        },
+        {
+          "docs": [
+            "The account that will be charged or credited in case the settings account needs to reallocate space,",
+            "for example when adding a new signer or a spending limit.",
+            "This is usually the same as `settings_authority`, but can be a different account if needed."
+          ],
+          "isMut": true,
+          "isOptional": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "docs": [
+            "We might need it in case reallocation is needed."
+          ],
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "ChangeThresholdArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Set the `threshold` config parameter for the controlled smart account."
+      ],
+      "name": "changeThresholdAsAuthority"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "Settings `settings_authority` that must authorize the configuration change."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "settingsAuthority"
+        },
+        {
+          "docs": [
+            "The account that will be charged or credited in case the settings account needs to reallocate space,",
+            "for example when adding a new signer or a spending limit.",
+            "This is usually the same as `settings_authority`, but can be a different account if needed."
+          ],
+          "isMut": true,
+          "isOptional": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "docs": [
+            "We might need it in case reallocation is needed."
+          ],
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "SetNewSettingsAuthorityArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Set the smart account `settings_authority`."
+      ],
+      "name": "setNewSettingsAuthorityAsAuthority"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "Settings `settings_authority` that must authorize the configuration change."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "settingsAuthority"
+        },
+        {
+          "docs": [
+            "The account that will be charged or credited in case the settings account needs to reallocate space,",
+            "for example when adding a new signer or a spending limit.",
+            "This is usually the same as `settings_authority`, but can be a different account if needed."
+          ],
+          "isMut": true,
+          "isOptional": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "docs": [
+            "We might need it in case reallocation is needed."
+          ],
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "SetArchivalAuthorityArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Set the smart account `archival_authority`."
+      ],
+      "name": "setArchivalAuthorityAsAuthority"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "Settings `settings_authority` that must authorize the configuration change."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "settingsAuthority"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "spendingLimit"
+        },
+        {
+          "docs": [
+            "This is usually the same as `settings_authority`, but can be a different account if needed."
+          ],
+          "isMut": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "AddSpendingLimitArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Create a new spending limit for the controlled smart account."
+      ],
+      "name": "addSpendingLimitAsAuthority"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "Settings `settings_authority` that must authorize the configuration change."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "settingsAuthority"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "spendingLimit"
+        },
+        {
+          "docs": [
+            "This is usually the same as `settings_authority`, but can be a different account if needed."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "rentCollector"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "RemoveSpendingLimitArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Remove the spending limit from the controlled smart account."
+      ],
+      "name": "removeSpendingLimitAsAuthority"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "transaction"
+        },
+        {
+          "docs": [
+            "The signer on the smart account that is creating the transaction."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "creator"
+        },
+        {
+          "docs": [
+            "The payer for the transaction account rent."
+          ],
+          "isMut": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "CreateSettingsTransactionArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Create a new settings transaction."
+      ],
+      "name": "createSettingsTransaction"
+    },
+    {
+      "accounts": [
+        {
+          "docs": [
+            "The settings account of the smart account that owns the transaction."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "The signer on the smart account that is executing the transaction."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "docs": [
+            "The proposal account associated with the transaction."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "docs": [
+            "The transaction to execute."
+          ],
+          "isMut": false,
+          "isSigner": false,
+          "name": "transaction"
+        },
+        {
+          "docs": [
+            "The account that will be charged/credited in case the settings transaction causes space reallocation,",
+            "for example when adding a new signer, adding or removing a spending limit.",
+            "This is usually the same as `signer`, but can be a different account if needed."
+          ],
+          "isMut": true,
+          "isOptional": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "docs": [
+            "We might need it in case reallocation is needed."
+          ],
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [],
+      "docs": [
+        "Execute a settings transaction.",
+        "The transaction must be `Approved`."
+      ],
+      "name": "executeSettingsTransaction"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "transaction"
+        },
+        {
+          "docs": [
+            "The member of the multisig that is creating the transaction."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "creator"
+        },
+        {
+          "docs": [
+            "The payer for the transaction account rent."
+          ],
+          "isMut": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "CreateTransactionArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Create a new vault transaction."
+      ],
+      "name": "createTransaction"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "transactionBuffer"
+        },
+        {
+          "docs": [
+            "The signer on the smart account that is creating the transaction."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "creator"
+        },
+        {
+          "docs": [
+            "The payer for the transaction account rent."
+          ],
+          "isMut": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "CreateTransactionBufferArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Create a transaction buffer account."
+      ],
+      "name": "createTransactionBuffer"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "transactionBuffer"
+        },
+        {
+          "docs": [
+            "The signer on the smart account that created the TransactionBuffer."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "creator"
+        }
+      ],
+      "args": [],
+      "docs": [
+        "Close a transaction buffer account."
+      ],
+      "name": "closeTransactionBuffer"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "transactionBuffer"
+        },
+        {
+          "docs": [
+            "The signer on the smart account that created the TransactionBuffer."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "creator"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "ExtendTransactionBufferArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Extend a transaction buffer account."
+      ],
+      "name": "extendTransactionBuffer"
+    },
+    {
+      "accounts": [
+        {
+          "accounts": [
+            {
+              "isMut": true,
+              "isSigner": false,
+              "name": "settings"
+            },
+            {
+              "isMut": true,
+              "isSigner": false,
+              "name": "transaction"
+            },
+            {
+              "docs": [
+                "The member of the multisig that is creating the transaction."
+              ],
+              "isMut": false,
+              "isSigner": true,
+              "name": "creator"
+            },
+            {
+              "docs": [
+                "The payer for the transaction account rent."
+              ],
+              "isMut": true,
+              "isSigner": true,
+              "name": "rentPayer"
+            },
+            {
+              "isMut": false,
+              "isSigner": false,
+              "name": "systemProgram"
+            }
+          ],
+          "name": "transactionCreate"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "transactionBuffer"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "creator"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "CreateTransactionArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Create a new vault transaction from a completed transaction buffer.",
+        "Finalized buffer hash must match `final_buffer_hash`"
+      ],
+      "name": "createTransactionFromBuffer"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "The proposal account associated with the transaction."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "docs": [
+            "The transaction to execute."
+          ],
+          "isMut": false,
+          "isSigner": false,
+          "name": "transaction"
+        },
+        {
+          "isMut": false,
+          "isSigner": true,
+          "name": "signer"
+        }
+      ],
+      "args": [],
+      "docs": [
+        "Execute a smart account transaction.",
+        "The transaction must be `Approved`."
+      ],
+      "name": "executeTransaction"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "batch"
+        },
+        {
+          "docs": [
+            "The signer of the settings that is creating the batch."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "creator"
+        },
+        {
+          "docs": [
+            "The payer for the batch account rent."
+          ],
+          "isMut": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "CreateBatchArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Create a new batch."
+      ],
+      "name": "createBatch"
+    },
+    {
+      "accounts": [
+        {
+          "docs": [
+            "Settings account this batch belongs to."
+          ],
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "The proposal account associated with the batch."
+          ],
+          "isMut": false,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "batch"
+        },
+        {
+          "docs": [
+            "`BatchTransaction` account to initialize and add to the `batch`."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "transaction"
+        },
+        {
+          "docs": [
+            "Signer of the smart account."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "docs": [
+            "The payer for the batch transaction account rent."
+          ],
+          "isMut": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "AddTransactionToBatchArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Add a transaction to the batch."
+      ],
+      "name": "addTransactionToBatch"
+    },
+    {
+      "accounts": [
+        {
+          "docs": [
+            "Settings account this batch belongs to."
+          ],
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "Signer of the settings."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "docs": [
+            "The proposal account associated with the batch.",
+            "If `transaction` is the last in the batch, the `proposal` status will be set to `Executed`."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "batch"
+        },
+        {
+          "docs": [
+            "Batch transaction to execute."
+          ],
+          "isMut": false,
+          "isSigner": false,
+          "name": "transaction"
+        }
+      ],
+      "args": [],
+      "docs": [
+        "Execute a transaction from the batch."
+      ],
+      "name": "executeBatchTransaction"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "docs": [
+            "The signer on the smart account that is creating the proposal."
+          ],
+          "isMut": false,
+          "isSigner": true,
+          "name": "creator"
+        },
+        {
+          "docs": [
+            "The payer for the proposal account rent."
+          ],
+          "isMut": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "CreateProposalArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Create a new smart account proposal."
+      ],
+      "name": "createProposal"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposal"
+        }
+      ],
+      "args": [],
+      "docs": [
+        "Update status of a smart account proposal from `Draft` to `Active`."
+      ],
+      "name": "activateProposal"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "VoteOnProposalArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Approve a smart account proposal on behalf of the `member`.",
+        "The proposal must be `Active`."
+      ],
+      "name": "approveProposal"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "VoteOnProposalArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Reject a smart account proposal on behalf of the `member`.",
+        "The proposal must be `Active`."
+      ],
+      "name": "rejectProposal"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": true,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "VoteOnProposalArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Cancel a smart account proposal on behalf of the `member`.",
+        "The proposal must be `Approved`."
+      ],
+      "name": "cancelProposal"
+    },
+    {
+      "accounts": [
+        {
+          "docs": [
+            "The settings the `spending_limit` belongs to."
+          ],
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": false,
+          "isSigner": true,
+          "name": "signer"
+        },
+        {
+          "docs": [
+            "The SpendingLimit account to use."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "spendingLimit"
+        },
+        {
+          "docs": [
+            "Smart account to transfer tokens from."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "smartAccount"
+        },
+        {
+          "docs": [
+            "Destination account to transfer tokens to."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "destination"
+        },
+        {
+          "docs": [
+            "In case `spending_limit.mint` is SOL."
+          ],
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        },
+        {
+          "docs": [
+            "The mint of the tokens to transfer in case `spending_limit.mint` is an SPL token."
+          ],
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "mint"
+        },
+        {
+          "docs": [
+            "Smart account token account to transfer tokens from in case `spending_limit.mint` is an SPL token."
+          ],
+          "isMut": true,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "smartAccountTokenAccount"
+        },
+        {
+          "docs": [
+            "Destination token account in case `spending_limit.mint` is an SPL token."
+          ],
+          "isMut": true,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "destinationTokenAccount"
+        },
+        {
+          "docs": [
+            "In case `spending_limit.mint` is an SPL token."
+          ],
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "tokenProgram"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "UseSpendingLimitArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Use a spending limit to transfer tokens from a smart account vault to a destination account."
+      ],
+      "name": "useSpendingLimit"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "the logic within `settings_transaction_close` does the rest of the checks."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "docs": [
+            "SettingsTransaction corresponding to the `proposal`."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "transaction"
+        },
+        {
+          "docs": [
+            "The rent payer for the proposal account."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposalRentCollector"
+        },
+        {
+          "docs": [
+            "The rent collector."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "transactionRentCollector"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [],
+      "docs": [
+        "Closes a `SettingsTransaction` and the corresponding `Proposal`.",
+        "`transaction` can be closed if either:",
+        "- the `proposal` is in a terminal state: `Executed`, `Rejected`, or `Cancelled`.",
+        "- the `proposal` is stale."
+      ],
+      "name": "closeSettingsTransaction"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "the logic within `transaction_close` does the rest of the checks."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "docs": [
+            "Transaction corresponding to the `proposal`."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "transaction"
+        },
+        {
+          "docs": [
+            "The rent collector for the proposal account."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposalRentCollector"
+        },
+        {
+          "docs": [
+            "The rent collector."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "transactionRentCollector"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [],
+      "docs": [
+        "Closes a `Transaction` and the corresponding `Proposal`.",
+        "`transaction` can be closed if either:",
+        "- the `proposal` is in a terminal state: `Executed`, `Rejected`, or `Cancelled`.",
+        "- the `proposal` is stale and not `Approved`."
+      ],
+      "name": "closeTransaction"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "docs": [
+            "`Batch` corresponding to the `proposal`."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "batch"
+        },
+        {
+          "docs": [
+            "`BatchTransaction` account to close.",
+            "The transaction must be the current last one in the batch."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "transaction"
+        },
+        {
+          "docs": [
+            "The rent collector."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "transactionRentCollector"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [],
+      "docs": [
+        "Closes a `BatchTransaction` belonging to the `batch` and `proposal`.",
+        "`transaction` can be closed if either:",
+        "- it's marked as executed within the `batch`;",
+        "- the `proposal` is in a terminal state: `Executed`, `Rejected`, or `Cancelled`.",
+        "- the `proposal` is stale and not `Approved`."
+      ],
+      "name": "closeBatchTransaction"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "the logic within `close_batch` does the rest of the checks."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposal"
+        },
+        {
+          "docs": [
+            "`Batch` corresponding to the `proposal`."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "batch"
+        },
+        {
+          "docs": [
+            "The rent collector for the proposal account."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "proposalRentCollector"
+        },
+        {
+          "docs": [
+            "The rent collector."
+          ],
+          "isMut": true,
+          "isSigner": false,
+          "name": "batchRentCollector"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "systemProgram"
+        }
+      ],
+      "args": [],
+      "docs": [
+        "Closes Batch and the corresponding Proposal accounts for proposals in terminal states:",
+        "`Executed`, `Rejected`, or `Cancelled` or stale proposals that aren't `Approved`.",
+        "",
+        "This instruction is only allowed to be executed when all `VaultBatchTransaction` accounts",
+        "in the `batch` are already closed: `batch.size == 0`."
+      ],
+      "name": "closeBatch"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "SyncTransactionArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Synchronously execute a transaction"
+      ],
+      "name": "executeTransactionSync"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": true,
+          "isSigner": false,
+          "name": "settings"
+        },
+        {
+          "docs": [
+            "The account that will be charged/credited in case the settings transaction causes space reallocation,",
+            "for example when adding a new signer, adding or removing a spending limit.",
+            "This is usually the same as `signer`, but can be a different account if needed."
+          ],
+          "isMut": true,
+          "isOptional": true,
+          "isSigner": true,
+          "name": "rentPayer"
+        },
+        {
+          "docs": [
+            "We might need it in case reallocation is needed."
+          ],
+          "isMut": false,
+          "isOptional": true,
+          "isSigner": false,
+          "name": "systemProgram"
+        },
+        {
+          "isMut": false,
+          "isSigner": false,
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "SyncSettingsTransactionArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Synchronously execute a config transaction"
+      ],
+      "name": "executeSettingsTransactionSync"
+    },
+    {
+      "accounts": [
+        {
+          "isMut": false,
+          "isSigner": true,
+          "name": "logAuthority"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "LogEventArgs"
+          }
+        }
+      ],
+      "docs": [
+        "Log an event"
+      ],
+      "name": "logEvent"
+    }
+  ],
+  "name": "squads_smart_account_program",
+  "types": [
+    {
+      "name": "AddSignerArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "newSigner",
+            "type": {
+              "defined": "SmartAccountSigner"
+            }
+          },
+          {
+            "docs": [
+              "Memo is used for indexing only."
+            ],
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "RemoveSignerArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "oldSigner",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Memo is used for indexing only."
+            ],
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "ChangeThresholdArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "newThreshold",
+            "type": "u16"
+          },
+          {
+            "docs": [
+              "Memo is used for indexing only."
+            ],
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "SetTimeLockArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "timeLock",
+            "type": "u32"
+          },
+          {
+            "docs": [
+              "Memo is used for indexing only."
+            ],
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "SetNewSettingsAuthorityArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "newSettingsAuthority",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "Memo is used for indexing only."
+            ],
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "SetArchivalAuthorityArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "newArchivalAuthority",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "docs": [
+              "Memo is used for indexing only."
+            ],
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "AddSpendingLimitArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "Key that is used to seed the SpendingLimit PDA."
+            ],
+            "name": "seed",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "The index of the smart account that the spending limit is for."
+            ],
+            "name": "accountIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "The token mint the spending limit is for."
+            ],
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "The amount of tokens that can be spent in a period.",
+              "This amount is in decimals of the mint,",
+              "so 1 SOL would be `1_000_000_000` and 1 USDC would be `1_000_000`."
+            ],
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "The reset period of the spending limit.",
+              "When it passes, the remaining amount is reset, unless it's `Period::OneTime`."
+            ],
+            "name": "period",
+            "type": {
+              "defined": "Period"
+            }
+          },
+          {
+            "docs": [
+              "Signers of the Spending Limit that can use it.",
+              "Don't have to be signers of the settings."
+            ],
+            "name": "signers",
+            "type": {
+              "vec": "publicKey"
+            }
+          },
+          {
+            "docs": [
+              "The destination addresses the spending limit is allowed to sent funds to.",
+              "If empty, funds can be sent to any address."
+            ],
+            "name": "destinations",
+            "type": {
+              "vec": "publicKey"
+            }
+          },
+          {
+            "docs": [
+              "The expiration timestamp of the spending limit.",
+              "Non expiring spending limits are set to `i64::MAX`."
+            ],
+            "name": "expiration",
+            "type": "i64"
+          },
+          {
+            "docs": [
+              "Memo is used for indexing only."
+            ],
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "RemoveSpendingLimitArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "Memo is used for indexing only."
+            ],
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "AddTransactionToBatchArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "Number of ephemeral signing PDAs required by the transaction."
+            ],
+            "name": "ephemeralSigners",
+            "type": "u8"
+          },
+          {
+            "name": "transactionMessage",
+            "type": "bytes"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "CreateBatchArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "Index of the smart account this batch belongs to."
+            ],
+            "name": "accountIndex",
+            "type": "u8"
+          },
+          {
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "LogEventArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "accountSeeds",
+            "type": {
+              "vec": "bytes"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "event",
+            "type": "bytes"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "ProgramConfigSetAuthorityArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "newAuthority",
+            "type": "publicKey"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "ProgramConfigSetSmartAccountCreationFeeArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "newSmartAccountCreationFee",
+            "type": "u64"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "ProgramConfigSetTreasuryArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "newTreasury",
+            "type": "publicKey"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "InitProgramConfigArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The authority that can configure the program config: change the treasury, etc."
+            ],
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "The fee that is charged for creating a new smart account."
+            ],
+            "name": "smartAccountCreationFee",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "The treasury where the creation fee is transferred to."
+            ],
+            "name": "treasury",
+            "type": "publicKey"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "CreateProposalArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "Index of the smart account transaction this proposal is associated with."
+            ],
+            "name": "transactionIndex",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "Whether the proposal should be initialized with status `Draft`."
+            ],
+            "name": "draft",
+            "type": "bool"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "VoteOnProposalArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "CreateSettingsTransactionArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "actions",
+            "type": {
+              "vec": {
+                "defined": "SettingsAction"
+              }
+            }
+          },
+          {
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "SyncSettingsTransactionArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The number of signers to reach threshold and adequate permissions"
+            ],
+            "name": "numSigners",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "The settings actions to execute"
+            ],
+            "name": "actions",
+            "type": {
+              "vec": {
+                "defined": "SettingsAction"
+              }
+            }
+          },
+          {
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "CreateSmartAccountArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The authority that can configure the smart account: add/remove signers, change the threshold, etc.",
+              "Should be set to `None` for autonomous smart accounts."
+            ],
+            "name": "settingsAuthority",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "docs": [
+              "The number of signatures required to execute a transaction."
+            ],
+            "name": "threshold",
+            "type": "u16"
+          },
+          {
+            "docs": [
+              "The signers on the smart account."
+            ],
+            "name": "signers",
+            "type": {
+              "vec": {
+                "defined": "SmartAccountSigner"
+              }
+            }
+          },
+          {
+            "docs": [
+              "How many seconds must pass between transaction voting, settlement, and execution."
+            ],
+            "name": "timeLock",
+            "type": "u32"
+          },
+          {
+            "docs": [
+              "The address where the rent for the accounts related to executed, rejected, or cancelled",
+              "transactions can be reclaimed. If set to `None`, the rent reclamation feature is turned off."
+            ],
+            "name": "rentCollector",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "docs": [
+              "Memo is used for indexing only."
+            ],
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "CreateTransactionBufferArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "Index of the buffer account to seed the account derivation"
+            ],
+            "name": "bufferIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Index of the smart account this transaction belongs to."
+            ],
+            "name": "accountIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Hash of the final assembled transaction message."
+            ],
+            "name": "finalBufferHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "docs": [
+              "Final size of the buffer."
+            ],
+            "name": "finalBufferSize",
+            "type": "u16"
+          },
+          {
+            "docs": [
+              "Initial slice of the buffer."
+            ],
+            "name": "buffer",
+            "type": "bytes"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "ExtendTransactionBufferArgs",
+      "type": {
+        "fields": [
+          {
+            "name": "buffer",
+            "type": "bytes"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "CreateTransactionArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "Index of the smart account this transaction belongs to."
+            ],
+            "name": "accountIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Number of ephemeral signing PDAs required by the transaction."
+            ],
+            "name": "ephemeralSigners",
+            "type": "u8"
+          },
+          {
+            "name": "transactionMessage",
+            "type": "bytes"
+          },
+          {
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "docs": [
+        "Unvalidated instruction data, must be treated as untrusted."
+      ],
+      "name": "TransactionMessage",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The number of signer pubkeys in the account_keys vec."
+            ],
+            "name": "numSigners",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "The number of writable signer pubkeys in the account_keys vec."
+            ],
+            "name": "numWritableSigners",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "The number of writable non-signer pubkeys in the account_keys vec."
+            ],
+            "name": "numWritableNonSigners",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "The list of unique account public keys (including program IDs) that will be used in the provided instructions."
+            ],
+            "name": "accountKeys",
+            "type": {
+              "defined": "SmallVec<u8,Pubkey>"
+            }
+          },
+          {
+            "docs": [
+              "The list of instructions to execute."
+            ],
+            "name": "instructions",
+            "type": {
+              "defined": "SmallVec<u8,CompiledInstruction>"
+            }
+          },
+          {
+            "docs": [
+              "List of address table lookups used to load additional accounts",
+              "for this transaction."
+            ],
+            "name": "addressTableLookups",
+            "type": {
+              "defined": "SmallVec<u8,MessageAddressTableLookup>"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "CompiledInstruction",
+      "type": {
+        "fields": [
+          {
+            "name": "programIdIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Indices into the tx's `account_keys` list indicating which accounts to pass to the instruction."
+            ],
+            "name": "accountIndexes",
+            "type": {
+              "defined": "SmallVec<u8,u8>"
+            }
+          },
+          {
+            "docs": [
+              "Instruction data."
+            ],
+            "name": "data",
+            "type": {
+              "defined": "SmallVec<u16,u8>"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "docs": [
+        "Address table lookups describe an on-chain address lookup table to use",
+        "for loading more readonly and writable accounts in a single tx."
+      ],
+      "name": "MessageAddressTableLookup",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "Address lookup table account key"
+            ],
+            "name": "accountKey",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "List of indexes used to load writable account addresses"
+            ],
+            "name": "writableIndexes",
+            "type": {
+              "defined": "SmallVec<u8,u8>"
+            }
+          },
+          {
+            "docs": [
+              "List of indexes used to load readonly account addresses"
+            ],
+            "name": "readonlyIndexes",
+            "type": {
+              "defined": "SmallVec<u8,u8>"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "SyncTransactionArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The index of the smart account this transaction is for"
+            ],
+            "name": "accountIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "The number of signers to reach threshold and adequate permissions"
+            ],
+            "name": "numSigners",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Expected to be serialized as a SmallVec<u8, CompiledInstruction>"
+            ],
+            "name": "instructions",
+            "type": "bytes"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "UseSpendingLimitArgs",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "Amount of tokens to transfer."
+            ],
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "docs": [
+              "Decimals of the token mint. Used for double-checking against incorrect order of magnitude of `amount`."
+            ],
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Memo used for indexing."
+            ],
+            "name": "memo",
+            "type": {
+              "option": "string"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "SmartAccountSigner",
+      "type": {
+        "fields": [
+          {
+            "name": "key",
+            "type": "publicKey"
+          },
+          {
+            "name": "permissions",
+            "type": {
+              "defined": "Permissions"
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "docs": [
+        "Bitmask for permissions."
+      ],
+      "name": "Permissions",
+      "type": {
+        "fields": [
+          {
+            "name": "mask",
+            "type": "u8"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "SmartAccountTransactionMessage",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "The number of signer pubkeys in the account_keys vec."
+            ],
+            "name": "numSigners",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "The number of writable signer pubkeys in the account_keys vec."
+            ],
+            "name": "numWritableSigners",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "The number of writable non-signer pubkeys in the account_keys vec."
+            ],
+            "name": "numWritableNonSigners",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Unique account pubkeys (including program IDs) required for execution of the tx.",
+              "The signer pubkeys appear at the beginning of the vec, with writable pubkeys first, and read-only pubkeys following.",
+              "The non-signer pubkeys follow with writable pubkeys first and read-only ones following.",
+              "Program IDs are also stored at the end of the vec along with other non-signer non-writable pubkeys:",
+              "",
+              "```plaintext",
+              "[pubkey1, pubkey2, pubkey3, pubkey4, pubkey5, pubkey6, pubkey7, pubkey8]",
+              "|---writable---|  |---readonly---|  |---writable---|  |---readonly---|",
+              "|------------signers-------------|  |----------non-singers-----------|",
+              "```"
+            ],
+            "name": "accountKeys",
+            "type": {
+              "vec": "publicKey"
+            }
+          },
+          {
+            "docs": [
+              "List of instructions making up the tx."
+            ],
+            "name": "instructions",
+            "type": {
+              "vec": {
+                "defined": "SmartAccountCompiledInstruction"
+              }
+            }
+          },
+          {
+            "docs": [
+              "List of address table lookups used to load additional accounts",
+              "for this transaction."
+            ],
+            "name": "addressTableLookups",
+            "type": {
+              "vec": {
+                "defined": "SmartAccountMessageAddressTableLookup"
+              }
+            }
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "docs": [
+        "Concise serialization schema for instructions that make up a transaction.",
+        "Closely mimics the Solana transaction wire format."
+      ],
+      "name": "SmartAccountCompiledInstruction",
+      "type": {
+        "fields": [
+          {
+            "name": "programIdIndex",
+            "type": "u8"
+          },
+          {
+            "docs": [
+              "Indices into the tx's `account_keys` list indicating which accounts to pass to the instruction."
+            ],
+            "name": "accountIndexes",
+            "type": "bytes"
+          },
+          {
+            "docs": [
+              "Instruction data."
+            ],
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "docs": [
+        "Address table lookups describe an on-chain address lookup table to use",
+        "for loading more readonly and writable accounts into a transaction."
+      ],
+      "name": "SmartAccountMessageAddressTableLookup",
+      "type": {
+        "fields": [
+          {
+            "docs": [
+              "Address lookup table account key."
+            ],
+            "name": "accountKey",
+            "type": "publicKey"
+          },
+          {
+            "docs": [
+              "List of indexes used to load writable accounts."
+            ],
+            "name": "writableIndexes",
+            "type": "bytes"
+          },
+          {
+            "docs": [
+              "List of indexes used to load readonly accounts."
+            ],
+            "name": "readonlyIndexes",
+            "type": "bytes"
+          }
+        ],
+        "kind": "struct"
+      }
+    },
+    {
+      "name": "SmartAccountEvent",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "fields": [
+              {
+                "defined": "CreateSmartAccountEvent"
+              }
+            ],
+            "name": "CreateSmartAccountEvent"
+          },
+          {
+            "fields": [
+              {
+                "defined": "SynchronousTransactionEvent"
+              }
+            ],
+            "name": "SynchronousTransactionEvent"
+          },
+          {
+            "fields": [
+              {
+                "defined": "SynchronousSettingsTransactionEvent"
+              }
+            ],
+            "name": "SynchronousSettingsTransactionEvent"
+          },
+          {
+            "fields": [
+              {
+                "defined": "AddSpendingLimitEvent"
+              }
+            ],
+            "name": "AddSpendingLimitEvent"
+          },
+          {
+            "fields": [
+              {
+                "defined": "RemoveSpendingLimitEvent"
+              }
+            ],
+            "name": "RemoveSpendingLimitEvent"
+          },
+          {
+            "fields": [
+              {
+                "defined": "UseSpendingLimitEvent"
+              }
+            ],
+            "name": "UseSpendingLimitEvent"
+          },
+          {
+            "fields": [
+              {
+                "defined": "AuthoritySettingsEvent"
+              }
+            ],
+            "name": "AuthoritySettingsEvent"
+          },
+          {
+            "fields": [
+              {
+                "defined": "AuthorityChangeEvent"
+              }
+            ],
+            "name": "AuthorityChangeEvent"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vote",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Approve"
+          },
+          {
+            "name": "Reject"
+          },
+          {
+            "name": "Cancel"
+          }
+        ]
+      }
+    },
+    {
+      "docs": [
+        "The status of a proposal.",
+        "Each variant wraps a timestamp of when the status was set."
+      ],
+      "name": "ProposalStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "fields": [
+              {
+                "name": "timestamp",
+                "type": "i64"
+              }
+            ],
+            "name": "Draft"
+          },
+          {
+            "fields": [
+              {
+                "name": "timestamp",
+                "type": "i64"
+              }
+            ],
+            "name": "Active"
+          },
+          {
+            "fields": [
+              {
+                "name": "timestamp",
+                "type": "i64"
+              }
+            ],
+            "name": "Rejected"
+          },
+          {
+            "fields": [
+              {
+                "name": "timestamp",
+                "type": "i64"
+              }
+            ],
+            "name": "Approved"
+          },
+          {
+            "name": "Executing"
+          },
+          {
+            "fields": [
+              {
+                "name": "timestamp",
+                "type": "i64"
+              }
+            ],
+            "name": "Executed"
+          },
+          {
+            "fields": [
+              {
+                "name": "timestamp",
+                "type": "i64"
+              }
+            ],
+            "name": "Cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SettingsAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "fields": [
+              {
+                "name": "newSigner",
+                "type": {
+                  "defined": "SmartAccountSigner"
+                }
+              }
+            ],
+            "name": "AddSigner"
+          },
+          {
+            "fields": [
+              {
+                "name": "oldSigner",
+                "type": "publicKey"
+              }
+            ],
+            "name": "RemoveSigner"
+          },
+          {
+            "fields": [
+              {
+                "name": "newThreshold",
+                "type": "u16"
+              }
+            ],
+            "name": "ChangeThreshold"
+          },
+          {
+            "fields": [
+              {
+                "name": "newTimeLock",
+                "type": "u32"
+              }
+            ],
+            "name": "SetTimeLock"
+          },
+          {
+            "fields": [
+              {
+                "docs": [
+                  "Key that is used to seed the SpendingLimit PDA."
+                ],
+                "name": "seed",
+                "type": "publicKey"
+              },
+              {
+                "docs": [
+                  "The index of the account that the spending limit is for."
+                ],
+                "name": "accountIndex",
+                "type": "u8"
+              },
+              {
+                "docs": [
+                  "The token mint the spending limit is for."
+                ],
+                "name": "mint",
+                "type": "publicKey"
+              },
+              {
+                "docs": [
+                  "The amount of tokens that can be spent in a period.",
+                  "This amount is in decimals of the mint,",
+                  "so 1 SOL would be `1_000_000_000` and 1 USDC would be `1_000_000`."
+                ],
+                "name": "amount",
+                "type": "u64"
+              },
+              {
+                "docs": [
+                  "The reset period of the spending limit.",
+                  "When it passes, the remaining amount is reset, unless it's `Period::OneTime`."
+                ],
+                "name": "period",
+                "type": {
+                  "defined": "Period"
+                }
+              },
+              {
+                "docs": [
+                  "Members of the settings that can use the spending limit.",
+                  "In case a member is removed from the settings, the spending limit will remain existent",
+                  "(until explicitly deleted), but the removed member will not be able to use it anymore."
+                ],
+                "name": "signers",
+                "type": {
+                  "vec": "publicKey"
+                }
+              },
+              {
+                "docs": [
+                  "The destination addresses the spending limit is allowed to sent funds to.",
+                  "If empty, funds can be sent to any address."
+                ],
+                "name": "destinations",
+                "type": {
+                  "vec": "publicKey"
+                }
+              },
+              {
+                "docs": [
+                  "The expiration timestamp of the spending limit.",
+                  "Non expiring spending limits are set to `i64::MAX`."
+                ],
+                "name": "expiration",
+                "type": "i64"
+              }
+            ],
+            "name": "AddSpendingLimit"
+          },
+          {
+            "fields": [
+              {
+                "name": "spendingLimit",
+                "type": "publicKey"
+              }
+            ],
+            "name": "RemoveSpendingLimit"
+          },
+          {
+            "fields": [
+              {
+                "name": "newArchivalAuthority",
+                "type": {
+                  "option": "publicKey"
+                }
+              }
+            ],
+            "name": "SetArchivalAuthority"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Permission",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Initiate"
+          },
+          {
+            "name": "Vote"
+          },
+          {
+            "name": "Execute"
+          }
+        ]
+      }
+    },
+    {
+      "docs": [
+        "The reset period of the spending limit."
+      ],
+      "name": "Period",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "OneTime"
+          },
+          {
+            "name": "Day"
+          },
+          {
+            "name": "Week"
+          },
+          {
+            "name": "Month"
+          }
+        ]
+      }
+    }
+  ],
+  "version": "0.1.0",
+  "address": "SMRTzfY6DfH5ik3TKiyLFfXexV8uSG3d2UksSCYdunG"
+}

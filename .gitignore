@@ -20,3 +20,9 @@ tmp
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 vitest.config.*.timestamp*
+**/worker-configuration.d.ts
+.wrangler/
+.env*
+!.env.example
+.dev.vars*
+!.dev.vars.example
