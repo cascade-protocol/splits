@@ -67,12 +67,31 @@ const { instruction, splitConfig, vault } = await createSplitConfig({
 ```typescript
 import { createSplitsClient } from "@cascade-fyi/splits-sdk/solana/client";
 import { fromWalletAdapter } from "@cascade-fyi/splits-sdk/solana/web3-compat";
+import { USDC_MINT, generateUniqueId } from "@cascade-fyi/splits-sdk";
 
 const splits = createSplitsClient(rpc, fromWalletAdapter(wallet, connection));
 
 const result = await splits.ensureSplit({
   recipients: [{ address: alice, share: 70 }, { address: bob, share: 29 }],
+  mint: USDC_MINT,
+  seed: generateUniqueId(),  // Or use labelToSeed("my-split") for deterministic address
 });
+
+// Handle all possible outcomes
+switch (result.status) {
+  case "CREATED":
+    console.log(`Created! Vault: ${result.vault}`);
+    break;
+  case "NO_CHANGE":
+    console.log(`Already exists: ${result.vault}`);
+    break;
+  case "BLOCKED":
+    console.log(`Cannot create: ${result.message}`);
+    break;
+  case "FAILED":
+    console.log(`Transaction failed: ${result.message}`);
+    break;
+}
 ```
 
 ## Key Concepts
@@ -92,16 +111,36 @@ Recipients specify shares from 1-100 that must total exactly 100. Protocol takes
 High-level functions (in `/solana/client`) return typed results with `status` discriminant:
 
 ```typescript
+// ensureSplit - idempotent create/update
 const result = await client.ensureSplit({ recipients });
 
 switch (result.status) {
-  case "CREATED":    // result.vault, result.signature, result.rentPaid
-  case "UPDATED":    // result.vault, result.signature
-  case "NO_CHANGE":  // result.vault (no transaction sent)
-  case "BLOCKED":    // result.reason, result.message (e.g., vault not empty)
-  case "FAILED":     // result.reason, result.message, result.error
+  case "CREATED":    // result.vault, result.splitConfig, result.signature, result.rentPaid
+  case "UPDATED":    // result.vault, result.splitConfig, result.signature
+  case "NO_CHANGE":  // result.vault, result.splitConfig (no transaction)
+  case "BLOCKED":    // result.reason, result.message
+  case "FAILED":     // result.reason, result.message, result.error?
 }
+
+// execute - distribute funds
+const execResult = await client.execute(vault);
+
+switch (execResult.status) {
+  case "EXECUTED":   // execResult.signature
+  case "SKIPPED":    // execResult.reason ("not_found" | "not_a_split" | "below_threshold")
+  case "FAILED":     // execResult.reason, execResult.message
+}
+
+// update - change recipients
+const updateResult = await client.update(vault, { recipients });
+// Returns: UPDATED | NO_CHANGE | BLOCKED | FAILED
+
+// close - recover rent
+const closeResult = await client.close(vault);
+// Returns: CLOSED | ALREADY_CLOSED | BLOCKED | FAILED
 ```
+
+**Blocked reasons:** `vault_not_empty`, `unclaimed_pending`, `not_authority`, `recipient_atas_missing`
 
 Low-level instruction builders (in `/solana`) return `{ ok, instruction }` or `{ ok: false, reason }`.
 
@@ -143,6 +182,32 @@ import {
   deriveSplitConfig,
   deriveVault,
   deriveAta,
+  deriveProtocolConfig,
+  generateUniqueId,
+
+  // Label-based seeds (cross-chain compatible)
+  labelToSeed,           // "my-split" → deterministic Address
+  seedToLabel,           // Address → "my-split" or null
+  seedBytesToAddress,    // Raw bytes → Address
+
+  // Pre-flight validation
+  estimateSplitRent,     // Get rent costs before creating
+  checkRecipientAtas,    // Check which recipient ATAs exist
+  detectTokenProgram,    // Get token program for a mint
+  recipientsEqual,       // Compare recipient lists
+
+  // Cache control
+  invalidateSplitCache,
+  clearSplitCache,
+  invalidateProtocolConfigCache,
+
+  // Types
+  type SplitConfig,
+  type SplitRecipient,
+  type ProtocolConfig,
+  type UnclaimedAmount,
+  type EstimateResult,
+  type MissingAta,
 } from "@cascade-fyi/splits-sdk/solana";
 ```
 
@@ -283,16 +348,31 @@ const uniqueId = generateUniqueId();  // Random 32-byte Address
 
 ```typescript
 import {
+  // Program & Protocol
   PROGRAM_ID,
-  PROTOCOL_FEE_BPS,      // 100 (1%)
-  MAX_RECIPIENTS,        // 20
+  PROTOCOL_FEE_BPS,          // 100 (1%)
+  TOTAL_RECIPIENT_BPS,       // 9900 (99%)
+  MAX_RECIPIENTS,            // 20
+
+  // Token addresses
   USDC_MINT,
   TOKEN_PROGRAM_ID,
   TOKEN_2022_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  SYSTEM_PROGRAM_ID,
+
+  // PDA seeds
+  PROTOCOL_CONFIG_SEED,      // "protocol_config"
+  SPLIT_CONFIG_SEED,         // "split_config"
+
+  // Types
   type Recipient,
-  sharesToBps,           // share * 99
-  bpsToShares,           // Math.round(bps / 99)
-  toPercentageBps,       // Get bps from Recipient
+
+  // Conversion helpers
+  sharesToBps,               // share * 99
+  bpsToShares,               // Math.round(bps / 99)
+  toPercentageBps,           // Get bps from Recipient
+  generateUniqueId,          // Random 32-byte Address
 } from "@cascade-fyi/splits-sdk";
 ```
 
@@ -301,7 +381,24 @@ import {
 For wallet adapter integration:
 
 ```typescript
-import { toWeb3Instruction, toAddress, toPublicKey } from "@cascade-fyi/splits-sdk/solana/web3-compat";
+import {
+  // Wallet adapters
+  fromWalletAdapter,         // Wallet adapter → SplitsWallet
+  WalletDisconnectedError,
+  WalletRejectedError,
+
+  // Type conversions
+  toAddress,                 // PublicKey → Address
+  toPublicKey,               // Address → PublicKey
+  toKitSigner,               // Keypair → KeyPairSigner
+
+  // Instruction conversions
+  toWeb3Instruction,         // Kit instruction → web3.js instruction
+  fromWeb3Instruction,       // web3.js instruction → Kit instruction
+
+  // Transaction conversion
+  toWeb3Transaction,         // Kit message → web3.js transaction
+} from "@cascade-fyi/splits-sdk/solana/web3-compat";
 
 // Convert @solana/kit instruction to @solana/web3.js
 const web3Ix = toWeb3Instruction(kitInstruction);
@@ -310,6 +407,9 @@ transaction.add(web3Ix);
 // Convert between address types
 const address = toAddress(publicKey);    // PublicKey → Address
 const pubkey = toPublicKey(address);     // Address → PublicKey
+
+// Convert Keypair to kit signer
+const signer = await toKitSigner(keypair);
 ```
 
 ## Error Handling
@@ -318,11 +418,18 @@ const pubkey = toPublicKey(address);     // Address → PublicKey
 
 ```typescript
 import {
+  // Base class
+  SplitsError,
+  type SplitsErrorCode,
+
+  // Specific errors
   VaultNotFoundError,
   SplitConfigNotFoundError,
   InvalidRecipientsError,
   ProtocolNotInitializedError,
   InvalidTokenAccountError,
+  MintNotFoundError,
+  RecipientAtasMissingError,
 } from "@cascade-fyi/splits-sdk";
 
 try {
@@ -332,6 +439,10 @@ try {
     console.log("Vault doesn't exist:", e.vault);
   } else if (e instanceof SplitConfigNotFoundError) {
     console.log("Not a Cascade Split:", e.address);
+  } else if (e instanceof MintNotFoundError) {
+    console.log("Mint not found:", e.mint);
+  } else if (e instanceof RecipientAtasMissingError) {
+    console.log("Missing ATAs:", e.missing);  // [{ recipient, ata }]
   }
 }
 ```
@@ -390,6 +501,81 @@ For facilitators processing many payments:
 
 // Protocol config cached (rarely changes)
 // Auto-retries on stale fee_wallet with cache invalidation
+```
+
+## Pre-flight Validation
+
+### Rent Estimation
+
+Show users the cost before they commit:
+
+```typescript
+import { estimateSplitRent } from "@cascade-fyi/splits-sdk/solana";
+
+const estimate = await estimateSplitRent(rpc, {
+  authority: wallet.address,
+  recipients: [
+    { address: alice, share: 70 },
+    { address: bob, share: 29 },
+  ],
+});
+
+console.log(`Rent required: ${estimate.rentRequired} lamports`);  // ~0.017 SOL
+console.log(`Vault will be: ${estimate.vault}`);
+console.log(`Already exists: ${estimate.existsOnChain}`);
+
+if (estimate.existsOnChain) {
+  console.log(`Current recipients: ${estimate.currentRecipients?.length}`);
+}
+```
+
+### Label-based Seeds
+
+Create deterministic, human-readable split addresses:
+
+```typescript
+import { labelToSeed, seedToLabel } from "@cascade-fyi/splits-sdk/solana";
+
+// Create a labeled seed (max 27 characters)
+const seed = labelToSeed("revenue-share");
+
+// Same label = same vault address (idempotent across sessions)
+await splits.ensureSplit({ recipients, seed });
+
+// Display logic: recover label from on-chain data
+function getSplitName(split: SplitConfig): string {
+  const label = seedToLabel(split.uniqueId);
+  return label ?? `Vault ${split.vault.slice(0, 8)}...`;
+}
+```
+
+Cross-chain compatible: same label produces same seed bytes on Solana and EVM.
+
+### ATA Pre-checking
+
+Validate recipient token accounts before creating splits:
+
+```typescript
+import { checkRecipientAtas } from "@cascade-fyi/splits-sdk/solana";
+import { getCreateAssociatedTokenIdempotentInstruction } from "@solana-program/token";
+
+const missing = await checkRecipientAtas(rpc, recipients, mint);
+
+if (missing.length > 0) {
+  // Create missing ATAs before split creation
+  const instructions = missing.map(m =>
+    getCreateAssociatedTokenIdempotentInstruction({
+      payer: payer.address,
+      owner: m.recipient as Address,
+      mint,
+      ata: m.ata as Address,
+    })
+  );
+  // Send transaction with ATA creation instructions...
+}
+
+// Now safe to create split
+await splits.ensureSplit({ recipients, mint });
 ```
 
 ## Resources

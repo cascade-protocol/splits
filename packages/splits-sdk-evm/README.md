@@ -23,23 +23,35 @@ npm install @cascade-fyi/splits-sdk-evm viem
 import { createEvmSplitsClient } from "@cascade-fyi/splits-sdk-evm/client";
 import { base } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import type { Hash } from "viem";
 
 const client = createEvmSplitsClient(base, {
   account: privateKeyToAccount("0x..."),
 });
 
+// Generate a unique ID (or use a deterministic one for idempotency)
+const uniqueId = `0x${crypto.randomUUID().replace(/-/g, "").padStart(64, "0")}` as Hash;
+
 const result = await client.ensureSplit({
-  uniqueId: "0x0000000000000000000000000000000000000000000000000000000000000001",
+  uniqueId,
   recipients: [
     { address: "0xAlice...", share: 60 },
     { address: "0xBob...", share: 40 },
   ],
 });
 
-if (result.status === "CREATED") {
-  console.log(`Split created at ${result.split}`);
-} else if (result.status === "NO_CHANGE") {
-  console.log(`Already exists at ${result.split}`);
+// Handle all possible outcomes
+switch (result.status) {
+  case "CREATED":
+    console.log(`Split created at ${result.split}`);
+    console.log(`Transaction: ${result.signature}`);
+    break;
+  case "NO_CHANGE":
+    console.log(`Already exists at ${result.split}`);
+    break;
+  case "FAILED":
+    console.log(`Failed: ${result.message}`);
+    break;
 }
 ```
 
@@ -89,14 +101,28 @@ Recipients specify shares from 1-100 that must total exactly 100. Protocol takes
 All operations return typed results with `status` discriminant:
 
 ```typescript
+// ensureSplit
 const result = await client.ensureSplit({ uniqueId, recipients });
 
 switch (result.status) {
   case "CREATED":   // result.split, result.signature
   case "NO_CHANGE": // result.split (already exists)
-  case "FAILED":    // result.reason, result.message, result.error
+  case "FAILED":    // result.reason, result.message, result.error?
+}
+
+// executeSplit
+const execResult = await client.execute(splitAddress);
+
+switch (execResult.status) {
+  case "EXECUTED":  // execResult.signature
+  case "SKIPPED":   // execResult.reason
+  case "FAILED":    // execResult.reason, execResult.message
 }
 ```
+
+**Failed reasons:** `wallet_rejected`, `wallet_disconnected`, `network_error`, `transaction_failed`, `transaction_reverted`, `insufficient_gas`
+
+**Skipped reasons:** `not_found`, `not_a_split`, `below_threshold`, `no_pending_funds`
 
 ### Immutable Splits
 
@@ -107,7 +133,12 @@ Unlike Solana, EVM splits are **immutable** — recipients cannot be changed aft
 ### Client Factory (`/client`)
 
 ```typescript
-import { createEvmSplitsClient } from "@cascade-fyi/splits-sdk-evm/client";
+import {
+  createEvmSplitsClient,
+  type EvmSplitsClient,
+  type EvmSplitsClientConfig,
+  type WalletConfig,
+} from "@cascade-fyi/splits-sdk-evm/client";
 
 const client = createEvmSplitsClient(chain, { account, transport? }, { factoryAddress? });
 
@@ -130,8 +161,11 @@ await client.predictSplitAddress({ uniqueId, recipients, authority?, token? })
 
 ```typescript
 import {
+  // Core operations
   ensureSplit,
   executeSplit,
+
+  // Read functions
   isCascadeSplit,
   getSplitConfig,
   getSplitBalance,
@@ -140,6 +174,11 @@ import {
   hasPendingFunds,
   getPendingAmount,
   getTotalUnclaimed,
+
+  // Helpers
+  getDefaultToken,           // Get USDC address for a chain
+  toEvmRecipient,
+  toEvmRecipients,
 } from "@cascade-fyi/splits-sdk-evm";
 
 // Create split (idempotent)
@@ -231,6 +270,72 @@ import type {
 |-------|----------|---------|------|
 | Base Mainnet | 8453 | `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7` | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
 | Base Sepolia | 84532 | `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7` | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
+
+## React Integration (Wagmi)
+
+For React apps with Wagmi, use the ABIs directly with wagmi hooks:
+
+```typescript
+import { useWriteContract, useReadContracts } from "wagmi";
+import {
+  splitFactoryAbi,
+  splitConfigImplAbi,
+  getSplitFactoryAddress,
+  getUsdcAddress,
+  toEvmRecipients,
+} from "@cascade-fyi/splits-sdk-evm";
+import { base } from "wagmi/chains";
+
+const FACTORY = getSplitFactoryAddress(base.id);
+const USDC = getUsdcAddress(base.id);
+
+function useCreateSplit() {
+  const { writeContractAsync } = useWriteContract();
+
+  return async (recipients: Array<{ address: `0x${string}`; share: number }>) => {
+    const uniqueId = `0x${crypto.randomUUID().replace(/-/g, "").padStart(64, "0")}` as `0x${string}`;
+    const evmRecipients = toEvmRecipients(recipients);
+
+    return writeContractAsync({
+      address: FACTORY,
+      abi: splitFactoryAbi,
+      functionName: "createSplitConfig",
+      args: [authority, USDC, uniqueId, evmRecipients],
+      chainId: base.id,
+    });
+  };
+}
+```
+
+## Split Discovery
+
+To discover splits owned by an address, use Goldsky subgraph:
+
+```typescript
+const GOLDSKY_URL = "https://api.goldsky.com/api/public/project_cmiq5kvoq64hs01wh0ydoesqs/subgraphs/cascade-splits-base/1.0.0/gn";
+
+async function getSplitsForAuthority(authority: string) {
+  const response = await fetch(GOLDSKY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: `{
+        splitConfigCreateds(
+          where: { authority: "${authority.toLowerCase()}" }
+          orderBy: block_number
+          orderDirection: desc
+        ) {
+          split
+          block_number
+        }
+      }`,
+    }),
+  });
+
+  const { data } = await response.json();
+  return data.splitConfigCreateds.map((e: any) => e.split);
+}
+```
 
 ## Resources
 

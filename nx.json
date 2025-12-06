@@ -33,17 +33,17 @@
 	"release": {
 		"projectsRelationship": "independent",
 		"projects": ["packages/*"],
-		"releaseTag": {
-			"pattern": "{projectName}@{version}"
-		},
-		"git": {
-			"commitMessage": "chore(release): {projectName}@{version}"
-		},
+		"releaseTagPattern": "{projectName}@{version}",
 		"version": {
 			"preVersionCommand": "pnpm check",
-			"versionActionsOptions": {
+			"generatorOptions": {
 				"packageRoot": "{projectRoot}",
 				"currentVersionResolver": "git-tag"
+			},
+			"git": {
+				"commit": true,
+				"commitMessage": "chore(release): {projectName}@{version}",
+				"tag": true
 			}
 		},
 		"changelog": {
