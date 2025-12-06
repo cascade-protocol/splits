@@ -1,3 +1,13 @@
+## 0.1.2 (2025-12-06)
+
+### 📚 Documentation
+
+- Updated Quick Start with proper uniqueId generation pattern
+- Added React Integration (Wagmi) section with real-world examples
+- Added Split Discovery section with Goldsky subgraph query
+- Added missing exports documentation: `getDefaultToken`, `WalletConfig`
+- Added detailed result type reasons (EvmFailedReason, EvmSkippedReason)
+
 ## 0.1.1 (2025-12-05)
 
 This was a version bump only for @cascade-fyi/splits-sdk-evm to align it with other projects, there were no code changes.

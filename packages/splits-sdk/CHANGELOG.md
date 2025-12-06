@@ -1,8 +1,13 @@
 ## 0.10.2 (2025-12-06)
 
-### 🚀 Features
+### 📚 Documentation
 
-- add Cascade Tabs mvp app ([#3](https://github.com/cascade-protocol/splits/pull/3))
+- Comprehensive README rewrite with real-world examples from dashboard
+- Added missing exports documentation: `estimateSplitRent`, `labelToSeed`, `seedToLabel`, `checkRecipientAtas`
+- Added Pre-flight Validation section (rent estimation, labels, ATA pre-checking)
+- Added missing constants: `TOTAL_RECIPIENT_BPS`, `ASSOCIATED_TOKEN_PROGRAM_ID`, `SYSTEM_PROGRAM_ID`
+- Added missing error classes: `MintNotFoundError`, `RecipientAtasMissingError`
+- Updated Quick Start with discriminated union result handling patterns
 
 ## 0.10.1 (2025-12-05)
 
