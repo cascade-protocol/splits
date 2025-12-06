@@ -1,3 +1,9 @@
+## 0.10.2 (2025-12-06)
+
+### 🚀 Features
+
+- add Cascade Tabs mvp app ([#3](https://github.com/cascade-protocol/splits/pull/3))
+
 ## 0.10.1 (2025-12-05)
 
 This was a version bump only for @cascade-fyi/splits-sdk to align it with other projects, there were no code changes.
