@@ -57,7 +57,7 @@ export function SplitExplainer() {
 					<p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
 						Your Split Address
 					</p>
-					<div className="flex items-center gap-2 rounded-md border bg-background p-2.5 font-mono text-xs">
+					<div className="flex items-center gap-2 rounded-md border bg-background p-2.5 font-mono text-xs min-w-0 w-full">
 						<span className="break-all text-muted-foreground">
 							7xKpQ9Lm2Rn3Wp4Ys5Zt6Au7Bv8Cw9Dx1Ey2Fz3mNq
 						</span>
@@ -121,7 +121,7 @@ export function SplitExplainer() {
 
 			{/* SDK Code Snippet */}
 			<div className="mb-4 w-full">
-				<div className="relative rounded-lg border bg-muted/30">
+				<div className="relative rounded-lg border bg-muted/30 min-w-0">
 					<pre className="overflow-x-auto p-4 font-mono text-xs leading-relaxed text-muted-foreground">
 						{CODE_SNIPPET}
 					</pre>
