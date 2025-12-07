@@ -23,7 +23,7 @@ export function RootLayout() {
 	const showAbout = location.pathname === "/about" || !connected;
 
 	return (
-		<div className="flex min-h-screen flex-col bg-background text-foreground">
+		<div className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
 			<Header />
 
 			<ErrorBoundary>
@@ -38,7 +38,7 @@ export function RootLayout() {
 
 			{/* Footer */}
 			<footer className="border-t py-4 px-4 md:px-6 mt-auto">
-				<div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
+				<div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
 					<div className="flex items-center gap-2">
 						<span>Cascade Splits</span>
 						<span className="text-xs">&copy; 2025</span>
@@ -46,8 +46,8 @@ export function RootLayout() {
 							Unaudited — use at your own risk
 						</span>
 					</div>
-					<div className="flex items-center gap-2">
-						<span className="text-xs bg-muted px-2 py-0.5 rounded">
+					<div className="flex items-center gap-2 min-w-0">
+						<span className="shrink-0 text-xs bg-muted px-2 py-0.5 rounded">
 							{isSolana ? "Solana" : "Base"} Mainnet
 						</span>
 						<a
@@ -58,7 +58,12 @@ export function RootLayout() {
 							}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="font-mono text-xs hover:text-foreground transition-colors"
+							title={
+								isSolana
+									? "SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB"
+									: "0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7"
+							}
+							className="font-mono text-xs hover:text-foreground transition-colors truncate max-w-[120px] md:max-w-none"
 						>
 							{isSolana
 								? "SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB"
