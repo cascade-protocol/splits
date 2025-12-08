@@ -1,3 +1,12 @@
+## 0.10.3 (2025-12-08)
+
+### 📚 Documentation
+
+- **Critical fix:** Clarified that `splitConfig` (not `vault`) must be used as x402 `payTo` address
+- Added "⚠️ Critical: Which Address to Use" section explaining nested ATA risk
+- Updated code examples to extract `splitConfig` instead of `vault` for merchant use cases
+- Added JSDoc warnings to `CreateSplitConfigResult` interface fields
+
 ## 0.10.2 (2025-12-06)
 
 ### 📚 Documentation

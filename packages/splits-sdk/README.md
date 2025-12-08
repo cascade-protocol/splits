@@ -62,6 +62,27 @@ const { instruction, splitConfig, vault } = await createSplitConfig({
 
 > Use the `splitConfig` address as your x402 `payTo` — facilitators derive the vault ATA automatically.
 
+### ⚠️ Critical: Which Address to Use
+
+When integrating with x402 payment systems:
+
+| Address | Use For | What Happens |
+|---------|---------|--------------|
+| `splitConfig` | x402 `payTo` ✅ | Facilitator derives vault correctly |
+| `vault` | Direct transfers only | If used as `payTo`, creates nested ATA (funds stuck!) |
+
+```typescript
+const { splitConfig, vault } = await createSplitConfig({ ... });
+
+// ✅ CORRECT: x402 facilitators derive vault from this
+const payTo = splitConfig;
+
+// ❌ WRONG: Creates unrecoverable nested ATA
+const payTo = vault;
+```
+
+Facilitators call `ATA(owner=payTo, mint)` to find the deposit address. If `payTo` is already an ATA, this creates a nested ATA that no one can sign for.
+
 ### For Browser Apps: Client Factory
 
 ```typescript

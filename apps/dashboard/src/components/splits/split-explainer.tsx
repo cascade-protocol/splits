@@ -4,13 +4,15 @@ import { Button } from "../ui/button";
 
 const CODE_SNIPPET = `import { createSplitConfig } from "@cascade-fyi/splits-sdk/solana";
 
-const { vault } = await createSplitConfig({
+const { splitConfig } = await createSplitConfig({
   authority: wallet,
   recipients: [
-    { address: "Agent111111111111111111111111111111111111111", share: 90 },
-    { address: "Marketplace1111111111111111111111111111111", share: 10 },
+    { address: "Agent111...", share: 90 },
+    { address: "Marketplace111...", share: 10 },
   ],
-});`;
+});
+
+// Use splitConfig as your x402 payTo address`;
 
 const NPM_INSTALL = "npm install @cascade-fyi/splits-sdk";
 

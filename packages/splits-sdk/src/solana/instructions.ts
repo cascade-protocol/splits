@@ -53,9 +53,20 @@ const READONLY = 0;
 export interface CreateSplitConfigResult {
 	/** The instruction to send */
 	instruction: Instruction;
-	/** The splitConfig PDA address */
+	/**
+	 * The split configuration PDA address.
+	 *
+	 * **For x402 integration:** Use this as your `payTo` address.
+	 * Facilitators automatically derive the vault ATA from this.
+	 */
 	splitConfig: Address;
-	/** The vault address (where users deposit) */
+	/**
+	 * The vault ATA address where funds are held.
+	 *
+	 * **⚠️ WARNING:** Do NOT use this as x402 `payTo`.
+	 * Using vault as payTo creates a nested ATA (funds unrecoverable).
+	 * This is for direct transfers and internal use only.
+	 */
 	vault: Address;
 }
 
@@ -75,14 +86,14 @@ export type ExecuteSplitResult =
  *
  * @example
  * ```typescript
- * const { instruction, vault } = await createSplitConfig({
+ * const { instruction, splitConfig } = await createSplitConfig({
  *   authority: myWallet,
  *   recipients: [
  *     { address: alice, share: 60 },
  *     { address: bob, share: 40 },
  *   ],
  * });
- * // vault is where users deposit funds
+ * // Use splitConfig as your x402 payTo address
  * ```
  */
 export async function createSplitConfig(params: {

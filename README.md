@@ -134,7 +134,7 @@ if (await isCascadeSplit(rpc, vault)) {
 ```typescript
 import { createSplitConfig } from "@cascade-fyi/splits-sdk/solana";
 
-const { instruction, vault } = await createSplitConfig({
+const { instruction, splitConfig } = await createSplitConfig({
   authority: myWallet,
   recipients: [
     { address: "Agent111111111111111111111111111111111111111", share: 90 },
@@ -142,7 +142,7 @@ const { instruction, vault } = await createSplitConfig({
   ],
 });
 
-// Sign and send instruction, then share `vault` with payers
+// Sign and send instruction, then use splitConfig as your x402 payTo
 ```
 
 See [SDK documentation](packages/splits-sdk/README.md) for complete API reference.
