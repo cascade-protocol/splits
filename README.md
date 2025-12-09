@@ -5,6 +5,7 @@ Non-custodial payment splitting protocol for Solana. Automatically distribute in
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Solana](https://img.shields.io/badge/Solana-Mainnet-green.svg)](https://solana.com)
 [![npm](https://img.shields.io/npm/v/@cascade-fyi/splits-sdk.svg)](https://www.npmjs.com/package/@cascade-fyi/splits-sdk)
+[![PyPI](https://img.shields.io/pypi/v/cascade-splits-sdk-evm)](https://pypi.org/project/cascade-splits-sdk-evm/)
 [![Verified Build](https://img.shields.io/badge/Verified-OtterSec-brightgreen.svg)](https://verify.osec.io/status/SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB)
 
 **Program ID:** `SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB`

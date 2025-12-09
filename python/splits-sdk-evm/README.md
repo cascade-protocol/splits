@@ -1,5 +1,7 @@
 # cascade-splits-evm
 
+[![PyPI](https://img.shields.io/pypi/v/cascade-splits-sdk-evm)](https://pypi.org/project/cascade-splits-sdk-evm/)
+
 Python SDK for [Cascade Splits](https://github.com/cascade-protocol/splits) on EVM chains (Base).
 
 Split incoming payments to multiple recipients automatically. Built for high-throughput micropayments.
