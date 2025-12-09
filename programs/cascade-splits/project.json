@@ -22,13 +22,24 @@
 		},
 		"test": {
 			"command": "cargo test --package cascade-splits",
-			"inputs": ["{projectRoot}/**/*.rs", "{projectRoot}/tests/**/*.rs", "{workspaceRoot}/Cargo.toml"],
+			"inputs": [
+				"{projectRoot}/**/*.rs",
+				"{projectRoot}/tests/**/*.rs",
+				"{workspaceRoot}/Cargo.toml"
+			],
 			"cache": true
 		},
 		"build": {
 			"command": "anchor build",
-			"inputs": ["{projectRoot}/**/*.rs", "{workspaceRoot}/Cargo.toml", "{workspaceRoot}/Anchor.toml"],
-			"outputs": ["{workspaceRoot}/target/deploy/cascade_splits.so", "{workspaceRoot}/target/idl/cascade_splits.json"],
+			"inputs": [
+				"{projectRoot}/**/*.rs",
+				"{workspaceRoot}/Cargo.toml",
+				"{workspaceRoot}/Anchor.toml"
+			],
+			"outputs": [
+				"{workspaceRoot}/target/deploy/cascade_splits.so",
+				"{workspaceRoot}/target/idl/cascade_splits.json"
+			],
 			"cache": true
 		}
 	}

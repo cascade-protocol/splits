@@ -1,7 +1,7 @@
 # ADR-0003: Splits SDK Solana API Design
 
 **Date:** 2025-12-09
-**Status:** Proposed
+**Status:** Accepted
 **Goal:** Define consistent API patterns for @cascade-fyi/splits-sdk Solana module
 
 ---
@@ -564,4 +564,4 @@ invalidateSplitCache(vault);
 
 ## Decision
 
-**Pending implementation.** This ADR documents the unified API design for the splits-sdk Solana module, consolidating decisions on API conventions, primary identifier standardization, and ATA management strategy.
+**Implemented.** (December 2025) This ADR documents the unified API design for the splits-sdk Solana module, consolidating decisions on API conventions, primary identifier standardization, and ATA management strategy.

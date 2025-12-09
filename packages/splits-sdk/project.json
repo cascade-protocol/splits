@@ -27,6 +27,24 @@
 				"{projectRoot}/src/solana/generated"
 			],
 			"cache": true
+		},
+		"test:integration": {
+			"dependsOn": [
+				"@cascade-fyi/splits-sdk:build",
+				"cascade-splits-program:build",
+				"@cascade-fyi/splits-sdk:build:test"
+			],
+			"inputs": [
+				"{workspaceRoot}/tests/**/*.ts",
+				"{workspaceRoot}/Anchor.toml",
+				"{projectRoot}/dist/**/*"
+			],
+			"cache": true,
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "anchor test --skip-build",
+				"cwd": "{workspaceRoot}"
+			}
 		}
 	}
 }

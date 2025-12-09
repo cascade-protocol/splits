@@ -69,9 +69,9 @@ export function SolanaDashboard() {
 					toast.loading("Confirming transaction...", { id: toastId });
 				}, 2000);
 
-				const result = await splitsClient.execute(splitConfig.vault);
+				const result = await splitsClient.execute(splitConfig.address);
 
-				if (result.status === "EXECUTED") {
+				if (result.status === "executed") {
 					toast.success("Split executed!", {
 						id: toastId,
 						description: `Funds distributed. Signature: ${(result.signature as string).slice(0, 8)}...`,
@@ -82,13 +82,10 @@ export function SolanaDashboard() {
 						},
 					});
 					refetch();
-				} else if (result.status === "SKIPPED") {
+				} else if (result.status === "skipped") {
 					toast.info("Execution skipped", {
 						id: toastId,
-						description:
-							result.reason === "below_threshold"
-								? "Vault balance below threshold"
-								: "Split not found",
+						description: result.message,
 					});
 				} else {
 					toast.error("Failed to execute split", {
@@ -125,11 +122,11 @@ export function SolanaDashboard() {
 		if (!splitsClient) return;
 		setIsUpdating(true);
 		try {
-			const result = await splitsClient.update(splitConfig.vault, {
+			const result = await splitsClient.update(splitConfig.address, {
 				recipients,
 			});
 
-			if (result.status === "UPDATED") {
+			if (result.status === "updated") {
 				toast.success("Recipients updated!", {
 					description: `Signature: ${(result.signature as string).slice(0, 8)}...`,
 					action: {
@@ -139,11 +136,11 @@ export function SolanaDashboard() {
 					},
 				});
 				refetch();
-			} else if (result.status === "NO_CHANGE") {
+			} else if (result.status === "no_change") {
 				toast.info("No changes needed", {
 					description: "Recipients already match",
 				});
-			} else if (result.status === "BLOCKED") {
+			} else if (result.status === "blocked") {
 				toast.warning("Cannot update", { description: result.message });
 			} else {
 				toast.error("Update failed", { description: result.message });
@@ -157,9 +154,9 @@ export function SolanaDashboard() {
 		if (!splitsClient) return;
 		setIsClosing(true);
 		try {
-			const result = await splitsClient.close(splitConfig.vault);
+			const result = await splitsClient.close(splitConfig.address);
 
-			if (result.status === "CLOSED") {
+			if (result.status === "closed") {
 				toast.success("Split closed!", {
 					description: `Rent returned. Signature: ${(result.signature as string).slice(0, 8)}...`,
 					action: {
@@ -169,9 +166,9 @@ export function SolanaDashboard() {
 					},
 				});
 				refetch();
-			} else if (result.status === "ALREADY_CLOSED") {
+			} else if (result.status === "already_closed") {
 				toast.info("Already closed");
-			} else if (result.status === "BLOCKED") {
+			} else if (result.status === "blocked") {
 				toast.warning("Cannot close", { description: result.message });
 			} else {
 				toast.error("Close failed", { description: result.message });
@@ -207,10 +204,10 @@ export function SolanaDashboard() {
 			const result = await splitsClient.ensureSplit({
 				recipients,
 				mint: USDC_MINT as Address,
-				seed: generateUniqueId(),
+				uniqueId: generateUniqueId(),
 			});
 
-			if (result.status === "CREATED") {
+			if (result.status === "created") {
 				toast.success("Split created!", {
 					id: toastId,
 					description: `Vault: ${(result.vault as string).slice(0, 8)}...${(result.vault as string).slice(-4)}`,
@@ -221,12 +218,12 @@ export function SolanaDashboard() {
 					},
 				});
 				refetch();
-			} else if (result.status === "BLOCKED") {
+			} else if (result.status === "blocked") {
 				toast.warning("Cannot create split", {
 					id: toastId,
 					description: result.message,
 				});
-			} else if (result.status === "FAILED") {
+			} else if (result.status === "failed") {
 				toast.error("Failed to create split", {
 					id: toastId,
 					description: result.message,

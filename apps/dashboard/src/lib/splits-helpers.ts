@@ -1,4 +1,7 @@
-import { PROTOCOL_FEE_BPS, bpsToShares } from "@cascade-fyi/splits-sdk";
+import {
+	PROTOCOL_FEE_BPS,
+	percentageBpsToShares,
+} from "@cascade-fyi/splits-sdk";
 import type { SplitWithBalance } from "../hooks/use-splits-solana";
 
 // =============================================================================
@@ -80,7 +83,7 @@ export function previewDistribution(
 	const distributions = recipients.map((r) => ({
 		address: r.address as string,
 		amount: (distributable * BigInt(r.percentageBps)) / 10000n,
-		share: bpsToShares(r.percentageBps),
+		share: percentageBpsToShares(r.percentageBps),
 	}));
 	return { distributions, protocolFee };
 }

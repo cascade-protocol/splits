@@ -1,5 +1,6 @@
 {
 	"$schema": "./node_modules/nx/schemas/nx-schema.json",
+	"useFlakyTaskDetection": false,
 	"defaultBase": "main",
 	"namedInputs": {
 		"default": ["{projectRoot}/**/*", "sharedGlobals"],
@@ -20,13 +21,18 @@
 			"cache": true
 		},
 		"type-check": {
+			"dependsOn": ["^build"],
 			"cache": true
 		},
 		"lint": {
 			"cache": true
 		},
 		"check": {
-			"dependsOn": ["type-check"],
+			"dependsOn": ["type-check", "lint"],
+			"cache": true
+		},
+		"validate": {
+			"dependsOn": ["check", "test", "test:integration"],
 			"cache": true
 		}
 	},

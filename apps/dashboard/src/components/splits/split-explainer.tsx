@@ -2,17 +2,18 @@ import { useState } from "react";
 import { ArrowDown, Check, Copy, ExternalLink } from "lucide-react";
 import { Button } from "../ui/button";
 
-const CODE_SNIPPET = `import { createSplitConfig } from "@cascade-fyi/splits-sdk/solana";
+const CODE_SNIPPET = `import { createSplitsClient } from "@cascade-fyi/splits-sdk";
 
-const { splitConfig } = await createSplitConfig({
-  authority: wallet,
+const splits = createSplitsClient({ rpc, rpcSubscriptions, signer });
+
+const result = await splits.ensureSplit({
   recipients: [
     { address: "Agent111...", share: 90 },
     { address: "Marketplace111...", share: 10 },
   ],
 });
 
-// Use splitConfig as your x402 payTo address`;
+// result.vault is your payment address`;
 
 const NPM_INSTALL = "npm install @cascade-fyi/splits-sdk";
 

@@ -28,16 +28,16 @@ import {
 
 import type { Address } from "@solana/kit";
 import { PROGRAM_ID } from "../src/index.js";
-import { createSplitConfig } from "../src/solana/index.js";
+import { createSplitConfig } from "../src/index.js";
 import {
 	toAddress,
 	toPublicKey,
 	toWeb3Instruction,
-} from "../src/solana/web3-compat/index.js";
+} from "../src/web3-compat/index.js";
 import {
 	getProtocolConfigEncoder,
 	getSplitConfigDecoder,
-} from "../src/solana/generated/index.js";
+} from "../src/generated/index.js";
 
 // =============================================================================
 // Test Utilities
@@ -383,7 +383,7 @@ describe("SDK Integration: share/bps conversion", () => {
 describe("SDK Integration: Idempotent Helpers", () => {
 	test("recipientsEqual identifies matching recipients with synthetic data", async () => {
 		// Import recipientsEqual helper
-		const { recipientsEqual } = await import("../src/solana/helpers.js");
+		const { recipientsEqual } = await import("../src/helpers.js");
 		type SplitRecipient = {
 			address: Address;
 			percentageBps: number;

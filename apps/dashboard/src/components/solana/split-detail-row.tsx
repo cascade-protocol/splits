@@ -1,4 +1,4 @@
-import { bpsToShares } from "@cascade-fyi/splits-sdk";
+import { percentageBpsToShares } from "@cascade-fyi/splits-sdk";
 import type { SplitWithBalance } from "@/hooks/use-splits-solana";
 import { hasUnclaimedAmounts, formatBalance } from "@/lib/splits-helpers";
 
@@ -33,7 +33,7 @@ export function SplitDetailRow({ splitConfig }: SplitDetailRowProps) {
 								</code>
 								<div className="flex items-center gap-3 shrink-0">
 									<span className="font-medium">
-										{bpsToShares(r.percentageBps)}%
+										{percentageBpsToShares(r.percentageBps)}%
 									</span>
 									{unclaimedAmount > 0n && (
 										<span className="text-amber-500 text-xs">
