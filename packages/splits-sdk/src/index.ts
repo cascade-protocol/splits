@@ -33,13 +33,13 @@
 // =============================================================================
 
 export {
-	PROGRAM_ID,
-	MAX_RECIPIENTS,
-	PROTOCOL_FEE_BPS,
-	TOTAL_RECIPIENT_BPS,
-	USDC_MINT,
-	PROTOCOL_CONFIG_SEED,
-	SPLIT_CONFIG_SEED,
+  PROGRAM_ID,
+  MAX_RECIPIENTS,
+  PROTOCOL_FEE_BPS,
+  TOTAL_RECIPIENT_BPS,
+  USDC_MINT,
+  PROTOCOL_CONFIG_SEED,
+  SPLIT_CONFIG_SEED,
 } from "./constants.js";
 
 // =============================================================================
@@ -47,10 +47,10 @@ export {
 // =============================================================================
 
 export {
-	type Recipient,
-	shareToPercentageBps,
-	percentageBpsToShares,
-	toPercentageBps,
+  type Recipient,
+  shareToPercentageBps,
+  percentageBpsToShares,
+  toPercentageBps,
 } from "./recipients.js";
 
 // =============================================================================
@@ -64,12 +64,12 @@ export * from "./errors.js";
 // =============================================================================
 
 export {
-	createSplitConfig,
-	executeSplit,
-	updateSplitConfig,
-	closeSplitConfig,
-	type CreateSplitConfigResult,
-	type ExecuteSplitResult,
+  createSplitConfig,
+  executeSplit,
+  updateSplitConfig,
+  closeSplitConfig,
+  type CreateSplitConfigResult,
+  type ExecuteSplitResult,
 } from "./instructions.js";
 
 // =============================================================================
@@ -77,38 +77,38 @@ export {
 // =============================================================================
 
 export {
-	// Read functions
-	getSplitConfig,
-	getSplitConfigAddressFromVault,
-	/** @deprecated Use getSplitConfig() instead */
-	getSplitConfigFromVault,
-	getProtocolConfig,
-	getVaultBalance,
-	// Split detection (cached internally)
-	isCascadeSplit,
-	// PDA derivation
-	deriveSplitConfig,
-	deriveVault,
-	deriveAta,
-	deriveProtocolConfig,
-	// Utilities
-	generateUniqueId,
-	// Label-based seeds (cross-chain compatible)
-	labelToSeed,
-	seedToLabel,
-	// Token program detection
-	detectTokenProgram,
-	// Recipient comparison
-	recipientsEqual,
-	// ATA checking & creation
-	checkRecipientAtas,
-	getCreateAtaInstructions,
-	type MissingAta,
-	// Types
-	type SplitConfig,
-	type SplitRecipient,
-	type ProtocolConfig,
-	type UnclaimedAmount,
+  // Read functions
+  getSplitConfig,
+  getSplitConfigAddressFromVault,
+  /** @deprecated Use getSplitConfig() instead */
+  getSplitConfigFromVault,
+  getProtocolConfig,
+  getVaultBalance,
+  // Split detection (cached internally)
+  isCascadeSplit,
+  // PDA derivation
+  deriveSplitConfig,
+  deriveVault,
+  deriveAta,
+  deriveProtocolConfig,
+  // Utilities
+  generateUniqueId,
+  // Label-based seeds (cross-chain compatible)
+  labelToSeed,
+  seedToLabel,
+  // Token program detection
+  detectTokenProgram,
+  // Recipient comparison
+  recipientsEqual,
+  // ATA checking & creation
+  checkRecipientAtas,
+  getCreateAtaInstructions,
+  type MissingAta,
+  // Types
+  type SplitConfig,
+  type SplitRecipient,
+  type ProtocolConfig,
+  type UnclaimedAmount,
 } from "./helpers.js";
 
 // =============================================================================
@@ -122,48 +122,48 @@ export { estimateSplitRent, type EstimateResult } from "./estimateSplitRent.js";
 // =============================================================================
 
 export {
-	createSplitsClient,
-	createSplitsClientWithWallet,
-	type SplitsClient,
-	type SplitsClientOptions,
+  createSplitsClient,
+  createSplitsClientWithWallet,
+  type SplitsClient,
+  type SplitsClientOptions,
 } from "./client/factory.js";
 
 // High-level direct functions
 export {
-	ensureSplitConfig,
-	type EnsureResult,
-	type EnsureBlockedReason,
-	type EnsureOptions,
+  ensureSplitConfig,
+  type EnsureResult,
+  type EnsureBlockedReason,
+  type EnsureOptions,
 } from "./ensureSplitConfig.js";
 
 export {
-	executeAndConfirmSplit,
-	type ExecuteResult,
-	type ExecuteOptions,
-	type ExecuteAndConfirmOptions,
-	type SkippedReason,
-	type FailedReason,
+  executeAndConfirmSplit,
+  type ExecuteResult,
+  type ExecuteOptions,
+  type ExecuteAndConfirmOptions,
+  type SkippedReason,
+  type FailedReason,
 } from "./execute.js";
 
 export {
-	updateSplit,
-	type UpdateResult,
-	type UpdateBlockedReason,
-	type UpdateOptions,
+  updateSplit,
+  type UpdateResult,
+  type UpdateBlockedReason,
+  type UpdateOptions,
 } from "./updateSplit.js";
 
 export {
-	closeSplit,
-	type CloseResult,
-	type CloseBlockedReason,
-	type CloseOptions,
+  closeSplit,
+  type CloseResult,
+  type CloseBlockedReason,
+  type CloseOptions,
 } from "./closeSplit.js";
 
 // Client types (for wallet adapter implementations)
 export type {
-	SplitsWallet,
-	SplitsClientConfig,
-	TransactionMessage,
-	EnsureParams,
-	UpdateParams,
+  SplitsWallet,
+  SplitsClientConfig,
+  TransactionMessage,
+  EnsureParams,
+  UpdateParams,
 } from "./client/types.js";

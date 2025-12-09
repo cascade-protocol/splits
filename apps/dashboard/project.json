@@ -1,28 +1,28 @@
 {
-	"name": "dashboard",
-	"$schema": "../../node_modules/nx/schemas/project-schema.json",
-	"sourceRoot": "apps/dashboard/src",
-	"projectType": "application",
-	"tags": ["type:app", "platform:web", "scope:apps"],
-	"targets": {
-		"build": {
-			"dependsOn": ["^build"],
-			"inputs": ["production", "^production"],
-			"outputs": ["{projectRoot}/dist"]
-		},
-		"dev": {
-			"cache": false
-		},
-		"type-check": {
-			"inputs": ["default", "^production"]
-		},
-		"preview": {
-			"dependsOn": ["build"],
-			"cache": false
-		}
-	},
-	"implicitDependencies": [
-		"@cascade-fyi/splits-sdk",
-		"@cascade-fyi/splits-sdk-evm"
-	]
+  "name": "dashboard",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/dashboard/src",
+  "projectType": "application",
+  "tags": ["type:app", "platform:web", "scope:apps"],
+  "targets": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"],
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "dev": {
+      "cache": false
+    },
+    "type-check": {
+      "inputs": ["default", "^production"]
+    },
+    "preview": {
+      "dependsOn": ["build"],
+      "cache": false
+    }
+  },
+  "implicitDependencies": [
+    "@cascade-fyi/splits-sdk",
+    "@cascade-fyi/splits-sdk-evm"
+  ]
 }

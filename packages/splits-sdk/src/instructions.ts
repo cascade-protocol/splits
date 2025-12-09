@@ -10,26 +10,26 @@
 import type { Address, Instruction, Rpc, SolanaRpcApi } from "@solana/kit";
 import { SYSTEM_PROGRAM_ADDRESS } from "@solana-program/system";
 import {
-	TOKEN_PROGRAM_ADDRESS,
-	ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
+  TOKEN_PROGRAM_ADDRESS,
+  ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
 } from "@solana-program/token";
 import { PROGRAM_ID, USDC_MINT } from "./constants.js";
 import { type Recipient, toPercentageBps } from "./recipients.js";
 import {
-	getCreateSplitConfigInstructionDataEncoder,
-	getExecuteSplitInstructionDataEncoder,
-	getUpdateSplitConfigInstructionDataEncoder,
-	getCloseSplitConfigInstructionDataEncoder,
+  getCreateSplitConfigInstructionDataEncoder,
+  getExecuteSplitInstructionDataEncoder,
+  getUpdateSplitConfigInstructionDataEncoder,
+  getCloseSplitConfigInstructionDataEncoder,
 } from "./generated/instructions/index.js";
 import {
-	getSplitConfig,
-	getProtocolConfig,
-	deriveSplitConfig,
-	deriveAta,
-	deriveVault,
-	generateUniqueId,
-	detectTokenProgram,
-	type SplitConfig,
+  getSplitConfig,
+  getProtocolConfig,
+  deriveSplitConfig,
+  deriveAta,
+  deriveVault,
+  generateUniqueId,
+  detectTokenProgram,
+  type SplitConfig,
 } from "./helpers.js";
 
 // =============================================================================
@@ -47,12 +47,12 @@ const READONLY = 0;
 
 /** Convert SDK recipients to on-chain format */
 function toOnChainRecipients(
-	recipients: Recipient[],
+  recipients: Recipient[],
 ): Array<{ address: Address; percentageBps: number }> {
-	return recipients.map((r) => ({
-		address: r.address as Address,
-		percentageBps: toPercentageBps(r),
-	}));
+  return recipients.map((r) => ({
+    address: r.address as Address,
+    percentageBps: toPercentageBps(r),
+  }));
 }
 
 // =============================================================================
@@ -63,32 +63,32 @@ function toOnChainRecipients(
  * Result of createSplitConfig
  */
 export interface CreateSplitConfigResult {
-	/** The instruction to send */
-	instruction: Instruction;
-	/**
-	 * The split configuration PDA address.
-	 *
-	 * **For x402 integration:** Use this as your `payTo` address.
-	 * Facilitators automatically derive the vault ATA from this.
-	 */
-	splitConfig: Address;
-	/**
-	 * The vault ATA address where funds are held.
-	 *
-	 * **⚠️ WARNING:** Do NOT use this as x402 `payTo`.
-	 * Using vault as payTo creates a nested ATA (funds unrecoverable).
-	 * This is for direct transfers and internal use only.
-	 */
-	vault: Address;
+  /** The instruction to send */
+  instruction: Instruction;
+  /**
+   * The split configuration PDA address.
+   *
+   * **For x402 integration:** Use this as your `payTo` address.
+   * Facilitators automatically derive the vault ATA from this.
+   */
+  splitConfig: Address;
+  /**
+   * The vault ATA address where funds are held.
+   *
+   * **⚠️ WARNING:** Do NOT use this as x402 `payTo`.
+   * Using vault as payTo creates a nested ATA (funds unrecoverable).
+   * This is for direct transfers and internal use only.
+   */
+  vault: Address;
 }
 
 /**
  * Result of executeSplit - discriminated union for type-safe handling
  */
 export type ExecuteSplitResult =
-	| { status: "success"; instruction: Instruction }
-	| { status: "not_found"; splitConfig: Address }
-	| { status: "not_a_split"; splitConfig: Address };
+  | { status: "success"; instruction: Instruction }
+  | { status: "not_found"; splitConfig: Address }
+  | { status: "not_a_split"; splitConfig: Address };
 
 // =============================================================================
 // Create Split Config
@@ -110,64 +110,64 @@ export type ExecuteSplitResult =
  * ```
  */
 export async function createSplitConfig(params: {
-	/** Authority that will control this split */
-	authority: Address;
-	/** Recipients with share (1-100) or percentageBps (1-9900) */
-	recipients: Recipient[];
-	/** Token mint (defaults to USDC) */
-	mint?: Address;
-	/** Unique ID (auto-generated if not provided) */
-	uniqueId?: Address;
-	/** Token program (defaults to SPL Token) */
-	tokenProgram?: Address;
-	/** Payer for rent (defaults to authority) */
-	payer?: Address;
+  /** Authority that will control this split */
+  authority: Address;
+  /** Recipients with share (1-100) or percentageBps (1-9900) */
+  recipients: Recipient[];
+  /** Token mint (defaults to USDC) */
+  mint?: Address;
+  /** Unique ID (auto-generated if not provided) */
+  uniqueId?: Address;
+  /** Token program (defaults to SPL Token) */
+  tokenProgram?: Address;
+  /** Payer for rent (defaults to authority) */
+  payer?: Address;
 }): Promise<CreateSplitConfigResult> {
-	const {
-		authority,
-		recipients,
-		mint = USDC_MINT,
-		uniqueId = generateUniqueId(),
-		tokenProgram = TOKEN_PROGRAM_ADDRESS,
-		payer = authority,
-	} = params;
+  const {
+    authority,
+    recipients,
+    mint = USDC_MINT,
+    uniqueId = generateUniqueId(),
+    tokenProgram = TOKEN_PROGRAM_ADDRESS,
+    payer = authority,
+  } = params;
 
-	const onChainRecipients = toOnChainRecipients(recipients);
+  const onChainRecipients = toOnChainRecipients(recipients);
 
-	// Derive addresses
-	const splitConfig = await deriveSplitConfig(authority, mint, uniqueId);
-	const vault = await deriveVault(splitConfig, mint, tokenProgram);
+  // Derive addresses
+  const splitConfig = await deriveSplitConfig(authority, mint, uniqueId);
+  const vault = await deriveVault(splitConfig, mint, tokenProgram);
 
-	// Derive recipient ATAs (required for validation in remaining accounts)
-	const recipientAtas = await Promise.all(
-		onChainRecipients.map((r) => deriveAta(r.address, mint, tokenProgram)),
-	);
+  // Derive recipient ATAs (required for validation in remaining accounts)
+  const recipientAtas = await Promise.all(
+    onChainRecipients.map((r) => deriveAta(r.address, mint, tokenProgram)),
+  );
 
-	// Encode instruction data
-	const data = getCreateSplitConfigInstructionDataEncoder().encode({
-		mint,
-		recipients: onChainRecipients,
-	});
+  // Encode instruction data
+  const data = getCreateSplitConfigInstructionDataEncoder().encode({
+    mint,
+    recipients: onChainRecipients,
+  });
 
-	const instruction: Instruction = {
-		programAddress: PROGRAM_ID,
-		accounts: [
-			{ address: splitConfig, role: WRITABLE },
-			{ address: uniqueId, role: READONLY },
-			{ address: authority, role: SIGNER },
-			{ address: payer, role: WRITABLE_SIGNER },
-			{ address: mint, role: READONLY },
-			{ address: vault, role: WRITABLE },
-			{ address: tokenProgram, role: READONLY },
-			{ address: ASSOCIATED_TOKEN_PROGRAM_ADDRESS, role: READONLY },
-			{ address: SYSTEM_PROGRAM_ADDRESS, role: READONLY },
-			// Remaining accounts: recipient ATAs for validation
-			...recipientAtas.map((ata) => ({ address: ata, role: READONLY })),
-		],
-		data,
-	};
+  const instruction: Instruction = {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      { address: splitConfig, role: WRITABLE },
+      { address: uniqueId, role: READONLY },
+      { address: authority, role: SIGNER },
+      { address: payer, role: WRITABLE_SIGNER },
+      { address: mint, role: READONLY },
+      { address: vault, role: WRITABLE },
+      { address: tokenProgram, role: READONLY },
+      { address: ASSOCIATED_TOKEN_PROGRAM_ADDRESS, role: READONLY },
+      { address: SYSTEM_PROGRAM_ADDRESS, role: READONLY },
+      // Remaining accounts: recipient ATAs for validation
+      ...recipientAtas.map((ata) => ({ address: ata, role: READONLY })),
+    ],
+    data,
+  };
 
-	return { instruction, splitConfig, vault };
+  return { instruction, splitConfig, vault };
 }
 
 // =============================================================================
@@ -190,64 +190,64 @@ export async function createSplitConfig(params: {
  * ```
  */
 export async function executeSplit(input: {
-	/** RPC client */
-	rpc: Rpc<SolanaRpcApi>;
-	/** SplitConfig PDA address */
-	splitConfig: Address;
-	/** Executor address (pays for transaction) */
-	executor: Address;
-	/** Token program (auto-detected if not provided) */
-	tokenProgram?: Address;
+  /** RPC client */
+  rpc: Rpc<SolanaRpcApi>;
+  /** SplitConfig PDA address */
+  splitConfig: Address;
+  /** Executor address (pays for transaction) */
+  executor: Address;
+  /** Token program (auto-detected if not provided) */
+  tokenProgram?: Address;
 }): Promise<ExecuteSplitResult> {
-	const { rpc, splitConfig: splitConfigAddress, executor } = input;
+  const { rpc, splitConfig: splitConfigAddress, executor } = input;
 
-	// Fetch split config
-	let config: SplitConfig;
-	try {
-		config = await getSplitConfig(rpc, splitConfigAddress);
-	} catch {
-		return { status: "not_found", splitConfig: splitConfigAddress };
-	}
+  // Fetch split config
+  let config: SplitConfig;
+  try {
+    config = await getSplitConfig(rpc, splitConfigAddress);
+  } catch {
+    return { status: "not_found", splitConfig: splitConfigAddress };
+  }
 
-	// Auto-detect token program if not provided
-	const tokenProgram =
-		input.tokenProgram ?? (await detectTokenProgram(rpc, config.mint));
+  // Auto-detect token program if not provided
+  const tokenProgram =
+    input.tokenProgram ?? (await detectTokenProgram(rpc, config.mint));
 
-	// Fetch protocol config for fee wallet
-	const protocolConfig = await getProtocolConfig(rpc);
+  // Fetch protocol config for fee wallet
+  const protocolConfig = await getProtocolConfig(rpc);
 
-	// Derive all ATAs: recipients + protocol (protocol MUST be last)
-	const recipientAtas = await Promise.all(
-		config.recipients.map((r) =>
-			deriveAta(r.address, config.mint, tokenProgram),
-		),
-	);
-	const protocolAta = await deriveAta(
-		protocolConfig.feeWallet,
-		config.mint,
-		tokenProgram,
-	);
+  // Derive all ATAs: recipients + protocol (protocol MUST be last)
+  const recipientAtas = await Promise.all(
+    config.recipients.map((r) =>
+      deriveAta(r.address, config.mint, tokenProgram),
+    ),
+  );
+  const protocolAta = await deriveAta(
+    protocolConfig.feeWallet,
+    config.mint,
+    tokenProgram,
+  );
 
-	// Encode instruction data
-	const data = getExecuteSplitInstructionDataEncoder().encode({});
+  // Encode instruction data
+  const data = getExecuteSplitInstructionDataEncoder().encode({});
 
-	const instruction: Instruction = {
-		programAddress: PROGRAM_ID,
-		accounts: [
-			{ address: config.address, role: WRITABLE },
-			{ address: config.vault, role: WRITABLE },
-			{ address: config.mint, role: READONLY },
-			{ address: protocolConfig.address, role: READONLY },
-			{ address: executor, role: READONLY },
-			{ address: tokenProgram, role: READONLY },
-			// Remaining accounts: recipient ATAs + protocol ATA (last)
-			...recipientAtas.map((ata) => ({ address: ata, role: WRITABLE })),
-			{ address: protocolAta, role: WRITABLE },
-		],
-		data,
-	};
+  const instruction: Instruction = {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      { address: config.address, role: WRITABLE },
+      { address: config.vault, role: WRITABLE },
+      { address: config.mint, role: READONLY },
+      { address: protocolConfig.address, role: READONLY },
+      { address: executor, role: READONLY },
+      { address: tokenProgram, role: READONLY },
+      // Remaining accounts: recipient ATAs + protocol ATA (last)
+      ...recipientAtas.map((ata) => ({ address: ata, role: WRITABLE })),
+      { address: protocolAta, role: WRITABLE },
+    ],
+    data,
+  };
 
-	return { status: "success", instruction };
+  return { status: "success", instruction };
 }
 
 // =============================================================================
@@ -268,53 +268,53 @@ export async function executeSplit(input: {
  * ```
  */
 export async function updateSplitConfig(input: {
-	/** RPC client */
-	rpc: Rpc<SolanaRpcApi>;
-	/** SplitConfig PDA address */
-	splitConfig: Address;
-	/** Authority (must be signer) */
-	authority: Address;
-	/** New recipients with share (1-100) or percentageBps (1-9900) */
-	recipients: Recipient[];
-	/** Token program (auto-detected if not provided) */
-	tokenProgram?: Address;
+  /** RPC client */
+  rpc: Rpc<SolanaRpcApi>;
+  /** SplitConfig PDA address */
+  splitConfig: Address;
+  /** Authority (must be signer) */
+  authority: Address;
+  /** New recipients with share (1-100) or percentageBps (1-9900) */
+  recipients: Recipient[];
+  /** Token program (auto-detected if not provided) */
+  tokenProgram?: Address;
 }): Promise<Instruction> {
-	const { rpc, splitConfig: splitConfigAddress, authority, recipients } = input;
+  const { rpc, splitConfig: splitConfigAddress, authority, recipients } = input;
 
-	// Fetch existing config
-	const config = await getSplitConfig(rpc, splitConfigAddress);
+  // Fetch existing config
+  const config = await getSplitConfig(rpc, splitConfigAddress);
 
-	// Auto-detect token program if not provided
-	const tokenProgram =
-		input.tokenProgram ?? (await detectTokenProgram(rpc, config.mint));
+  // Auto-detect token program if not provided
+  const tokenProgram =
+    input.tokenProgram ?? (await detectTokenProgram(rpc, config.mint));
 
-	const onChainRecipients = toOnChainRecipients(recipients);
+  const onChainRecipients = toOnChainRecipients(recipients);
 
-	// Derive ATAs for new recipients (for validation)
-	const recipientAtas = await Promise.all(
-		onChainRecipients.map((r) =>
-			deriveAta(r.address, config.mint, tokenProgram),
-		),
-	);
+  // Derive ATAs for new recipients (for validation)
+  const recipientAtas = await Promise.all(
+    onChainRecipients.map((r) =>
+      deriveAta(r.address, config.mint, tokenProgram),
+    ),
+  );
 
-	// Encode instruction data
-	const data = getUpdateSplitConfigInstructionDataEncoder().encode({
-		newRecipients: onChainRecipients,
-	});
+  // Encode instruction data
+  const data = getUpdateSplitConfigInstructionDataEncoder().encode({
+    newRecipients: onChainRecipients,
+  });
 
-	return {
-		programAddress: PROGRAM_ID,
-		accounts: [
-			{ address: config.address, role: WRITABLE },
-			{ address: config.vault, role: READONLY },
-			{ address: config.mint, role: READONLY },
-			{ address: authority, role: SIGNER },
-			{ address: tokenProgram, role: READONLY },
-			// Remaining accounts: recipient ATAs for validation
-			...recipientAtas.map((ata) => ({ address: ata, role: READONLY })),
-		],
-		data,
-	};
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      { address: config.address, role: WRITABLE },
+      { address: config.vault, role: READONLY },
+      { address: config.mint, role: READONLY },
+      { address: authority, role: SIGNER },
+      { address: tokenProgram, role: READONLY },
+      // Remaining accounts: recipient ATAs for validation
+      ...recipientAtas.map((ata) => ({ address: ata, role: READONLY })),
+    ],
+    data,
+  };
 }
 
 // =============================================================================
@@ -334,39 +334,39 @@ export async function updateSplitConfig(input: {
  * ```
  */
 export async function closeSplitConfig(input: {
-	/** RPC client */
-	rpc: Rpc<SolanaRpcApi>;
-	/** SplitConfig PDA address */
-	splitConfig: Address;
-	/** Authority (must be signer) */
-	authority: Address;
-	/** Rent receiver (defaults to authority) */
-	rentReceiver?: Address;
-	/** Token program (auto-detected if not provided) */
-	tokenProgram?: Address;
+  /** RPC client */
+  rpc: Rpc<SolanaRpcApi>;
+  /** SplitConfig PDA address */
+  splitConfig: Address;
+  /** Authority (must be signer) */
+  authority: Address;
+  /** Rent receiver (defaults to authority) */
+  rentReceiver?: Address;
+  /** Token program (auto-detected if not provided) */
+  tokenProgram?: Address;
 }): Promise<Instruction> {
-	const { rpc, splitConfig: splitConfigAddress, authority } = input;
-	const rentReceiver = input.rentReceiver ?? authority;
+  const { rpc, splitConfig: splitConfigAddress, authority } = input;
+  const rentReceiver = input.rentReceiver ?? authority;
 
-	// Fetch existing config
-	const config = await getSplitConfig(rpc, splitConfigAddress);
+  // Fetch existing config
+  const config = await getSplitConfig(rpc, splitConfigAddress);
 
-	// Auto-detect token program if not provided
-	const tokenProgram =
-		input.tokenProgram ?? (await detectTokenProgram(rpc, config.mint));
+  // Auto-detect token program if not provided
+  const tokenProgram =
+    input.tokenProgram ?? (await detectTokenProgram(rpc, config.mint));
 
-	// Encode instruction data
-	const data = getCloseSplitConfigInstructionDataEncoder().encode({});
+  // Encode instruction data
+  const data = getCloseSplitConfigInstructionDataEncoder().encode({});
 
-	return {
-		programAddress: PROGRAM_ID,
-		accounts: [
-			{ address: config.address, role: WRITABLE },
-			{ address: config.vault, role: WRITABLE },
-			{ address: authority, role: SIGNER },
-			{ address: rentReceiver, role: WRITABLE },
-			{ address: tokenProgram, role: READONLY },
-		],
-		data,
-	};
+  return {
+    programAddress: PROGRAM_ID,
+    accounts: [
+      { address: config.address, role: WRITABLE },
+      { address: config.vault, role: WRITABLE },
+      { address: authority, role: SIGNER },
+      { address: rentReceiver, role: WRITABLE },
+      { address: tokenProgram, role: READONLY },
+    ],
+    data,
+  };
 }

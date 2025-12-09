@@ -1,20 +1,20 @@
 {
-	"name": "@cascade-fyi/splits-sdk-evm",
-	"$schema": "../../node_modules/nx/schemas/project-schema.json",
-	"sourceRoot": "packages/splits-sdk-evm/src",
-	"projectType": "library",
-	"tags": ["type:sdk", "platform:evm", "scope:packages"],
-	"targets": {
-		"build": {
-			"inputs": ["production", "^production"],
-			"outputs": ["{projectRoot}/dist"]
-		},
-		"test": {
-			"inputs": ["default", "^production"],
-			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
-		},
-		"type-check": {
-			"inputs": ["default", "^production"]
-		}
-	}
+  "name": "@cascade-fyi/splits-sdk-evm",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/splits-sdk-evm/src",
+  "projectType": "library",
+  "tags": ["type:sdk", "platform:evm", "scope:packages"],
+  "targets": {
+    "build": {
+      "inputs": ["production", "^production"],
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "test": {
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
+    },
+    "type-check": {
+      "inputs": ["default", "^production"]
+    }
+  }
 }

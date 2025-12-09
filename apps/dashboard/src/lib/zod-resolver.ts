@@ -7,26 +7,26 @@ import type { z } from "zod/v4";
  * e.g., "recipients.0.address" → obj.recipients[0].address
  */
 function set(obj: Record<string, unknown>, path: string, value: unknown): void {
-	const keys = path.split(/[.[\]]+/).filter(Boolean);
-	let current = obj;
+  const keys = path.split(/[.[\]]+/).filter(Boolean);
+  let current = obj;
 
-	for (let i = 0; i < keys.length - 1; i++) {
-		const key = keys[i];
-		const nextKey = keys[i + 1];
-		if (key === undefined || nextKey === undefined) continue;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
+    const nextKey = keys[i + 1];
+    if (key === undefined || nextKey === undefined) continue;
 
-		const isNextArray = /^\d+$/.test(nextKey);
+    const isNextArray = /^\d+$/.test(nextKey);
 
-		if (!(key in current)) {
-			current[key] = isNextArray ? [] : {};
-		}
-		current = current[key] as Record<string, unknown>;
-	}
+    if (!(key in current)) {
+      current[key] = isNextArray ? [] : {};
+    }
+    current = current[key] as Record<string, unknown>;
+  }
 
-	const lastKey = keys[keys.length - 1];
-	if (lastKey !== undefined) {
-		current[lastKey] = value;
-	}
+  const lastKey = keys[keys.length - 1];
+  if (lastKey !== undefined) {
+    current[lastKey] = value;
+  }
 }
 
 /**
@@ -39,35 +39,35 @@ function set(obj: Record<string, unknown>, path: string, value: unknown): void {
  * - First-error-per-field strategy
  */
 export function zodResolver<T extends FieldValues>(
-	schema: z.ZodType<T>,
+  schema: z.ZodType<T>,
 ): Resolver<T> {
-	return async (values) => {
-		const result = await schema.safeParseAsync(values);
+  return async (values) => {
+    const result = await schema.safeParseAsync(values);
 
-		if (result.success) {
-			return { values: result.data, errors: {} };
-		}
+    if (result.success) {
+      return { values: result.data, errors: {} };
+    }
 
-		const errors: Record<string, unknown> = {};
-		const seenPaths = new Set<string>();
+    const errors: Record<string, unknown> = {};
+    const seenPaths = new Set<string>();
 
-		for (const issue of result.error.issues) {
-			const path = issue.path.join(".");
+    for (const issue of result.error.issues) {
+      const path = issue.path.join(".");
 
-			// Skip if we already have an error for this path
-			if (seenPaths.has(path)) continue;
-			seenPaths.add(path);
+      // Skip if we already have an error for this path
+      if (seenPaths.has(path)) continue;
+      seenPaths.add(path);
 
-			const error = { type: issue.code, message: issue.message };
+      const error = { type: issue.code, message: issue.message };
 
-			if (issue.path.length === 0) {
-				// Root-level refinement error (from .refine() on the schema)
-				errors.root = error;
-			} else {
-				set(errors, path, error);
-			}
-		}
+      if (issue.path.length === 0) {
+        // Root-level refinement error (from .refine() on the schema)
+        errors.root = error;
+      } else {
+        set(errors, path, error);
+      }
+    }
 
-		return { values: {}, errors: errors as FieldErrors<T> };
-	};
+    return { values: {}, errors: errors as FieldErrors<T> };
+  };
 }

@@ -81,8 +81,8 @@ export const TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 /** SPL Token 2022 program ID */
 export const TOKEN_2022_PROGRAM_ID =
-	"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+  "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 
 /** Associated Token Account program ID */
 export const ASSOCIATED_TOKEN_PROGRAM_ID =
-	"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";

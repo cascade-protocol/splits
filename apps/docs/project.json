@@ -1,23 +1,23 @@
 {
-	"name": "docs",
-	"$schema": "../../node_modules/nx/schemas/project-schema.json",
-	"sourceRoot": "apps/docs",
-	"projectType": "application",
-	"tags": ["type:app", "platform:web", "scope:apps"],
-	"targets": {
-		"build": {
-			"inputs": ["production", "^production"],
-			"outputs": ["{projectRoot}/build"]
-		},
-		"dev": {
-			"cache": false
-		},
-		"type-check": {
-			"inputs": ["default", "^production"]
-		},
-		"start": {
-			"dependsOn": ["build"],
-			"cache": false
-		}
-	}
+  "name": "docs",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/docs",
+  "projectType": "application",
+  "tags": ["type:app", "platform:web", "scope:apps"],
+  "targets": {
+    "build": {
+      "inputs": ["production", "^production"],
+      "outputs": ["{projectRoot}/build"]
+    },
+    "dev": {
+      "cache": false
+    },
+    "type-check": {
+      "inputs": ["default", "^production"]
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false
+    }
+  }
 }

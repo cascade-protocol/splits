@@ -5,13 +5,13 @@
  */
 
 import type {
-	Address,
-	Rpc,
-	SolanaRpcApi,
-	TransactionSigner,
-	RpcSubscriptions,
-	SignatureNotificationsApi,
-	SlotNotificationsApi,
+  Address,
+  Rpc,
+  SolanaRpcApi,
+  TransactionSigner,
+  RpcSubscriptions,
+  SignatureNotificationsApi,
+  SlotNotificationsApi,
 } from "@solana/kit";
 import { SYSTEM_PROGRAM_ADDRESS } from "@solana-program/system";
 import { USDC_MINT } from "./constants.js";
@@ -19,9 +19,9 @@ import type { Recipient } from "./recipients.js";
 import { createKitWallet } from "./client/shared.js";
 import { ensureSplitImpl } from "./client/ensure.js";
 import type {
-	EnsureResult,
-	EnsureOptions,
-	BlockedReason,
+  EnsureResult,
+  EnsureOptions,
+  BlockedReason,
 } from "./client/types.js";
 
 // Re-export types
@@ -70,67 +70,67 @@ export type EnsureBlockedReason = BlockedReason;
  * ```
  */
 export async function ensureSplitConfig(input: {
-	/** RPC client */
-	rpc: Rpc<SolanaRpcApi>;
-	/** RPC subscriptions for transaction confirmation */
-	rpcSubscriptions: RpcSubscriptions<
-		SignatureNotificationsApi & SlotNotificationsApi
-	>;
-	/** Transaction signer */
-	signer: TransactionSigner;
-	/** Recipients with share (1-100) or percentageBps (1-9900) */
-	recipients: Recipient[];
-	/** Token mint (defaults to USDC) */
-	mint?: Address;
-	/**
-	 * Unique ID for deterministic PDA derivation.
-	 *
-	 * Split address = `[signer.address, mint, uniqueId]`
-	 *
-	 * **Idempotency**: Same inputs = same address. Safe to call multiple times.
-	 *
-	 * - Omit → one split per signer/mint (simplest)
-	 * - `labelToSeed("name")` → multiple named splits
-	 * - `generateUniqueId()` → random (must store result)
-	 */
-	uniqueId?: Address;
-	/** Payer for rent (defaults to signer) */
-	payer?: TransactionSigner;
-	/** Auto-create missing recipient ATAs (default: true) */
-	createMissingAtas?: boolean;
-	/** Commitment level for confirmation (default: 'confirmed') */
-	commitment?: EnsureOptions["commitment"];
-	/** Priority fee in microlamports per compute unit */
-	computeUnitPrice?: EnsureOptions["computeUnitPrice"];
+  /** RPC client */
+  rpc: Rpc<SolanaRpcApi>;
+  /** RPC subscriptions for transaction confirmation */
+  rpcSubscriptions: RpcSubscriptions<
+    SignatureNotificationsApi & SlotNotificationsApi
+  >;
+  /** Transaction signer */
+  signer: TransactionSigner;
+  /** Recipients with share (1-100) or percentageBps (1-9900) */
+  recipients: Recipient[];
+  /** Token mint (defaults to USDC) */
+  mint?: Address;
+  /**
+   * Unique ID for deterministic PDA derivation.
+   *
+   * Split address = `[signer.address, mint, uniqueId]`
+   *
+   * **Idempotency**: Same inputs = same address. Safe to call multiple times.
+   *
+   * - Omit → one split per signer/mint (simplest)
+   * - `labelToSeed("name")` → multiple named splits
+   * - `generateUniqueId()` → random (must store result)
+   */
+  uniqueId?: Address;
+  /** Payer for rent (defaults to signer) */
+  payer?: TransactionSigner;
+  /** Auto-create missing recipient ATAs (default: true) */
+  createMissingAtas?: boolean;
+  /** Commitment level for confirmation (default: 'confirmed') */
+  commitment?: EnsureOptions["commitment"];
+  /** Priority fee in microlamports per compute unit */
+  computeUnitPrice?: EnsureOptions["computeUnitPrice"];
 }): Promise<EnsureResult> {
-	const {
-		rpc,
-		rpcSubscriptions,
-		signer,
-		recipients,
-		mint,
-		uniqueId,
-		payer,
-		createMissingAtas,
-		commitment,
-		computeUnitPrice,
-	} = input;
+  const {
+    rpc,
+    rpcSubscriptions,
+    signer,
+    recipients,
+    mint,
+    uniqueId,
+    payer,
+    createMissingAtas,
+    commitment,
+    computeUnitPrice,
+  } = input;
 
-	const wallet = createKitWallet(signer, rpc, rpcSubscriptions);
+  const wallet = createKitWallet(signer, rpc, rpcSubscriptions);
 
-	return ensureSplitImpl(
-		rpc,
-		wallet,
-		{
-			recipients,
-			mint: mint ?? USDC_MINT,
-			uniqueId: uniqueId ?? SYSTEM_PROGRAM_ADDRESS,
-			...(payer && { payer: payer.address }),
-			...(createMissingAtas !== undefined && { createMissingAtas }),
-		},
-		{
-			...(commitment && { commitment }),
-			...(computeUnitPrice && { computeUnitPrice }),
-		},
-	);
+  return ensureSplitImpl(
+    rpc,
+    wallet,
+    {
+      recipients,
+      mint: mint ?? USDC_MINT,
+      uniqueId: uniqueId ?? SYSTEM_PROGRAM_ADDRESS,
+      ...(payer && { payer: payer.address }),
+      ...(createMissingAtas !== undefined && { createMissingAtas }),
+    },
+    {
+      ...(commitment && { commitment }),
+      ...(computeUnitPrice && { computeUnitPrice }),
+    },
+  );
 }

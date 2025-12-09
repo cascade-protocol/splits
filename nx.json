@@ -1,66 +1,66 @@
 {
-	"$schema": "./node_modules/nx/schemas/nx-schema.json",
-	"useFlakyTaskDetection": false,
-	"defaultBase": "main",
-	"namedInputs": {
-		"default": ["{projectRoot}/**/*", "sharedGlobals"],
-		"production": [
-			"default",
-			"!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
-			"!{projectRoot}/tsconfig.spec.json",
-			"!{projectRoot}/**/*.stories.@(js|jsx|ts|tsx|mdx)"
-		],
-		"sharedGlobals": ["{workspaceRoot}/biome.json"]
-	},
-	"targetDefaults": {
-		"build": {
-			"dependsOn": ["^build"],
-			"cache": true
-		},
-		"test": {
-			"cache": true
-		},
-		"type-check": {
-			"dependsOn": ["^build"],
-			"cache": true
-		},
-		"lint": {
-			"cache": true
-		},
-		"check": {
-			"dependsOn": ["type-check", "lint"],
-			"cache": true
-		},
-		"validate": {
-			"dependsOn": ["check", "test", "test:integration"],
-			"cache": true
-		}
-	},
-	"release": {
-		"projectsRelationship": "independent",
-		"projects": ["packages/*"],
-		"releaseTag": {
-			"pattern": "{projectName}@{version}"
-		},
-		"version": {
-			"conventionalCommits": true,
-			"preVersionCommand": "pnpm check"
-		},
-		"changelog": {
-			"projectChangelogs": {
-				"createRelease": "github",
-				"file": "{projectRoot}/CHANGELOG.md",
-				"renderOptions": {
-					"authors": false,
-					"commitReferences": true,
-					"versionTitleDate": true
-				}
-			}
-		},
-		"git": {
-			"commit": true,
-			"commitMessage": "chore(release): {projectName}@{version}",
-			"tag": true
-		}
-	}
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "useFlakyTaskDetection": false,
+  "defaultBase": "main",
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "production": [
+      "default",
+      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+      "!{projectRoot}/tsconfig.spec.json",
+      "!{projectRoot}/**/*.stories.@(js|jsx|ts|tsx|mdx)"
+    ],
+    "sharedGlobals": ["{workspaceRoot}/biome.json"]
+  },
+  "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build"],
+      "cache": true
+    },
+    "test": {
+      "cache": true
+    },
+    "type-check": {
+      "dependsOn": ["^build"],
+      "cache": true
+    },
+    "lint": {
+      "cache": true
+    },
+    "check": {
+      "dependsOn": ["type-check", "lint"],
+      "cache": true
+    },
+    "validate": {
+      "dependsOn": ["check", "test", "test:integration"],
+      "cache": true
+    }
+  },
+  "release": {
+    "projectsRelationship": "independent",
+    "projects": ["packages/*"],
+    "releaseTag": {
+      "pattern": "{projectName}@{version}"
+    },
+    "version": {
+      "conventionalCommits": true,
+      "preVersionCommand": "pnpm check"
+    },
+    "changelog": {
+      "projectChangelogs": {
+        "createRelease": "github",
+        "file": "{projectRoot}/CHANGELOG.md",
+        "renderOptions": {
+          "authors": false,
+          "commitReferences": true,
+          "versionTitleDate": true
+        }
+      }
+    },
+    "git": {
+      "commit": true,
+      "commitMessage": "chore(release): {projectName}@{version}",
+      "tag": true
+    }
+  }
 }

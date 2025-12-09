@@ -13,7 +13,7 @@ import type { Address } from "@solana/kit";
 
 /** Program ID for Cascade Splits */
 export const PROGRAM_ID: Address =
-	"SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB" as Address;
+  "SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB" as Address;
 
 /** Maximum recipients per split (protocol limit) */
 export const MAX_RECIPIENTS = 20;
@@ -26,7 +26,7 @@ export const TOTAL_RECIPIENT_BPS = 9900;
 
 /** Default USDC mint (mainnet) */
 export const USDC_MINT: Address =
-	"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" as Address;
+  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" as Address;
 
 // PDA Seeds
 export const PROTOCOL_CONFIG_SEED = "protocol_config";

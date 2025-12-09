@@ -6,9 +6,9 @@
  */
 
 import {
-	PublicKey,
-	TransactionMessage,
-	VersionedTransaction,
+  PublicKey,
+  TransactionMessage,
+  VersionedTransaction,
 } from "@solana/web3.js";
 import type { Address, Instruction } from "@solana/kit";
 import { toWeb3Instruction } from "./index.js";
@@ -28,19 +28,19 @@ import { toWeb3Instruction } from "./index.js";
  * the properties we need to extract.
  */
 export interface KitTransactionMessage {
-	/** Fee payer address (set via setTransactionMessageFeePayerSigner) */
-	readonly feePayer: Address;
+  /** Fee payer address (set via setTransactionMessageFeePayerSigner) */
+  readonly feePayer: Address;
 
-	/** Transaction instructions (set via appendTransactionMessageInstructions) */
-	readonly instructions: readonly Instruction[];
+  /** Transaction instructions (set via appendTransactionMessageInstructions) */
+  readonly instructions: readonly Instruction[];
 
-	/**
-	 * Blockhash lifetime constraint (set via setTransactionMessageLifetimeUsingBlockhash)
-	 */
-	readonly lifetimeConstraint: {
-		readonly blockhash: string;
-		readonly lastValidBlockHeight: bigint;
-	};
+  /**
+   * Blockhash lifetime constraint (set via setTransactionMessageLifetimeUsingBlockhash)
+   */
+  readonly lifetimeConstraint: {
+    readonly blockhash: string;
+    readonly lastValidBlockHeight: bigint;
+  };
 }
 
 // =============================================================================
@@ -65,18 +65,18 @@ export interface KitTransactionMessage {
  * ```
  */
 export function toWeb3Transaction(
-	message: KitTransactionMessage,
+  message: KitTransactionMessage,
 ): VersionedTransaction {
-	// Convert kit instructions to web3.js format
-	const web3Instructions = message.instructions.map(toWeb3Instruction);
+  // Convert kit instructions to web3.js format
+  const web3Instructions = message.instructions.map(toWeb3Instruction);
 
-	// Build TransactionMessage (web3.js)
-	const txMessage = new TransactionMessage({
-		payerKey: new PublicKey(message.feePayer),
-		recentBlockhash: message.lifetimeConstraint.blockhash,
-		instructions: web3Instructions,
-	});
+  // Build TransactionMessage (web3.js)
+  const txMessage = new TransactionMessage({
+    payerKey: new PublicKey(message.feePayer),
+    recentBlockhash: message.lifetimeConstraint.blockhash,
+    instructions: web3Instructions,
+  });
 
-	// Compile to V0 and create VersionedTransaction (unsigned)
-	return new VersionedTransaction(txMessage.compileToV0Message());
+  // Compile to V0 and create VersionedTransaction (unsigned)
+  return new VersionedTransaction(txMessage.compileToV0Message());
 }

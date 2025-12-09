@@ -5,22 +5,22 @@
  */
 
 import type {
-	Address,
-	Rpc,
-	SolanaRpcApi,
-	TransactionSigner,
-	RpcSubscriptions,
-	SignatureNotificationsApi,
-	SlotNotificationsApi,
+  Address,
+  Rpc,
+  SolanaRpcApi,
+  TransactionSigner,
+  RpcSubscriptions,
+  SignatureNotificationsApi,
+  SlotNotificationsApi,
 } from "@solana/kit";
 import { createKitWallet } from "./client/shared.js";
 import { executeImpl } from "./client/execute.js";
 import type {
-	ExecuteResult,
-	ExecuteOptions,
-	ExecuteAndConfirmOptions,
-	SkippedReason,
-	FailedReason,
+  ExecuteResult,
+  ExecuteOptions,
+  ExecuteAndConfirmOptions,
+  SkippedReason,
+  FailedReason,
 } from "./client/types.js";
 
 // Re-export types
@@ -70,42 +70,42 @@ export type { SkippedReason, FailedReason };
  * ```
  */
 export async function executeAndConfirmSplit(input: {
-	/** RPC client */
-	rpc: Rpc<SolanaRpcApi>;
-	/** RPC subscriptions for transaction confirmation */
-	rpcSubscriptions: RpcSubscriptions<
-		SignatureNotificationsApi & SlotNotificationsApi
-	>;
-	/** SplitConfig PDA address */
-	splitConfig: Address;
-	/** Transaction signer */
-	signer: TransactionSigner;
-	/** Commitment level for confirmation (default: 'confirmed') */
-	commitment?: ExecuteAndConfirmOptions["commitment"];
-	/** Priority fee in microlamports per compute unit */
-	computeUnitPrice?: ExecuteAndConfirmOptions["computeUnitPrice"];
-	/** Compute unit limit (lets runtime determine if not set) */
-	computeUnitLimit?: ExecuteAndConfirmOptions["computeUnitLimit"];
-	/** Abort signal for timeout/cancellation support */
-	abortSignal?: ExecuteAndConfirmOptions["abortSignal"];
+  /** RPC client */
+  rpc: Rpc<SolanaRpcApi>;
+  /** RPC subscriptions for transaction confirmation */
+  rpcSubscriptions: RpcSubscriptions<
+    SignatureNotificationsApi & SlotNotificationsApi
+  >;
+  /** SplitConfig PDA address */
+  splitConfig: Address;
+  /** Transaction signer */
+  signer: TransactionSigner;
+  /** Commitment level for confirmation (default: 'confirmed') */
+  commitment?: ExecuteAndConfirmOptions["commitment"];
+  /** Priority fee in microlamports per compute unit */
+  computeUnitPrice?: ExecuteAndConfirmOptions["computeUnitPrice"];
+  /** Compute unit limit (lets runtime determine if not set) */
+  computeUnitLimit?: ExecuteAndConfirmOptions["computeUnitLimit"];
+  /** Abort signal for timeout/cancellation support */
+  abortSignal?: ExecuteAndConfirmOptions["abortSignal"];
 }): Promise<ExecuteResult> {
-	const {
-		rpc,
-		rpcSubscriptions,
-		splitConfig,
-		signer,
-		commitment,
-		computeUnitPrice,
-		computeUnitLimit,
-		abortSignal,
-	} = input;
+  const {
+    rpc,
+    rpcSubscriptions,
+    splitConfig,
+    signer,
+    commitment,
+    computeUnitPrice,
+    computeUnitLimit,
+    abortSignal,
+  } = input;
 
-	const wallet = createKitWallet(signer, rpc, rpcSubscriptions);
+  const wallet = createKitWallet(signer, rpc, rpcSubscriptions);
 
-	return executeImpl(rpc, wallet, splitConfig, {
-		...(commitment && { commitment }),
-		...(computeUnitPrice !== undefined && { computeUnitPrice }),
-		...(computeUnitLimit !== undefined && { computeUnitLimit }),
-		...(abortSignal && { abortSignal }),
-	});
+  return executeImpl(rpc, wallet, splitConfig, {
+    ...(commitment && { commitment }),
+    ...(computeUnitPrice !== undefined && { computeUnitPrice }),
+    ...(computeUnitLimit !== undefined && { computeUnitLimit }),
+    ...(abortSignal && { abortSignal }),
+  });
 }

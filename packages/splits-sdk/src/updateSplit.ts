@@ -5,21 +5,21 @@
  */
 
 import type {
-	Address,
-	Rpc,
-	SolanaRpcApi,
-	TransactionSigner,
-	RpcSubscriptions,
-	SignatureNotificationsApi,
-	SlotNotificationsApi,
+  Address,
+  Rpc,
+  SolanaRpcApi,
+  TransactionSigner,
+  RpcSubscriptions,
+  SignatureNotificationsApi,
+  SlotNotificationsApi,
 } from "@solana/kit";
 import type { Recipient } from "./recipients.js";
 import { createKitWallet } from "./client/shared.js";
 import { updateImpl } from "./client/update.js";
 import type {
-	UpdateResult,
-	UpdateOptions,
-	BlockedReason,
+  UpdateResult,
+  UpdateOptions,
+  BlockedReason,
 } from "./client/types.js";
 
 // Re-export types
@@ -72,52 +72,52 @@ export type UpdateBlockedReason = BlockedReason;
  * ```
  */
 export async function updateSplit(input: {
-	/** RPC client */
-	rpc: Rpc<SolanaRpcApi>;
-	/** RPC subscriptions for transaction confirmation */
-	rpcSubscriptions: RpcSubscriptions<
-		SignatureNotificationsApi & SlotNotificationsApi
-	>;
-	/** Transaction signer (must be split authority) */
-	signer: TransactionSigner;
-	/** SplitConfig PDA address */
-	splitConfig: Address;
-	/** New recipients with share (1-100) or percentageBps (1-9900) */
-	recipients: Recipient[];
-	/**
-	 * Auto-create missing recipient ATAs (default: true).
-	 * Set to false to return blocked status instead of auto-creating.
-	 */
-	createMissingAtas?: boolean;
-	/** Commitment level for confirmation (default: 'confirmed') */
-	commitment?: UpdateOptions["commitment"];
-	/** Priority fee in microlamports per compute unit */
-	computeUnitPrice?: UpdateOptions["computeUnitPrice"];
+  /** RPC client */
+  rpc: Rpc<SolanaRpcApi>;
+  /** RPC subscriptions for transaction confirmation */
+  rpcSubscriptions: RpcSubscriptions<
+    SignatureNotificationsApi & SlotNotificationsApi
+  >;
+  /** Transaction signer (must be split authority) */
+  signer: TransactionSigner;
+  /** SplitConfig PDA address */
+  splitConfig: Address;
+  /** New recipients with share (1-100) or percentageBps (1-9900) */
+  recipients: Recipient[];
+  /**
+   * Auto-create missing recipient ATAs (default: true).
+   * Set to false to return blocked status instead of auto-creating.
+   */
+  createMissingAtas?: boolean;
+  /** Commitment level for confirmation (default: 'confirmed') */
+  commitment?: UpdateOptions["commitment"];
+  /** Priority fee in microlamports per compute unit */
+  computeUnitPrice?: UpdateOptions["computeUnitPrice"];
 }): Promise<UpdateResult> {
-	const {
-		rpc,
-		rpcSubscriptions,
-		signer,
-		splitConfig,
-		recipients,
-		createMissingAtas,
-		commitment,
-		computeUnitPrice,
-	} = input;
+  const {
+    rpc,
+    rpcSubscriptions,
+    signer,
+    splitConfig,
+    recipients,
+    createMissingAtas,
+    commitment,
+    computeUnitPrice,
+  } = input;
 
-	const wallet = createKitWallet(signer, rpc, rpcSubscriptions);
+  const wallet = createKitWallet(signer, rpc, rpcSubscriptions);
 
-	return updateImpl(
-		rpc,
-		wallet,
-		splitConfig,
-		{
-			recipients,
-			...(createMissingAtas !== undefined && { createMissingAtas }),
-		},
-		{
-			...(commitment && { commitment }),
-			...(computeUnitPrice && { computeUnitPrice }),
-		},
-	);
+  return updateImpl(
+    rpc,
+    wallet,
+    splitConfig,
+    {
+      recipients,
+      ...(createMissingAtas !== undefined && { createMissingAtas }),
+    },
+    {
+      ...(commitment && { commitment }),
+      ...(computeUnitPrice && { computeUnitPrice }),
+    },
+  );
 }

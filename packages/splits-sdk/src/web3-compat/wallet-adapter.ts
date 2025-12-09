@@ -24,19 +24,19 @@
  */
 
 import type {
-	Connection,
-	Commitment,
-	VersionedTransaction,
+  Connection,
+  Commitment,
+  VersionedTransaction,
 } from "@solana/web3.js";
 import type { Address, Signature } from "@solana/kit";
 import type { SplitsWallet } from "../client/types.js";
 import {
-	WalletDisconnectedError,
-	WalletRejectedError,
+  WalletDisconnectedError,
+  WalletRejectedError,
 } from "../client/wallet-errors.js";
 import {
-	toWeb3Transaction,
-	type KitTransactionMessage,
+  toWeb3Transaction,
+  type KitTransactionMessage,
 } from "./transactions.js";
 
 // Re-export for convenience (users import from web3-compat)
@@ -51,11 +51,11 @@ export { WalletDisconnectedError, WalletRejectedError };
  * Matches the shape from @solana/wallet-adapter-react's useWallet().
  */
 export interface WalletAdapterLike {
-	publicKey: { toBase58(): string } | null;
-	connected: boolean;
-	signTransaction?:
-		| (<T extends VersionedTransaction>(transaction: T) => Promise<T>)
-		| undefined;
+  publicKey: { toBase58(): string } | null;
+  connected: boolean;
+  signTransaction?:
+    | (<T extends VersionedTransaction>(transaction: T) => Promise<T>)
+    | undefined;
 }
 
 // =============================================================================
@@ -74,92 +74,92 @@ export interface WalletAdapterLike {
  * @throws Error if wallet is not connected or doesn't support signing
  */
 export function fromWalletAdapter(
-	wallet: WalletAdapterLike,
-	connection: Connection,
+  wallet: WalletAdapterLike,
+  connection: Connection,
 ): SplitsWallet {
-	if (!wallet.publicKey) {
-		throw new Error("Wallet not connected. Please connect your wallet first.");
-	}
-	if (!wallet.signTransaction) {
-		throw new Error(
-			"Wallet does not support transaction signing. Please use a compatible wallet.",
-		);
-	}
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected. Please connect your wallet first.");
+  }
+  if (!wallet.signTransaction) {
+    throw new Error(
+      "Wallet does not support transaction signing. Please use a compatible wallet.",
+    );
+  }
 
-	const address = wallet.publicKey.toBase58() as Address;
-	const signTransaction = wallet.signTransaction;
+  const address = wallet.publicKey.toBase58() as Address;
+  const signTransaction = wallet.signTransaction;
 
-	return {
-		address,
+  return {
+    address,
 
-		signAndSend: async (message, options) => {
-			const commitment: Commitment = options?.commitment ?? "confirmed";
-			const abortSignal = options?.abortSignal;
+    signAndSend: async (message, options) => {
+      const commitment: Commitment = options?.commitment ?? "confirmed";
+      const abortSignal = options?.abortSignal;
 
-			// Check abort before starting
-			if (abortSignal?.aborted) {
-				throw new Error("Transaction aborted");
-			}
+      // Check abort before starting
+      if (abortSignal?.aborted) {
+        throw new Error("Transaction aborted");
+      }
 
-			// Check wallet still connected before signing
-			if (!wallet.connected) {
-				throw new WalletDisconnectedError();
-			}
+      // Check wallet still connected before signing
+      if (!wallet.connected) {
+        throw new WalletDisconnectedError();
+      }
 
-			// Convert kit transaction message to web3.js VersionedTransaction
-			const transaction = toWeb3Transaction(message as KitTransactionMessage);
+      // Convert kit transaction message to web3.js VersionedTransaction
+      const transaction = toWeb3Transaction(message as KitTransactionMessage);
 
-			let signed: VersionedTransaction;
-			try {
-				signed = await signTransaction(transaction);
-			} catch (e) {
-				if (isUserRejection(e)) {
-					throw new WalletRejectedError();
-				}
-				throw e;
-			}
+      let signed: VersionedTransaction;
+      try {
+        signed = await signTransaction(transaction);
+      } catch (e) {
+        if (isUserRejection(e)) {
+          throw new WalletRejectedError();
+        }
+        throw e;
+      }
 
-			// Check abort after signing
-			if (abortSignal?.aborted) {
-				throw new Error("Transaction aborted");
-			}
+      // Check abort after signing
+      if (abortSignal?.aborted) {
+        throw new Error("Transaction aborted");
+      }
 
-			// Check again after signing (user might disconnect during signing)
-			if (!wallet.connected) {
-				throw new WalletDisconnectedError();
-			}
+      // Check again after signing (user might disconnect during signing)
+      if (!wallet.connected) {
+        throw new WalletDisconnectedError();
+      }
 
-			// Send to network
-			const signature = await connection.sendRawTransaction(
-				signed.serialize(),
-				{
-					skipPreflight: false,
-					preflightCommitment: commitment,
-				},
-			);
+      // Send to network
+      const signature = await connection.sendRawTransaction(
+        signed.serialize(),
+        {
+          skipPreflight: false,
+          preflightCommitment: commitment,
+        },
+      );
 
-			// Check abort after sending
-			if (abortSignal?.aborted) {
-				throw new Error("Transaction aborted");
-			}
+      // Check abort after sending
+      if (abortSignal?.aborted) {
+        throw new Error("Transaction aborted");
+      }
 
-			// Confirm with blockhash strategy
-			const { blockhash, lastValidBlockHeight } =
-				await connection.getLatestBlockhash(commitment);
+      // Confirm with blockhash strategy
+      const { blockhash, lastValidBlockHeight } =
+        await connection.getLatestBlockhash(commitment);
 
-			const confirmStrategy: {
-				signature: string;
-				blockhash: string;
-				lastValidBlockHeight: number;
-				abortSignal?: AbortSignal;
-			} = { signature, blockhash, lastValidBlockHeight };
-			if (abortSignal) confirmStrategy.abortSignal = abortSignal;
+      const confirmStrategy: {
+        signature: string;
+        blockhash: string;
+        lastValidBlockHeight: number;
+        abortSignal?: AbortSignal;
+      } = { signature, blockhash, lastValidBlockHeight };
+      if (abortSignal) confirmStrategy.abortSignal = abortSignal;
 
-			await connection.confirmTransaction(confirmStrategy, commitment);
+      await connection.confirmTransaction(confirmStrategy, commitment);
 
-			return signature as Signature;
-		},
-	};
+      return signature as Signature;
+    },
+  };
 }
 
 // =============================================================================
@@ -170,16 +170,16 @@ export function fromWalletAdapter(
  * Detect if an error is a user rejection from wallet UI.
  */
 function isUserRejection(e: unknown): boolean {
-	if (e instanceof Error) {
-		const msg = e.message.toLowerCase();
-		return (
-			msg.includes("user rejected") ||
-			msg.includes("user denied") ||
-			msg.includes("cancelled") ||
-			msg.includes("canceled") ||
-			msg.includes("rejected the request") ||
-			msg.includes("user refused")
-		);
-	}
-	return false;
+  if (e instanceof Error) {
+    const msg = e.message.toLowerCase();
+    return (
+      msg.includes("user rejected") ||
+      msg.includes("user denied") ||
+      msg.includes("cancelled") ||
+      msg.includes("canceled") ||
+      msg.includes("rejected the request") ||
+      msg.includes("user refused")
+    );
+  }
+  return false;
 }

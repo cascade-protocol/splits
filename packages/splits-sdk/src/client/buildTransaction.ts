@@ -7,8 +7,8 @@
 
 import type { Rpc, SolanaRpcApi, Instruction, Address } from "@solana/kit";
 import {
-	getSetComputeUnitLimitInstruction,
-	getSetComputeUnitPriceInstruction,
+  getSetComputeUnitLimitInstruction,
+  getSetComputeUnitPriceInstruction,
 } from "@solana-program/compute-budget";
 import type { TransactionMessage } from "./types.js";
 
@@ -16,10 +16,10 @@ import type { TransactionMessage } from "./types.js";
  * Options for building a transaction
  */
 export interface BuildTransactionOptions {
-	/** Priority fee in microlamports per compute unit */
-	computeUnitPrice?: bigint;
-	/** Compute unit limit (optional, lets runtime determine if not set) */
-	computeUnitLimit?: number;
+  /** Priority fee in microlamports per compute unit */
+  computeUnitPrice?: bigint;
+  /** Compute unit limit (optional, lets runtime determine if not set) */
+  computeUnitLimit?: number;
 }
 
 /**
@@ -36,43 +36,43 @@ export interface BuildTransactionOptions {
  * @returns TransactionMessage ready for signing
  */
 export async function buildTransaction(
-	rpc: Rpc<SolanaRpcApi>,
-	feePayer: Address,
-	instructions: Instruction[],
-	options?: BuildTransactionOptions,
+  rpc: Rpc<SolanaRpcApi>,
+  feePayer: Address,
+  instructions: Instruction[],
+  options?: BuildTransactionOptions,
 ): Promise<TransactionMessage> {
-	const {
-		value: { blockhash, lastValidBlockHeight },
-	} = await rpc.getLatestBlockhash().send();
+  const {
+    value: { blockhash, lastValidBlockHeight },
+  } = await rpc.getLatestBlockhash().send();
 
-	const allInstructions: Instruction[] = [];
+  const allInstructions: Instruction[] = [];
 
-	// Add compute unit limit if specified
-	if (options?.computeUnitLimit !== undefined) {
-		allInstructions.push(
-			getSetComputeUnitLimitInstruction({ units: options.computeUnitLimit }),
-		);
-	}
+  // Add compute unit limit if specified
+  if (options?.computeUnitLimit !== undefined) {
+    allInstructions.push(
+      getSetComputeUnitLimitInstruction({ units: options.computeUnitLimit }),
+    );
+  }
 
-	// Add priority fee if specified
-	if (options?.computeUnitPrice !== undefined) {
-		allInstructions.push(
-			getSetComputeUnitPriceInstruction({
-				microLamports: options.computeUnitPrice,
-			}),
-		);
-	}
+  // Add priority fee if specified
+  if (options?.computeUnitPrice !== undefined) {
+    allInstructions.push(
+      getSetComputeUnitPriceInstruction({
+        microLamports: options.computeUnitPrice,
+      }),
+    );
+  }
 
-	// Add the main instructions
-	allInstructions.push(...instructions);
+  // Add the main instructions
+  allInstructions.push(...instructions);
 
-	// Return the transaction message structure
-	return {
-		feePayer,
-		instructions: allInstructions,
-		lifetimeConstraint: {
-			blockhash,
-			lastValidBlockHeight,
-		},
-	};
+  // Return the transaction message structure
+  return {
+    feePayer,
+    instructions: allInstructions,
+    lifetimeConstraint: {
+      blockhash,
+      lastValidBlockHeight,
+    },
+  };
 }

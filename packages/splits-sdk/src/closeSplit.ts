@@ -5,20 +5,20 @@
  */
 
 import type {
-	Address,
-	Rpc,
-	SolanaRpcApi,
-	TransactionSigner,
-	RpcSubscriptions,
-	SignatureNotificationsApi,
-	SlotNotificationsApi,
+  Address,
+  Rpc,
+  SolanaRpcApi,
+  TransactionSigner,
+  RpcSubscriptions,
+  SignatureNotificationsApi,
+  SlotNotificationsApi,
 } from "@solana/kit";
 import { createKitWallet } from "./client/shared.js";
 import { closeImpl } from "./client/close.js";
 import type {
-	CloseResult,
-	CloseOptions,
-	BlockedReason,
+  CloseResult,
+  CloseOptions,
+  BlockedReason,
 } from "./client/types.js";
 
 // Re-export types
@@ -62,46 +62,46 @@ export type CloseBlockedReason = BlockedReason;
  * ```
  */
 export async function closeSplit(input: {
-	/** RPC client */
-	rpc: Rpc<SolanaRpcApi>;
-	/** RPC subscriptions for transaction confirmation */
-	rpcSubscriptions: RpcSubscriptions<
-		SignatureNotificationsApi & SlotNotificationsApi
-	>;
-	/** Transaction signer (must be split authority) */
-	signer: TransactionSigner;
-	/** SplitConfig PDA address */
-	splitConfig: Address;
-	/**
-	 * Auto-create missing recipient ATAs (default: true).
-	 * Set to false to return blocked status instead of auto-creating.
-	 */
-	createMissingAtas?: boolean;
-	/** Commitment level for confirmation (default: 'confirmed') */
-	commitment?: CloseOptions["commitment"];
-	/** Priority fee in microlamports per compute unit */
-	computeUnitPrice?: CloseOptions["computeUnitPrice"];
+  /** RPC client */
+  rpc: Rpc<SolanaRpcApi>;
+  /** RPC subscriptions for transaction confirmation */
+  rpcSubscriptions: RpcSubscriptions<
+    SignatureNotificationsApi & SlotNotificationsApi
+  >;
+  /** Transaction signer (must be split authority) */
+  signer: TransactionSigner;
+  /** SplitConfig PDA address */
+  splitConfig: Address;
+  /**
+   * Auto-create missing recipient ATAs (default: true).
+   * Set to false to return blocked status instead of auto-creating.
+   */
+  createMissingAtas?: boolean;
+  /** Commitment level for confirmation (default: 'confirmed') */
+  commitment?: CloseOptions["commitment"];
+  /** Priority fee in microlamports per compute unit */
+  computeUnitPrice?: CloseOptions["computeUnitPrice"];
 }): Promise<CloseResult> {
-	const {
-		rpc,
-		rpcSubscriptions,
-		signer,
-		splitConfig,
-		createMissingAtas,
-		commitment,
-		computeUnitPrice,
-	} = input;
+  const {
+    rpc,
+    rpcSubscriptions,
+    signer,
+    splitConfig,
+    createMissingAtas,
+    commitment,
+    computeUnitPrice,
+  } = input;
 
-	const wallet = createKitWallet(signer, rpc, rpcSubscriptions);
+  const wallet = createKitWallet(signer, rpc, rpcSubscriptions);
 
-	return closeImpl(
-		rpc,
-		wallet,
-		splitConfig,
-		{ ...(createMissingAtas !== undefined && { createMissingAtas }) },
-		{
-			...(commitment && { commitment }),
-			...(computeUnitPrice && { computeUnitPrice }),
-		},
-	);
+  return closeImpl(
+    rpc,
+    wallet,
+    splitConfig,
+    { ...(createMissingAtas !== undefined && { createMissingAtas }) },
+    {
+      ...(commitment && { commitment }),
+      ...(computeUnitPrice && { computeUnitPrice }),
+    },
+  );
 }

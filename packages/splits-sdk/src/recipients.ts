@@ -22,18 +22,18 @@ import { InvalidRecipientsError } from "./errors.js";
  * ```
  */
 export type Recipient = {
-	address: string;
+  address: string;
 } & (
-	| {
-			/** Share percentage 1-100 (converted to bps: share × 99) */
-			share: number;
-			percentageBps?: never;
-	  }
-	| {
-			/** Raw basis points 1-9900 (for advanced usage) */
-			percentageBps: number;
-			share?: never;
-	  }
+  | {
+      /** Share percentage 1-100 (converted to bps: share × 99) */
+      share: number;
+      percentageBps?: never;
+    }
+  | {
+      /** Raw basis points 1-9900 (for advanced usage) */
+      percentageBps: number;
+      share?: never;
+    }
 );
 
 /**
@@ -41,41 +41,41 @@ export type Recipient = {
  * Each share point = 99 bps (total 9900 bps for 100 shares)
  */
 export function shareToPercentageBps(share: number): number {
-	if (!Number.isInteger(share) || share < 1 || share > 100) {
-		throw new InvalidRecipientsError(
-			`Share must be integer 1-100, got ${share}`,
-		);
-	}
-	return share * 99;
+  if (!Number.isInteger(share) || share < 1 || share > 100) {
+    throw new InvalidRecipientsError(
+      `Share must be integer 1-100, got ${share}`,
+    );
+  }
+  return share * 99;
 }
 
 /**
  * Convert protocol basis points to user-facing share (1-100).
  */
 export function percentageBpsToShares(bps: number): number {
-	return Math.round(bps / 99);
+  return Math.round(bps / 99);
 }
 
 /**
  * Get percentageBps from a Recipient (handles both share and percentageBps).
  */
 export function toPercentageBps(r: Recipient): number {
-	if (r.percentageBps !== undefined) {
-		if (
-			!Number.isInteger(r.percentageBps) ||
-			r.percentageBps < 1 ||
-			r.percentageBps > 9900
-		) {
-			throw new InvalidRecipientsError(
-				`percentageBps must be integer 1-9900, got ${r.percentageBps}`,
-			);
-		}
-		return r.percentageBps;
-	}
-	if (r.share !== undefined) {
-		return shareToPercentageBps(r.share);
-	}
-	throw new InvalidRecipientsError(
-		"Recipient must have either share or percentageBps",
-	);
+  if (r.percentageBps !== undefined) {
+    if (
+      !Number.isInteger(r.percentageBps) ||
+      r.percentageBps < 1 ||
+      r.percentageBps > 9900
+    ) {
+      throw new InvalidRecipientsError(
+        `percentageBps must be integer 1-9900, got ${r.percentageBps}`,
+      );
+    }
+    return r.percentageBps;
+  }
+  if (r.share !== undefined) {
+    return shareToPercentageBps(r.share);
+  }
+  throw new InvalidRecipientsError(
+    "Recipient must have either share or percentageBps",
+  );
 }
