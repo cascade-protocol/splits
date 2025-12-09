@@ -1,3 +1,14 @@
+## 0.11.1 (2025-12-09)
+
+### 🚀 Features
+
+- ⚠️  **sdk:** add /core entry point for kit v2.x compatibility ([8736156](https://github.com/cascade-protocol/splits/commit/8736156))
+
+### ⚠️  Breaking Changes
+
+- **sdk:** add /core entry point for kit v2.x compatibility  ([8736156](https://github.com/cascade-protocol/splits/commit/8736156))
+  Consumers using kit v2.x must import from '@cascade-fyi/splits-sdk/core'
+
 ## 0.11.0 (2025-12-09)
 
 ### ⚠️ BREAKING CHANGES

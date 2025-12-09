@@ -1,3 +1,7 @@
+## 0.1.3 (2025-12-09)
+
+This was a version bump only for @cascade-fyi/splits-sdk-evm to align it with other projects, there were no code changes.
+
 ## 0.1.2 (2025-12-06)
 
 ### 📚 Documentation
