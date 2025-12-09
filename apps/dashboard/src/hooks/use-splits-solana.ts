@@ -23,22 +23,21 @@ import {
 
 // SDK imports
 import {
+	PROGRAM_ID,
+	percentageBpsToShares,
 	getVaultBalance,
+	createSplitsClientWithWallet,
 	type SplitConfig,
 	type SplitRecipient,
 	type UnclaimedAmount,
-} from "@cascade-fyi/splits-sdk/solana";
-import {
-	createSplitsClient,
 	type SplitsClient,
 	type SplitsWallet,
 	type TransactionMessage,
-} from "@cascade-fyi/splits-sdk/solana/client";
+} from "@cascade-fyi/splits-sdk";
 import {
 	SPLIT_CONFIG_DISCRIMINATOR,
 	getSplitConfigDecoder,
-} from "@cascade-fyi/splits-sdk/solana/generated";
-import { PROGRAM_ID, bpsToShares } from "@cascade-fyi/splits-sdk";
+} from "@cascade-fyi/splits-sdk/generated";
 
 // =============================================================================
 // Constants (stable references to prevent infinite re-renders)
@@ -262,7 +261,7 @@ export function useSplits() {
 				.map((r) => ({
 					address: r.address,
 					percentageBps: r.percentageBps,
-					share: bpsToShares(r.percentageBps),
+					share: percentageBpsToShares(r.percentageBps),
 				}));
 
 			const unclaimedAmounts: UnclaimedAmount[] = decoded.unclaimedAmounts
@@ -408,7 +407,7 @@ export function useSplitsWithBalances() {
  *   const result = await splits.ensureSplit({
  *     recipients: [{ address: alice, share: 70 }, { address: bob, share: 29 }],
  *   });
- *   if (result.status === 'CREATED') {
+ *   if (result.status === 'created') {
  *     console.log('Created!', result.vault);
  *   }
  * };
@@ -448,6 +447,6 @@ export function useSplitsClient(): SplitsClient | null {
 			},
 		};
 
-		return createSplitsClient(rpc, wallet);
+		return createSplitsClientWithWallet(rpc, wallet);
 	}, [client, session]);
 }

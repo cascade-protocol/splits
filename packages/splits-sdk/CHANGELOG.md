@@ -1,3 +1,59 @@
+## 0.11.0 (2025-12-09)
+
+### ⚠️ BREAKING CHANGES
+
+- **Module structure flattened**: Imports now from package root, not `/solana` subpath
+  ```typescript
+  // Before
+  import { executeSplit } from '@cascade-fyi/splits-sdk/solana';
+  import { createSplitsClient } from '@cascade-fyi/splits-sdk/solana/client';
+
+  // After
+  import { executeSplit, createSplitsClient } from '@cascade-fyi/splits-sdk';
+  ```
+
+- **Removed `ExecuteAndConfirmResult` type**: Use `ExecuteResult` instead
+  ```typescript
+  // Before
+  if (result.ok) { ... }
+
+  // After
+  if (result.status === 'executed') { ... }
+  ```
+
+- **Renamed `seed` → `uniqueId` in `estimateSplitRent()`**
+  ```typescript
+  // Before
+  estimateSplitRent(rpc, { authority, recipients, seed: labelToSeed("name") })
+
+  // After
+  estimateSplitRent(rpc, { authority, recipients, uniqueId: labelToSeed("name") })
+  ```
+
+### ✨ Features (ADR-0003 Implementation)
+
+- All functions now use flat object parameters consistently
+- All result types use lowercase `status` discriminant (`created`, `executed`, etc.)
+- `splitConfig` is the primary identifier for all operations (not `vault`)
+- Token program auto-detection enabled by default (Token-2022 just works)
+- ATA auto-creation enabled by default with opt-out via `createMissingAtas: false`
+
+### 🔧 Internal Improvements
+
+- Removed redundant type assertions (`as Address`, `as Signature`)
+- Simplified conditional object building with spread syntax
+- Use `getSplitConfig` instead of deprecated `getSplitConfigFromVault` internally
+- Updated ARCHITECTURE.md with correct import paths
+- Marked ADR-0003 as "Implemented"
+
+### 📦 Migration Guide
+
+1. **Update imports**: Remove `/solana` from import paths
+2. **Update result handling**: Change `result.ok` to `result.status === 'executed'`
+3. **Update `estimateSplitRent`**: Rename `seed` parameter to `uniqueId`
+
+---
+
 ## 0.10.3 (2025-12-08)
 
 ### 📚 Documentation

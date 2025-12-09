@@ -1,4 +1,4 @@
-import { bpsToShares } from "@cascade-fyi/splits-sdk";
+import { percentageBpsToShares } from "@cascade-fyi/splits-sdk";
 import type { EvmSplitWithBalance } from "@/hooks/use-splits-evm";
 
 interface EvmSplitDetailRowProps {
@@ -24,7 +24,7 @@ export function EvmSplitDetailRow({ split }: EvmSplitDetailRowProps) {
 									{address}
 								</code>
 								<span className="font-medium shrink-0">
-									{bpsToShares(r.percentageBps)}%
+									{percentageBpsToShares(r.percentageBps)}%
 								</span>
 							</div>
 						);

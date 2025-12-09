@@ -1,6 +1,6 @@
 {
 	"name": "@cascade-fyi/splits-sdk",
-	"version": "0.10.3",
+	"version": "0.11.0",
 	"type": "module",
 	"description": "TypeScript SDK for Cascade Splits payment splitting protocol",
 	"scripts": {
@@ -9,14 +9,16 @@
 		"prepublishOnly": "pnpm build",
 		"dev": "tsdown --watch",
 		"type-check": "tsc --noEmit",
-		"check": "pnpm type-check && biome check --write",
+		"lint": "biome check --write",
+		"check": "pnpm type-check && pnpm lint",
 		"clean": "rm -rf dist",
 		"test": "vitest run",
 		"test:watch": "vitest"
 	},
 	"dependencies": {
-		"@solana/compat": "^5.0.0",
 		"@solana-program/compute-budget": "^0.11.0",
+		"@solana-program/token": "^0.8.0",
+		"@solana/compat": "^5.0.0",
 		"bs58": "^6.0.0"
 	},
 	"devDependencies": {
@@ -59,44 +61,24 @@
 				"default": "./dist/index.cjs"
 			}
 		},
-		"./solana": {
+		"./web3-compat": {
 			"import": {
-				"types": "./dist/solana/index.d.mts",
-				"default": "./dist/solana/index.mjs"
+				"types": "./dist/web3-compat/index.d.mts",
+				"default": "./dist/web3-compat/index.mjs"
 			},
 			"require": {
-				"types": "./dist/solana/index.d.cts",
-				"default": "./dist/solana/index.cjs"
+				"types": "./dist/web3-compat/index.d.cts",
+				"default": "./dist/web3-compat/index.cjs"
 			}
 		},
-		"./solana/web3-compat": {
+		"./generated": {
 			"import": {
-				"types": "./dist/solana/web3-compat.d.mts",
-				"default": "./dist/solana/web3-compat.mjs"
+				"types": "./dist/generated/index.d.mts",
+				"default": "./dist/generated/index.mjs"
 			},
 			"require": {
-				"types": "./dist/solana/web3-compat.d.cts",
-				"default": "./dist/solana/web3-compat.cjs"
-			}
-		},
-		"./solana/generated": {
-			"import": {
-				"types": "./dist/solana/generated.d.mts",
-				"default": "./dist/solana/generated.mjs"
-			},
-			"require": {
-				"types": "./dist/solana/generated.d.cts",
-				"default": "./dist/solana/generated.cjs"
-			}
-		},
-		"./solana/client": {
-			"import": {
-				"types": "./dist/solana/client/index.d.mts",
-				"default": "./dist/solana/client/index.mjs"
-			},
-			"require": {
-				"types": "./dist/solana/client/index.d.cts",
-				"default": "./dist/solana/client/index.cjs"
+				"types": "./dist/generated/index.d.cts",
+				"default": "./dist/generated/index.cjs"
 			}
 		},
 		"./package.json": "./package.json"

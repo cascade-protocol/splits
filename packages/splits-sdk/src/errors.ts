@@ -3,13 +3,13 @@
  *
  * @example
  * ```typescript
- * import { VaultNotFoundError } from '@cascade-fyi/splits-sdk';
+ * import { SplitConfigNotFoundError, getSplitConfig } from '@cascade-fyi/splits-sdk';
  *
  * try {
- *   const split = await getSplitConfigFromVault(rpc, vault);
+ *   const split = await getSplitConfig(rpc, splitConfig);
  * } catch (e) {
- *   if (e instanceof VaultNotFoundError) {
- *     console.log("Vault doesn't exist:", e.vault);
+ *   if (e instanceof SplitConfigNotFoundError) {
+ *     console.log("Split doesn't exist:", e.address);
  *   }
  * }
  * ```
@@ -143,4 +143,4 @@ export {
 	CASCADE_SPLITS_ERROR__INVALID_PROTOCOL_FEE_RECIPIENT,
 	type CascadeSplitsError,
 	getCascadeSplitsErrorMessage,
-} from "./solana/generated/errors/index.js";
+} from "./generated/errors/index.js";

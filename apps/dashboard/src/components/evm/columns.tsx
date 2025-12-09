@@ -10,7 +10,7 @@ import {
 	Loader2,
 	Lock,
 } from "lucide-react";
-import { bpsToShares } from "@cascade-fyi/splits-sdk";
+import { percentageBpsToShares } from "@cascade-fyi/splits-sdk";
 import type { EvmSplitWithBalance } from "@/hooks/use-splits-evm";
 import { formatBalance } from "@/lib/splits-helpers";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
@@ -157,7 +157,7 @@ export function createColumns(
 													: "Unknown"}
 											</span>
 											<span className="font-medium">
-												{bpsToShares(r.percentageBps)}%
+												{percentageBpsToShares(r.percentageBps)}%
 											</span>
 										</div>
 									))}

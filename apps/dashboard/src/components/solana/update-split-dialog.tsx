@@ -6,7 +6,7 @@ import { AlertCircle, Check, Loader2, Minus, Plus } from "lucide-react";
 import {
 	MAX_RECIPIENTS,
 	type Recipient,
-	bpsToShares,
+	percentageBpsToShares,
 } from "@cascade-fyi/splits-sdk";
 import type { SplitWithBalance } from "@/hooks/use-splits-solana";
 
@@ -108,7 +108,7 @@ export function UpdateSplitDialog({
 			form.reset({
 				recipients: splitConfig.recipients.map((r) => ({
 					address: r.address as string,
-					share: bpsToShares(r.percentageBps),
+					share: percentageBpsToShares(r.percentageBps),
 				})),
 			});
 		}

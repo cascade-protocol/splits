@@ -12,7 +12,7 @@ import {
 	Settings,
 	Trash2,
 } from "lucide-react";
-import { bpsToShares } from "@cascade-fyi/splits-sdk";
+import { percentageBpsToShares } from "@cascade-fyi/splits-sdk";
 import type { SplitWithBalance } from "@/hooks/use-splits-solana";
 import {
 	canUpdateOrClose,
@@ -183,7 +183,7 @@ export function createColumns(
 													{(r.address as string).slice(-4)}
 												</span>
 												<span className="font-medium">
-													{bpsToShares(r.percentageBps)}%
+													{percentageBpsToShares(r.percentageBps)}%
 												</span>
 											</div>
 										))}
