@@ -28,10 +28,8 @@ pnpm build
 Run before submitting PRs:
 
 ```bash
-cargo fmt --all --check
-cargo clippy --all-targets --all-features -- -D warnings
-pnpm check
-pnpm test:all
+pnpm nx run-many -t check   # Format + lint (Rust & TypeScript)
+pnpm nx run-many -t test    # All tests
 ```
 
 ## Commit Messages
@@ -47,34 +45,9 @@ docs: update README examples
 
 Scopes: `sdk`, `program`, `docs`, or omit for repo-wide changes.
 
-## Release Components
-
-| Component | Location | Tag Format | Package |
-|-----------|----------|------------|---------|
-| `splits-sdk` | `packages/splits-sdk` | `sdk@vX.Y.Z` | [@cascade-fyi/splits-sdk](https://npmjs.com/package/@cascade-fyi/splits-sdk) |
-| `solana-program` | `programs/cascade-splits` | `solana-program@vX.Y.Z` | — |
-
-GitHub releases and git tags follow this naming convention.
-
-## Release Process
-
-See [.claude/CLAUDE.md](.claude/CLAUDE.md#release-process) for the full release checklist including:
-
-- Version updates across Cargo.toml, package.json, CHANGELOGs
-- Verifiable build process
-- Devnet → Mainnet deployment
-- OtterSec verification
-- npm publish
-
 ## Code Style
 
-**Rust:**
-- Format: `cargo fmt --all`
-- Lint: `cargo clippy --all-targets --all-features -- -D warnings`
-
-**TypeScript:**
-- Format + Lint: `pnpm check` (Biome)
-- Fix: `pnpm check --write`
+Formatting is auto-fixed when running `pnpm nx run-many -t check`.
 
 ## Project Structure
 
@@ -83,12 +56,14 @@ See [.claude/CLAUDE.md](.claude/CLAUDE.md#release-process) for the full release 
 │   ├── src/                   # Program source
 │   ├── tests/                 # Mollusk unit tests
 │   └── benches/               # CU benchmarks
-├── packages/splits-sdk/       # TypeScript SDK (Solana)
-│   ├── src/                   # SDK source
-│   └── tests/                 # Vitest tests
-├── packages/splits-sdk-evm/   # TypeScript SDK (EVM)
-├── apps/dashboard/            # Dashboard app
-├── apps/docs/                 # Documentation site
+├── packages/
+│   ├── splits-sdk/            # TypeScript SDK (Solana)
+│   ├── splits-sdk-evm/        # TypeScript SDK (EVM/Base)
+│   └── tabs-sdk/              # TypeScript SDK (Tabs/Squads)
+├── apps/
+│   ├── dashboard/             # Dashboard app
+│   └── tabs/                  # Tabs app
+├── contracts/                 # EVM contracts (Foundry)
 ├── tests/                     # Anchor integration tests
 └── docs/                      # Documentation
 ```

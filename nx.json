@@ -33,18 +33,12 @@
 	"release": {
 		"projectsRelationship": "independent",
 		"projects": ["packages/*"],
-		"releaseTagPattern": "{projectName}@{version}",
+		"releaseTag": {
+			"pattern": "{projectName}@{version}"
+		},
 		"version": {
-			"preVersionCommand": "pnpm check",
-			"generatorOptions": {
-				"packageRoot": "{projectRoot}",
-				"currentVersionResolver": "git-tag"
-			},
-			"git": {
-				"commit": true,
-				"commitMessage": "chore(release): {projectName}@{version}",
-				"tag": true
-			}
+			"conventionalCommits": true,
+			"preVersionCommand": "pnpm check"
 		},
 		"changelog": {
 			"projectChangelogs": {
@@ -56,6 +50,11 @@
 					"versionTitleDate": true
 				}
 			}
+		},
+		"git": {
+			"commit": true,
+			"commitMessage": "chore(release): {projectName}@{version}",
+			"tag": true
 		}
 	}
 }

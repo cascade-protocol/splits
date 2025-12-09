@@ -3,11 +3,13 @@ packages:
   - packages/*
 
 onlyBuiltDependencies:
+  - '@swc/core'
   - bigint-buffer
   - blake-hash
   - bufferutil
   - esbuild
   - msw
+  - nx
   - protobufjs
   - sharp
   - tiny-secp256k1

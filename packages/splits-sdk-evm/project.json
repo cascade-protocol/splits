@@ -16,10 +16,5 @@
 		"type-check": {
 			"inputs": ["default", "^production"]
 		}
-	},
-	"release": {
-		"version": {
-			"generator": "@nx/js:release-version"
-		}
 	}
 }

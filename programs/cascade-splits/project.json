@@ -1,0 +1,35 @@
+{
+	"name": "cascade-splits-program",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "programs/cascade-splits/src",
+	"projectType": "library",
+	"tags": ["type:program", "platform:solana"],
+	"targets": {
+		"format": {
+			"command": "cargo fmt --all",
+			"inputs": ["{projectRoot}/**/*.rs", "{workspaceRoot}/Cargo.toml"],
+			"cache": true
+		},
+		"lint": {
+			"command": "cargo clippy --package cascade-splits -- -D warnings",
+			"inputs": ["{projectRoot}/**/*.rs", "{workspaceRoot}/Cargo.toml"],
+			"cache": true
+		},
+		"check": {
+			"dependsOn": ["format", "lint"],
+			"command": "echo 'Rust checks passed'",
+			"cache": true
+		},
+		"test": {
+			"command": "cargo test --package cascade-splits",
+			"inputs": ["{projectRoot}/**/*.rs", "{projectRoot}/tests/**/*.rs", "{workspaceRoot}/Cargo.toml"],
+			"cache": true
+		},
+		"build": {
+			"command": "anchor build",
+			"inputs": ["{projectRoot}/**/*.rs", "{workspaceRoot}/Cargo.toml", "{workspaceRoot}/Anchor.toml"],
+			"outputs": ["{workspaceRoot}/target/deploy/cascade_splits.so", "{workspaceRoot}/target/idl/cascade_splits.json"],
+			"cache": true
+		}
+	}
+}

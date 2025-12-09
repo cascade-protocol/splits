@@ -28,10 +28,5 @@
 			],
 			"cache": true
 		}
-	},
-	"release": {
-		"version": {
-			"generator": "@nx/js:release-version"
-		}
 	}
 }
