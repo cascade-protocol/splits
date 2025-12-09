@@ -3,6 +3,7 @@ import { defineConfig } from "tsdown";
 export default defineConfig({
   entry: {
     index: "src/index.ts",
+    "core/index": "src/core/index.ts",
     "web3-compat/index": "src/web3-compat/index.ts",
     "generated/index": "src/generated/index.ts",
   },

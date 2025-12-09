@@ -1,30 +1,21 @@
 /**
- * Cascade Splits SDK
+ * Cascade Splits SDK - Core Module
  *
- * Non-custodial payment splitting for Solana. All exports from a single entry point.
+ * Low-level instructions and helpers compatible with @solana/kit v2.x+.
+ * Use this entry point if your project cannot upgrade to kit v5.0.
+ *
+ * For high-level client with WebSocket confirmation, use the root import
+ * (requires @solana/kit v5.0+).
  *
  * @example
  * ```typescript
  * import {
- *   // High-level client (recommended)
- *   createSplitsClient,
- *
- *   // Low-level instructions (for custom tx flows)
+ *   createSplitConfig,
  *   executeSplit,
+ *   getSplitConfig,
  *   isCascadeSplit,
- *
- *   // Types
  *   type Recipient,
- * } from '@cascade-fyi/splits-sdk';
- *
- * // Server usage with kit signer
- * const splits = createSplitsClient({ rpc, rpcSubscriptions, signer });
- * const result = await splits.ensureSplit({
- *   recipients: [
- *     { address: "alice...", share: 60 },
- *     { address: "bob...", share: 40 }
- *   ]
- * });
+ * } from '@cascade-fyi/splits-sdk/core';
  * ```
  */
 
@@ -40,12 +31,11 @@ export {
   USDC_MINT,
   PROTOCOL_CONFIG_SEED,
   SPLIT_CONFIG_SEED,
-  // Solana program addresses (inlined to avoid @solana-program/* dependencies)
   TOKEN_PROGRAM_ADDRESS,
   TOKEN_2022_PROGRAM_ADDRESS,
   ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
   SYSTEM_PROGRAM_ADDRESS,
-} from "./constants.js";
+} from "../constants.js";
 
 // =============================================================================
 // Types and Conversion Helpers
@@ -56,13 +46,13 @@ export {
   shareToPercentageBps,
   percentageBpsToShares,
   toPercentageBps,
-} from "./recipients.js";
+} from "../recipients.js";
 
 // =============================================================================
 // Errors
 // =============================================================================
 
-export * from "./errors.js";
+export * from "../errors.js";
 
 // =============================================================================
 // Instructions (Low-level - returns Instruction objects)
@@ -75,100 +65,42 @@ export {
   closeSplitConfig,
   type CreateSplitConfigResult,
   type ExecuteSplitResult,
-} from "./instructions.js";
+} from "../instructions.js";
 
 // =============================================================================
 // Helpers & Read Functions
 // =============================================================================
 
 export {
-  // Read functions
   getSplitConfig,
   getSplitConfigAddressFromVault,
-  /** @deprecated Use getSplitConfig() instead */
   getSplitConfigFromVault,
   getProtocolConfig,
   getVaultBalance,
-  // Split detection (cached internally)
   isCascadeSplit,
-  // PDA derivation
   deriveSplitConfig,
   deriveVault,
   deriveAta,
   deriveProtocolConfig,
-  // Utilities
   generateUniqueId,
-  // Label-based seeds (cross-chain compatible)
   labelToSeed,
   seedToLabel,
-  // Token program detection
   detectTokenProgram,
-  // Recipient comparison
   recipientsEqual,
-  // ATA checking & creation
   checkRecipientAtas,
   getCreateAtaInstructions,
   type MissingAta,
-  // Types
   type SplitConfig,
   type SplitRecipient,
   type ProtocolConfig,
   type UnclaimedAmount,
-} from "./helpers.js";
+} from "../helpers.js";
 
 // =============================================================================
 // Estimation
 // =============================================================================
 
-export { estimateSplitRent, type EstimateResult } from "./estimateSplitRent.js";
-
-// =============================================================================
-// High-Level Client
-// =============================================================================
-
 export {
-  createSplitsClient,
-  createSplitsClientWithWallet,
-  type SplitsClient,
-  type SplitsClientOptions,
-} from "./client/factory.js";
-
-// High-level direct functions
-export {
-  ensureSplitConfig,
-  type EnsureResult,
-  type EnsureBlockedReason,
-  type EnsureOptions,
-} from "./ensureSplitConfig.js";
-
-export {
-  executeAndConfirmSplit,
-  type ExecuteResult,
-  type ExecuteOptions,
-  type ExecuteAndConfirmOptions,
-  type SkippedReason,
-  type FailedReason,
-} from "./execute.js";
-
-export {
-  updateSplit,
-  type UpdateResult,
-  type UpdateBlockedReason,
-  type UpdateOptions,
-} from "./updateSplit.js";
-
-export {
-  closeSplit,
-  type CloseResult,
-  type CloseBlockedReason,
-  type CloseOptions,
-} from "./closeSplit.js";
-
-// Client types (for wallet adapter implementations)
-export type {
-  SplitsWallet,
-  SplitsClientConfig,
-  TransactionMessage,
-  EnsureParams,
-  UpdateParams,
-} from "./client/types.js";
+  estimateSplitRent,
+  type EstimateResult,
+} from "../estimateSplitRent.js";

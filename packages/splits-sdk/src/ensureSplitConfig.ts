@@ -13,8 +13,7 @@ import type {
   SignatureNotificationsApi,
   SlotNotificationsApi,
 } from "@solana/kit";
-import { SYSTEM_PROGRAM_ADDRESS } from "@solana-program/system";
-import { USDC_MINT } from "./constants.js";
+import { USDC_MINT, SYSTEM_PROGRAM_ADDRESS } from "./constants.js";
 import type { Recipient } from "./recipients.js";
 import { createKitWallet } from "./client/shared.js";
 import { ensureSplitImpl } from "./client/ensure.js";

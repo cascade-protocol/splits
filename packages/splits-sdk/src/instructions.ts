@@ -8,12 +8,13 @@
  */
 
 import type { Address, Instruction, Rpc, SolanaRpcApi } from "@solana/kit";
-import { SYSTEM_PROGRAM_ADDRESS } from "@solana-program/system";
 import {
+  PROGRAM_ID,
+  USDC_MINT,
   TOKEN_PROGRAM_ADDRESS,
   ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
-} from "@solana-program/token";
-import { PROGRAM_ID, USDC_MINT } from "./constants.js";
+  SYSTEM_PROGRAM_ADDRESS,
+} from "./constants.js";
 import { type Recipient, toPercentageBps } from "./recipients.js";
 import {
   getCreateSplitConfigInstructionDataEncoder,

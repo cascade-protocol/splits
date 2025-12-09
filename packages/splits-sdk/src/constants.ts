@@ -31,3 +31,23 @@ export const USDC_MINT: Address =
 // PDA Seeds
 export const PROTOCOL_CONFIG_SEED = "protocol_config";
 export const SPLIT_CONFIG_SEED = "split_config";
+
+// =============================================================================
+// Solana Program Addresses (inlined to avoid @solana-program/token dependency)
+// =============================================================================
+
+/** SPL Token Program */
+export const TOKEN_PROGRAM_ADDRESS: Address =
+  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as Address;
+
+/** SPL Token-2022 Program */
+export const TOKEN_2022_PROGRAM_ADDRESS: Address =
+  "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb" as Address;
+
+/** Associated Token Program */
+export const ASSOCIATED_TOKEN_PROGRAM_ADDRESS: Address =
+  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL" as Address;
+
+/** System Program */
+export const SYSTEM_PROGRAM_ADDRESS: Address =
+  "11111111111111111111111111111111" as Address;

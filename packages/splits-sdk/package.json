@@ -16,8 +16,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@solana-program/compute-budget": "^0.11.0",
-    "@solana-program/token": "^0.8.0",
     "@solana/compat": "^5.0.0",
     "bs58": "^6.0.0"
   },
@@ -39,10 +37,14 @@
   },
   "peerDependencies": {
     "@solana/kit": ">=2.0.0",
-    "@solana/web3.js": "^1.90.0"
+    "@solana/web3.js": "^1.90.0",
+    "@solana-program/compute-budget": ">=0.6.0"
   },
   "peerDependenciesMeta": {
     "@solana/web3.js": {
+      "optional": true
+    },
+    "@solana-program/compute-budget": {
       "optional": true
     }
   },
@@ -59,6 +61,16 @@
       "require": {
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
+      }
+    },
+    "./core": {
+      "import": {
+        "types": "./dist/core/index.d.mts",
+        "default": "./dist/core/index.mjs"
+      },
+      "require": {
+        "types": "./dist/core/index.d.cts",
+        "default": "./dist/core/index.cjs"
       }
     },
     "./web3-compat": {

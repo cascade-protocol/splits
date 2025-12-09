@@ -26,8 +26,7 @@ import type {
   TransactionSigner,
   Address,
 } from "@solana/kit";
-import { SYSTEM_PROGRAM_ADDRESS } from "@solana-program/system";
-import { USDC_MINT } from "../constants.js";
+import { USDC_MINT, SYSTEM_PROGRAM_ADDRESS } from "../constants.js";
 import type {
   SplitsWallet,
   SplitsClientConfig,

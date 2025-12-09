@@ -11,12 +11,11 @@ import {
   getAddressDecoder,
 } from "@solana/kit";
 import type { Instruction } from "@solana/kit";
-import { findAssociatedTokenPda } from "@solana-program/token";
-import { SYSTEM_PROGRAM_ADDRESS } from "@solana-program/system";
 import {
   TOKEN_PROGRAM_ADDRESS,
   ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
-} from "@solana-program/token";
+  SYSTEM_PROGRAM_ADDRESS,
+} from "./constants.js";
 import {
   PROGRAM_ID,
   PROTOCOL_CONFIG_SEED,
@@ -215,16 +214,21 @@ export async function deriveSplitConfig(
 
 /**
  * Derive an Associated Token Account address
+ *
+ * Seeds: [owner, tokenProgram, mint] with Associated Token Program as program ID
  */
 export async function deriveAta(
   owner: Address,
   mint: Address,
   tokenProgram: Address = TOKEN_PROGRAM_ADDRESS,
 ): Promise<Address> {
-  const [address] = await findAssociatedTokenPda({
-    owner,
-    mint,
-    tokenProgram,
+  const [address] = await getProgramDerivedAddress({
+    programAddress: ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
+    seeds: [
+      addressEncoder.encode(owner),
+      addressEncoder.encode(tokenProgram),
+      addressEncoder.encode(mint),
+    ],
   });
   return address;
 }
