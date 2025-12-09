@@ -1,0 +1,36 @@
+{
+	"name": "cascade-splits-evm-python",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "python/splits-sdk-evm/src",
+	"projectType": "library",
+	"tags": ["type:sdk", "platform:evm", "lang:python"],
+	"targets": {
+		"format": {
+			"command": "cd python/splits-sdk-evm && uv run ruff format .",
+			"inputs": ["{projectRoot}/**/*.py"],
+			"cache": true
+		},
+		"lint": {
+			"command": "cd python/splits-sdk-evm && uv run ruff check",
+			"inputs": ["{projectRoot}/**/*.py"],
+			"cache": true
+		},
+		"check": {
+			"dependsOn": ["format", "lint"],
+			"command": "cd python/splits-sdk-evm && uv run ty check",
+			"inputs": ["{projectRoot}/**/*.py"],
+			"cache": true
+		},
+		"test": {
+			"command": "cd python/splits-sdk-evm && uv run pytest",
+			"inputs": ["{projectRoot}/**/*.py", "{projectRoot}/tests/**/*.py"],
+			"cache": true
+		},
+		"build": {
+			"command": "cd python/splits-sdk-evm && uv build",
+			"inputs": ["{projectRoot}/**/*.py", "{projectRoot}/pyproject.toml"],
+			"outputs": ["{projectRoot}/dist/**"],
+			"cache": true
+		}
+	}
+}

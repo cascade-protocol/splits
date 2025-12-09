@@ -3,42 +3,57 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cascade-splits"
+name = "cascade-splits-evm"
 version = "0.1.0"
 description = "Python SDK for Cascade Splits - Non-custodial payment splitting on Base (EVM)"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.9"
-authors = [
-    { name = "Cascade Protocol", email = "hello@cascade.fyi" }
-]
-keywords = ["ethereum", "base", "payments", "splits", "web3", "usdc"]
+requires-python = ">=3.10"
+authors = [{ name = "Cascade Protocol", email = "hello@cascade.fyi" }]
+keywords = ["ethereum", "evm", "base", "payments", "splits", "web3", "usdc", "cascade"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 dependencies = [
-    "web3>=6.0.0",
-    "eth-account>=0.8.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
+    "web3>=7.0.0",
+    "pydantic>=2.0.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/cascade-protocol/splits"
-Documentation = "https://github.com/cascade-protocol/splits/tree/main/packages/splits-sdk-python"
+Documentation = "https://github.com/cascade-protocol/splits/tree/main/python/splits-sdk-evm"
 Repository = "https://github.com/cascade-protocol/splits"
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+    "ty>=0.0.1a20",
+]
+
 [tool.hatch.build.targets.wheel]
-packages = ["src/cascade_splits"]
+packages = ["src/cascade_splits_evm"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ty.environment]
+python-version = "3.10"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

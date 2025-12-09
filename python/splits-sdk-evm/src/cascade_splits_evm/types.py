@@ -1,47 +1,50 @@
-"""
-Type definitions for Cascade Splits Python SDK.
-"""
+"""Type definitions for cascade-splits-evm SDK."""
 
-from dataclasses import dataclass
-from typing import Optional, List, Literal, Union
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 
-@dataclass
-class Recipient:
+class Recipient(BaseModel):
     """
     A recipient with a share percentage (1-100).
-    
+
     Shares must sum to exactly 100 across all recipients.
     Protocol takes 1% fee, so each share represents (share * 0.99)% of funds.
-    
+
     Example:
         Recipient(address="0xAlice...", share=60)  # 60% of 99% = 59.4%
     """
+
     address: str
-    share: int  # 1-100, total must equal 100
+    share: int = Field(ge=1, le=100)
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class EvmRecipient:
+class EvmRecipient(BaseModel):
     """
     On-chain recipient format with basis points.
-    
+
     This is the format used by the smart contracts.
     Use to_evm_recipient() to convert from Recipient.
     """
+
     addr: str
-    percentage_bps: int  # Basis points (share * 99)
+    percentage_bps: int = Field(ge=1, le=9900)
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class SplitConfig:
-    """
-    Configuration for a payment split.
-    """
+class SplitConfig(BaseModel):
+    """Configuration for a payment split."""
+
     authority: str
     token: str
     unique_id: bytes
-    recipients: List[EvmRecipient]
+    recipients: list[EvmRecipient]
+
+    model_config = {"frozen": True}
 
 
 # Result status types
@@ -49,7 +52,7 @@ EnsureStatus = Literal["CREATED", "NO_CHANGE", "FAILED"]
 ExecuteStatus = Literal["EXECUTED", "SKIPPED", "FAILED"]
 FailedReason = Literal[
     "wallet_rejected",
-    "wallet_disconnected", 
+    "wallet_disconnected",
     "network_error",
     "transaction_failed",
     "transaction_reverted",
@@ -63,40 +66,44 @@ SkippedReason = Literal[
 ]
 
 
-@dataclass
-class EnsureResult:
+class EnsureResult(BaseModel):
     """
     Result of ensure_split operation.
-    
+
     status: CREATED | NO_CHANGE | FAILED
     """
+
     status: EnsureStatus
-    split: Optional[str] = None
-    signature: Optional[str] = None
-    reason: Optional[Union[FailedReason, str]] = None
-    message: Optional[str] = None
+    split: str | None = None
+    signature: str | None = None
+    reason: FailedReason | str | None = None
+    message: str | None = None
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class ExecuteResult:
+class ExecuteResult(BaseModel):
     """
     Result of execute_split operation.
-    
+
     status: EXECUTED | SKIPPED | FAILED
     """
+
     status: ExecuteStatus
-    signature: Optional[str] = None
-    reason: Optional[Union[FailedReason, SkippedReason, str]] = None
-    message: Optional[str] = None
+    signature: str | None = None
+    reason: FailedReason | SkippedReason | str | None = None
+    message: str | None = None
+
+    model_config = {"frozen": True}
 
 
-@dataclass
-class ExecutionPreview:
-    """
-    Preview of what would happen if split is executed.
-    """
-    recipient_amounts: List[int]
+class ExecutionPreview(BaseModel):
+    """Preview of what would happen if split is executed."""
+
+    recipient_amounts: list[int]
     protocol_fee: int
     available: int
-    pending_recipient_amounts: List[int]
+    pending_recipient_amounts: list[int]
     pending_protocol_amount: int
+
+    model_config = {"frozen": True}

@@ -1,4 +1,4 @@
-# @cascade-fyi/splits-sdk-python
+# cascade-splits-evm
 
 Python SDK for [Cascade Splits](https://github.com/cascade-protocol/splits) on EVM chains (Base).
 
@@ -9,22 +9,24 @@ Split incoming payments to multiple recipients automatically. Built for high-thr
 ## Installation
 
 ```bash
-pip install cascade-splits
+pip install cascade-splits-evm
 ```
 
 **Requirements:**
-- Python 3.9+
-- `web3` >= 6.0.0
+- Python 3.10+
+- `web3` >= 7.0.0
+- `pydantic` >= 2.0.0
 
 ## Quick Start
 
 ### Create a Split
 
 ```python
-from cascade_splits import CascadeSplitsClient, Recipient
+from cascade_splits_evm import CascadeSplitsClient, Recipient
 import secrets
 
 # Initialize client (Base mainnet)
+# Can also use CASCADE_RPC_URL and CASCADE_PRIVATE_KEY environment variables
 client = CascadeSplitsClient(
     rpc_url="https://mainnet.base.org",
     private_key="0x...",
@@ -91,7 +93,7 @@ Recipient(address="0xBob...", share=40)    # 40% of 99% = 39.6%
 
 ### Discriminated Union Results
 
-All operations return typed results with `status` discriminant:
+All operations return typed Pydantic models with `status` discriminant:
 
 ```python
 # ensure_split results
@@ -118,13 +120,14 @@ EVM splits are **immutable** — recipients cannot be changed after creation. Cr
 ### CascadeSplitsClient
 
 ```python
-from cascade_splits import CascadeSplitsClient
+from cascade_splits_evm import CascadeSplitsClient
 
+# All parameters can be set via environment variables
 client = CascadeSplitsClient(
-    rpc_url="https://mainnet.base.org",
-    private_key="0x...",
-    chain_id=8453,  # Optional, default: 8453 (Base mainnet)
-    factory_address=None,  # Optional, uses default
+    rpc_url="https://mainnet.base.org",  # or CASCADE_RPC_URL env var
+    private_key="0x...",                  # or CASCADE_PRIVATE_KEY env var
+    chain_id=8453,                        # Optional, default: 8453 (Base mainnet)
+    factory_address=None,                 # Optional, uses default
 )
 
 # Properties
@@ -145,7 +148,7 @@ predicted = client.predict_split_address(unique_id, recipients, authority, token
 ### Helper Functions
 
 ```python
-from cascade_splits import (
+from cascade_splits_evm import (
     to_evm_recipient,
     to_evm_recipients,
     is_cascade_split,
@@ -156,7 +159,7 @@ from cascade_splits import (
 )
 
 # Convert share (1-100) to basis points
-recipient = to_evm_recipient(Recipient("0x...", share=50))
+recipient = to_evm_recipient(Recipient(address="0x...", share=50))
 # EvmRecipient(addr="0x...", percentage_bps=4950)
 
 # Check if address is a split
@@ -166,10 +169,10 @@ is_split = is_cascade_split(w3, address)
 balance = get_split_balance(w3, split_address)
 ```
 
-### Address Utilities
+### Constants
 
 ```python
-from cascade_splits import (
+from cascade_splits_evm import (
     get_split_factory_address,
     get_usdc_address,
     is_supported_chain,
@@ -183,10 +186,24 @@ usdc = get_usdc_address(8453)
 supported = is_supported_chain(8453)  # True
 ```
 
+### Exceptions
+
+```python
+from cascade_splits_evm import (
+    CascadeSplitsError,        # Base exception
+    ConfigurationError,         # Missing RPC URL, private key, etc.
+    ChainNotSupportedError,     # Unsupported chain ID
+    TransactionError,           # Transaction failed
+    TransactionRejectedError,   # Wallet rejected transaction
+    TransactionRevertedError,   # Transaction reverted on-chain
+    InsufficientGasError,       # Not enough gas
+)
+```
+
 ## Types
 
 ```python
-from cascade_splits import (
+from cascade_splits_evm import (
     Recipient,          # Input recipient with share (1-100)
     EvmRecipient,       # On-chain format with basis points
     EnsureResult,       # Result of ensure_split
@@ -203,19 +220,14 @@ from cascade_splits import (
 | Base Mainnet | 8453 | `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7` | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
 | Base Sepolia | 84532 | `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7` | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 
-## ubounty.ai Integration
-
-This SDK is designed for easy integration with payment platforms:
+## Example Integration
 
 ```python
-from cascade_splits import CascadeSplitsClient, Recipient
-import secrets
+from cascade_splits_evm import CascadeSplitsClient, Recipient
+import os
 
-# Initialize client
-client = CascadeSplitsClient(
-    rpc_url="https://mainnet.base.org",
-    private_key=os.environ["PRIVATE_KEY"],
-)
+# Initialize client (uses environment variables)
+client = CascadeSplitsClient()
 
 # Create a split for bounty distribution
 result = client.ensure_split(
@@ -227,7 +239,8 @@ result = client.ensure_split(
 )
 
 # After PR is merged, execute the split
-exec_result = client.execute_split(result.split)
+if result.status == "CREATED" or result.status == "NO_CHANGE":
+    exec_result = client.execute_split(result.split)
 ```
 
 ## Resources
