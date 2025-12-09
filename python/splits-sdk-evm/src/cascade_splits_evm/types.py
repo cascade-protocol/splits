@@ -59,7 +59,6 @@ FailedReason = Literal[
     "insufficient_gas",
 ]
 SkippedReason = Literal[
-    "not_found",
     "not_a_split",
     "below_threshold",
     "no_pending_funds",
@@ -105,5 +104,53 @@ class ExecutionPreview(BaseModel):
     available: int
     pending_recipient_amounts: list[int]
     pending_protocol_amount: int
+
+    model_config = {"frozen": True}
+
+
+class GasOptions(BaseModel):
+    """
+    Gas configuration for transactions.
+
+    By default, uses fixed gas limits and lets the RPC set gas prices.
+    Enable estimate_gas for dynamic estimation, or set EIP-1559 fees explicitly.
+
+    Example:
+        GasOptions(estimate_gas=True)  # Dynamic estimation with 20% buffer
+        GasOptions(max_fee_per_gas=50_000_000_000)  # 50 gwei max fee
+    """
+
+    estimate_gas: bool = False
+    """Estimate gas dynamically (adds 20% buffer). Default: False (use fixed limits)."""
+
+    gas_limit: int | None = None
+    """Override gas limit. If None, uses default or estimation."""
+
+    max_fee_per_gas: int | None = None
+    """EIP-1559 max fee per gas in wei. If set, uses type 2 transactions."""
+
+    max_priority_fee_per_gas: int | None = None
+    """EIP-1559 priority fee per gas in wei. Defaults to 1 gwei if max_fee is set."""
+
+    model_config = {"frozen": True}
+
+
+class EnsureParams(BaseModel):
+    """Parameters for ensure_split operation."""
+
+    unique_id: bytes
+    recipients: list[Recipient]
+    authority: str | None = None
+    token: str | None = None
+    gas: GasOptions | None = None
+
+    model_config = {"frozen": True}
+
+
+class ExecuteOptions(BaseModel):
+    """Options for execute_split operation."""
+
+    min_balance: int | None = None
+    gas: GasOptions | None = None
 
     model_config = {"frozen": True}

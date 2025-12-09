@@ -1,15 +1,27 @@
 """High-level client for Cascade Splits EVM SDK."""
 
-import os
 from typing import TypeVar
 
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
 from web3 import Web3
+from web3.exceptions import ContractLogicError, Web3Exception
 
-from ._exceptions import ChainNotSupportedError, ConfigurationError
+from ._exceptions import ChainNotSupportedError
 from .abi import SPLIT_CONFIG_IMPL_ABI, SPLIT_FACTORY_ABI
-from .constants import get_split_factory_address, get_usdc_address, is_supported_chain
+from .constants import (
+    MAX_RECIPIENTS,
+    MIN_RECIPIENTS,
+    get_split_factory_address,
+    get_usdc_address,
+    is_supported_chain,
+)
+from .helpers import (
+    DEFAULT_GAS_CREATE,
+    DEFAULT_GAS_EXECUTE,
+    build_tx_params,
+    to_evm_recipients,
+)
 from .helpers import (
     get_split_balance as _get_split_balance,
 )
@@ -25,13 +37,11 @@ from .helpers import (
 from .helpers import (
     preview_execution as _preview_execution,
 )
-from .helpers import (
-    to_evm_recipients,
-)
 from .types import (
     EnsureResult,
     ExecuteResult,
     ExecutionPreview,
+    GasOptions,
     Recipient,
     SplitConfig,
 )
@@ -65,8 +75,8 @@ class CascadeSplitsClient:
 
     def __init__(
         self,
-        rpc_url: str | None = None,
-        private_key: str | None = None,
+        rpc_url: str,
+        private_key: str,
         chain_id: int = 8453,
         factory_address: str | None = None,
     ) -> None:
@@ -74,34 +84,20 @@ class CascadeSplitsClient:
         Initialize the Cascade Splits client.
 
         Args:
-            rpc_url: RPC endpoint URL. Falls back to CASCADE_RPC_URL env var.
-            private_key: Private key for signing. Falls back to CASCADE_PRIVATE_KEY env var.
+            rpc_url: RPC endpoint URL
+            private_key: Private key for signing transactions
             chain_id: Chain ID (8453 for Base mainnet, 84532 for Base Sepolia)
             factory_address: Custom factory address (uses default if not provided)
 
         Raises:
-            ConfigurationError: If rpc_url or private_key not provided
             ChainNotSupportedError: If chain_id is not supported
         """
-        # Resolve from environment
-        resolved_rpc = rpc_url or os.environ.get("CASCADE_RPC_URL")
-        if not resolved_rpc:
-            raise ConfigurationError("rpc_url required (or set CASCADE_RPC_URL)")
-
-        resolved_key = private_key or os.environ.get("CASCADE_PRIVATE_KEY")
-        if not resolved_key:
-            raise ConfigurationError("private_key required (or set CASCADE_PRIVATE_KEY)")
-
-        # Validate chain
         if not is_supported_chain(chain_id):
             raise ChainNotSupportedError(chain_id)
 
-        self.w3 = Web3(Web3.HTTPProvider(resolved_rpc))
-        self.account: LocalAccount = Account.from_key(resolved_key)
+        self.w3 = Web3(Web3.HTTPProvider(rpc_url))
+        self.account: LocalAccount = Account.from_key(private_key)
         self.chain_id = chain_id
-
-        # Set default account for transactions
-        self.w3.eth.default_account = self.account.address
 
         # Get factory address
         self.factory_address = Web3.to_checksum_address(
@@ -128,6 +124,7 @@ class CascadeSplitsClient:
         recipients: list[Recipient],
         authority: str | None = None,
         token: str | None = None,
+        gas: GasOptions | None = None,
     ) -> EnsureResult:
         """
         Create a split if it doesn't exist (idempotent).
@@ -137,6 +134,7 @@ class CascadeSplitsClient:
             recipients: List of recipients with shares (must sum to 100)
             authority: Authority address (defaults to wallet address)
             token: Token address (defaults to USDC)
+            gas: Gas options (estimation, EIP-1559 fees)
 
         Returns:
             EnsureResult with status CREATED, NO_CHANGE, or FAILED
@@ -150,6 +148,12 @@ class CascadeSplitsClient:
             unique_id = unique_id.ljust(32, b"\x00")
         elif len(unique_id) > 32:
             unique_id = unique_id[:32]
+
+        # Validate recipient count
+        recipient_count = len(recipients)
+        if not (MIN_RECIPIENTS <= recipient_count <= MAX_RECIPIENTS):
+            msg = f"Recipients: expected {MIN_RECIPIENTS}-{MAX_RECIPIENTS}, got {recipient_count}"
+            return EnsureResult(status="FAILED", reason="transaction_failed", message=msg)
 
         # Convert recipients
         try:
@@ -185,20 +189,15 @@ class CascadeSplitsClient:
             if code and len(code) > 0:
                 return EnsureResult(status="NO_CHANGE", split=predicted)
 
-            # Build transaction
-            tx = self.factory.functions.createSplitConfig(
-                authority,
-                token,
-                unique_id,
-                recipient_tuples,
-            ).build_transaction(
-                {
-                    "from": self.account.address,
-                    "nonce": self.w3.eth.get_transaction_count(self.account.address),
-                    "gas": 300000,
-                    "chainId": self.chain_id,
-                }
+            # Build transaction with gas options
+            contract_call = self.factory.functions.createSplitConfig(
+                authority, token, unique_id, recipient_tuples
             )
+            tx_params = build_tx_params(
+                self.w3, self.account.address, self.chain_id, DEFAULT_GAS_CREATE,
+                gas_options=gas, contract_call=contract_call,
+            )
+            tx = contract_call.build_transaction(tx_params)
 
             # Sign and send
             signed = self.account.sign_transaction(tx)
@@ -213,13 +212,26 @@ class CascadeSplitsClient:
                 signature=tx_hash.hex(),
             )
 
+        except ContractLogicError as e:
+            return EnsureResult(
+                status="FAILED",
+                reason="transaction_reverted",
+                message=str(e),
+            )
+        except Web3Exception as e:
+            return self._handle_web3_error(e, EnsureResult)
         except Exception as e:
-            return self._handle_transaction_error(e, EnsureResult)
+            return EnsureResult(
+                status="FAILED",
+                reason="transaction_failed",
+                message=str(e),
+            )
 
     def execute_split(
         self,
         split_address: str,
         min_balance: int | None = None,
+        gas: GasOptions | None = None,
     ) -> ExecuteResult:
         """
         Execute split distribution (permissionless).
@@ -229,6 +241,7 @@ class CascadeSplitsClient:
         Args:
             split_address: Address of the split to execute
             min_balance: Minimum balance required (skip if below)
+            gas: Gas options (estimation, EIP-1559 fees)
 
         Returns:
             ExecuteResult with status EXECUTED, SKIPPED, or FAILED
@@ -256,15 +269,13 @@ class CascadeSplitsClient:
                 abi=SPLIT_CONFIG_IMPL_ABI,
             )
 
-            # Build transaction
-            tx = split_contract.functions.executeSplit().build_transaction(
-                {
-                    "from": self.account.address,
-                    "nonce": self.w3.eth.get_transaction_count(self.account.address),
-                    "gas": 500000,
-                    "chainId": self.chain_id,
-                }
+            # Build transaction with gas options
+            contract_call = split_contract.functions.executeSplit()
+            tx_params = build_tx_params(
+                self.w3, self.account.address, self.chain_id, DEFAULT_GAS_EXECUTE,
+                gas_options=gas, contract_call=contract_call,
             )
+            tx = contract_call.build_transaction(tx_params)
 
             # Sign and send
             signed = self.account.sign_transaction(tx)
@@ -275,8 +286,20 @@ class CascadeSplitsClient:
 
             return ExecuteResult(status="EXECUTED", signature=tx_hash.hex())
 
+        except ContractLogicError as e:
+            return ExecuteResult(
+                status="FAILED",
+                reason="transaction_reverted",
+                message=str(e),
+            )
+        except Web3Exception as e:
+            return self._handle_web3_error(e, ExecuteResult)
         except Exception as e:
-            return self._handle_transaction_error(e, ExecuteResult)
+            return ExecuteResult(
+                status="FAILED",
+                reason="transaction_failed",
+                message=str(e),
+            )
 
     def is_cascade_split(self, address: str) -> bool:
         """Check if an address is a valid Cascade split."""
@@ -286,8 +309,8 @@ class CascadeSplitsClient:
         """Get the token balance of a split (in smallest unit)."""
         return _get_split_balance(self.w3, split_address)
 
-    def get_split_config(self, split_address: str) -> SplitConfig:
-        """Get the configuration of a split."""
+    def get_split_config(self, split_address: str) -> SplitConfig | None:
+        """Get the configuration of a split. Returns None if not a valid split."""
         return _get_split_config(self.w3, split_address)
 
     def preview_execution(self, split_address: str) -> ExecutionPreview:
@@ -333,33 +356,26 @@ class CascadeSplitsClient:
         ).call()
 
     @staticmethod
-    def _handle_transaction_error(e: Exception, result_class: type[_T]) -> _T:
-        """Map exception to appropriate result type."""
-        message = str(e)
+    def _handle_web3_error(e: Web3Exception, result_class: type[_T]) -> _T:
+        """Map Web3Exception to appropriate result type."""
+        message = str(e).lower()
 
-        if "rejected" in message.lower() or "denied" in message.lower():
+        if "rejected" in message or "denied" in message:
             return result_class(
                 status="FAILED",
                 reason="wallet_rejected",
                 message="Transaction rejected",
             )
 
-        if "revert" in message.lower():
-            return result_class(
-                status="FAILED",
-                reason="transaction_reverted",
-                message=message,
-            )
-
-        if "gas" in message.lower() or "insufficient" in message.lower():
+        if "gas" in message or "insufficient" in message:
             return result_class(
                 status="FAILED",
                 reason="insufficient_gas",
-                message=message,
+                message=str(e),
             )
 
         return result_class(
             status="FAILED",
             reason="transaction_failed",
-            message=message,
+            message=str(e),
         )

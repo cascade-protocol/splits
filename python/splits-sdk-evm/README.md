@@ -13,11 +13,43 @@ pip install cascade-splits-evm
 ```
 
 **Requirements:**
-- Python 3.10+
+- Python 3.11+
 - `web3` >= 7.0.0
 - `pydantic` >= 2.0.0
 
 ## Quick Start
+
+### Async Usage (Recommended)
+
+```python
+import asyncio
+from cascade_splits_evm import AsyncCascadeSplitsClient, Recipient
+
+async def main():
+    client = AsyncCascadeSplitsClient(
+        rpc_url="https://mainnet.base.org",
+        private_key="0x...",
+    )
+
+    result = await client.ensure_split(
+        unique_id=b"my-split-id",
+        recipients=[
+            Recipient(address="0xAlice...", share=60),
+            Recipient(address="0xBob...", share=40),
+        ]
+    )
+
+    if result.status == "CREATED":
+        print(f"Split created at {result.split}")
+    elif result.status == "NO_CHANGE":
+        print(f"Already exists at {result.split}")
+
+asyncio.run(main())
+```
+
+### Sync Usage
+
+For simple scripts, use the synchronous client:
 
 ### Create a Split
 
@@ -117,17 +149,16 @@ EVM splits are **immutable** — recipients cannot be changed after creation. Cr
 
 ## API Reference
 
-### CascadeSplitsClient
+### AsyncCascadeSplitsClient (Recommended)
 
 ```python
-from cascade_splits_evm import CascadeSplitsClient
+from cascade_splits_evm import AsyncCascadeSplitsClient
 
-# All parameters can be set via environment variables
-client = CascadeSplitsClient(
-    rpc_url="https://mainnet.base.org",  # or CASCADE_RPC_URL env var
-    private_key="0x...",                  # or CASCADE_PRIVATE_KEY env var
-    chain_id=8453,                        # Optional, default: 8453 (Base mainnet)
-    factory_address=None,                 # Optional, uses default
+client = AsyncCascadeSplitsClient(
+    rpc_url="https://mainnet.base.org",
+    private_key="0x...",
+    chain_id=8453,        # Optional, default: 8453 (Base mainnet)
+    factory_address=None, # Optional, uses default
 )
 
 # Properties
@@ -135,7 +166,28 @@ client.address          # Wallet address
 client.chain_id         # Connected chain ID
 client.factory_address  # Factory contract address
 
-# Methods
+# Async methods
+result = await client.ensure_split(unique_id, recipients, authority=None, token=None)
+result = await client.execute_split(split_address, min_balance=None)
+config = await client.get_split_config(split_address)
+balance = await client.get_split_balance(split_address)
+is_split = await client.is_cascade_split(address)
+preview = await client.preview_execution(split_address)
+predicted = await client.predict_split_address(unique_id, recipients, authority, token)
+```
+
+### CascadeSplitsClient (Sync)
+
+```python
+from cascade_splits_evm import CascadeSplitsClient
+
+# Same API as AsyncCascadeSplitsClient, but synchronous
+client = CascadeSplitsClient(
+    rpc_url="https://mainnet.base.org",
+    private_key="0x...",
+)
+
+# Sync methods
 result = client.ensure_split(unique_id, recipients, authority=None, token=None)
 result = client.execute_split(split_address, min_balance=None)
 config = client.get_split_config(split_address)
@@ -143,6 +195,28 @@ balance = client.get_split_balance(split_address)
 is_split = client.is_cascade_split(address)
 preview = client.preview_execution(split_address)
 predicted = client.predict_split_address(unique_id, recipients, authority, token)
+```
+
+### Low-Level Async Functions
+
+For direct control over the web3 instance:
+
+```python
+from web3 import AsyncWeb3
+from eth_account import Account
+from cascade_splits_evm import ensure_split, execute_split, EnsureParams, Recipient
+
+w3 = AsyncWeb3(AsyncWeb3.AsyncHTTPProvider("https://mainnet.base.org"))
+account = Account.from_key("0x...")
+factory = "0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7"
+
+result = await ensure_split(w3, account, factory, EnsureParams(
+    unique_id=b"my-split",
+    recipients=[
+        Recipient(address="0xAlice...", share=60),
+        Recipient(address="0xBob...", share=40),
+    ]
+))
 ```
 
 ### Helper Functions
@@ -155,7 +229,11 @@ from cascade_splits_evm import (
     get_split_balance,
     get_split_config,
     has_pending_funds,
+    get_pending_amount,
+    get_total_unclaimed,
     preview_execution,
+    predict_split_address,
+    get_default_token,
 )
 
 # Convert share (1-100) to basis points
@@ -167,6 +245,9 @@ is_split = is_cascade_split(w3, address)
 
 # Get split balance
 balance = get_split_balance(w3, split_address)
+
+# Get default token (USDC) for a chain
+usdc = get_default_token(8453)  # Base mainnet
 ```
 
 ### Constants
@@ -223,24 +304,49 @@ from cascade_splits_evm import (
 ## Example Integration
 
 ```python
-from cascade_splits_evm import CascadeSplitsClient, Recipient
 import os
+from cascade_splits_evm import AsyncCascadeSplitsClient, Recipient
 
-# Initialize client (uses environment variables)
-client = CascadeSplitsClient()
+async def distribute_bounty(issue_id: str, developer_wallet: str, platform_wallet: str):
+    client = AsyncCascadeSplitsClient(
+        rpc_url=os.environ["RPC_URL"],
+        private_key=os.environ["PRIVATE_KEY"],
+    )
 
-# Create a split for bounty distribution
-result = client.ensure_split(
-    unique_id=f"bounty-{issue_id}".encode().ljust(32, b'\x00'),
-    recipients=[
-        Recipient(address=developer_wallet, share=90),
-        Recipient(address=platform_wallet, share=10),
-    ]
-)
+    # Create a split for bounty distribution
+    result = await client.ensure_split(
+        unique_id=f"bounty-{issue_id}".encode().ljust(32, b'\x00'),
+        recipients=[
+            Recipient(address=developer_wallet, share=90),
+            Recipient(address=platform_wallet, share=10),
+        ]
+    )
 
-# After PR is merged, execute the split
-if result.status == "CREATED" or result.status == "NO_CHANGE":
-    exec_result = client.execute_split(result.split)
+    # After PR is merged, execute the split
+    if result.status in ("CREATED", "NO_CHANGE"):
+        exec_result = await client.execute_split(result.split)
+        return exec_result
+
+    return result
+```
+
+## Development
+
+### Running Tests
+
+```bash
+# Unit tests (no external dependencies)
+pytest --ignore=tests/test_integration.py
+
+# Integration tests (requires Foundry/Anvil)
+pytest tests/test_integration.py -v
+```
+
+Integration tests spin up an Anvil fork of Base Sepolia automatically. Install Foundry:
+
+```bash
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
 ```
 
 ## Resources

@@ -18,6 +18,10 @@ USDC_ADDRESSES: dict[int, str] = {
 # Supported chain IDs
 SUPPORTED_CHAIN_IDS: list[int] = [8453, 84532]
 
+# Recipient limits (enforced by contract)
+MIN_RECIPIENTS = 1
+MAX_RECIPIENTS = 20
+
 
 def get_split_factory_address(chain_id: int) -> str:
     """Get the SplitFactory address for a given chain ID."""
