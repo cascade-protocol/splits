@@ -1,3 +1,0 @@
-"""
-Test configuration for pytest.
-"""

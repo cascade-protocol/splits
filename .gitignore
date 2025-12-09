@@ -13,6 +13,17 @@ docker-target
 .env
 tmp
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
+.ty/
+
 
 
 .nx/cache

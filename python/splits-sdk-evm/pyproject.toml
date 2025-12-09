@@ -1,0 +1,53 @@
+[project]
+name = "cascade-splits-sdk-evm"
+version = "0.1.0"
+description = "Python SDK for Cascade Splits - Non-custodial payment splitting on Base (EVM)"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{name = "Cascade Protocol", email = "hello@cascade.fyi"}]
+license = "Apache-2.0"
+dependencies = [
+    "web3>=7.0.0,<8.0",
+    "pydantic>=2.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0",
+    "pytest-asyncio>=1.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.14",
+    "ty>=0.0.1a32",
+]
+
+[project.urls]
+Repository = "https://github.com/cascade-protocol/splits"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cascade_splits_evm"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# warnings.filterwarnings must be called before imports to suppress deprecation warnings
+"src/cascade_splits_evm/__init__.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: tests requiring Anvil fork (run with: pytest -m integration)",
+]
+filterwarnings = [
+    # web3.py imports LegacyWebSocketProvider unconditionally (ethereum/web3.py#3530)
+    "ignore:websockets.legacy is deprecated:DeprecationWarning",
+]
