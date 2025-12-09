@@ -1,33 +1,33 @@
 import type { Address, Chain, Hash } from "viem";
 import type {
-	EvmEnsureResult,
-	EvmExecuteResult,
-	EvmSplitConfig,
-	EvmExecutionPreview,
-	EvmExecuteOptions,
-	EvmRecipientInput,
+  EvmEnsureResult,
+  EvmExecuteResult,
+  EvmSplitConfig,
+  EvmExecutionPreview,
+  EvmExecuteOptions,
+  EvmRecipientInput,
 } from "../types.js";
 
 /**
  * Parameters for creating a split via the client.
  */
 export interface ClientEnsureParams {
-	/** Authority (owner) of the split. Defaults to wallet address. */
-	authority?: Address;
-	/** ERC20 token to split. Defaults to USDC on the connected chain. */
-	token?: Address;
-	/** Unique identifier for deterministic addressing. */
-	uniqueId: Hash;
-	/** Recipients with shares or basis points. */
-	recipients: EvmRecipientInput[];
+  /** Authority (owner) of the split. Defaults to wallet address. */
+  authority?: Address;
+  /** ERC20 token to split. Defaults to USDC on the connected chain. */
+  token?: Address;
+  /** Unique identifier for deterministic addressing. */
+  uniqueId: Hash;
+  /** Recipients with shares or basis points. */
+  recipients: EvmRecipientInput[];
 }
 
 /**
  * Configuration for creating an EVM splits client.
  */
 export interface EvmSplitsClientConfig {
-	/** Override the factory address (uses deployed address by default) */
-	factoryAddress?: Address;
+  /** Override the factory address (uses deployed address by default) */
+  factoryAddress?: Address;
 }
 
 /**
@@ -53,53 +53,53 @@ export interface EvmSplitsClientConfig {
  * ```
  */
 export interface EvmSplitsClient {
-	/** The wallet address */
-	readonly address: Address;
+  /** The wallet address */
+  readonly address: Address;
 
-	/** The connected chain */
-	readonly chain: Chain;
+  /** The connected chain */
+  readonly chain: Chain;
 
-	/** The factory address being used */
-	readonly factoryAddress: Address;
+  /** The factory address being used */
+  readonly factoryAddress: Address;
 
-	/**
-	 * Create a split (idempotent).
-	 * Returns NO_CHANGE if split already exists with same parameters.
-	 */
-	ensureSplit(params: ClientEnsureParams): Promise<EvmEnsureResult>;
+  /**
+   * Create a split (idempotent).
+   * Returns NO_CHANGE if split already exists with same parameters.
+   */
+  ensureSplit(params: ClientEnsureParams): Promise<EvmEnsureResult>;
 
-	/**
-	 * Execute split distribution.
-	 * Anyone can call this - it's permissionless.
-	 */
-	execute(
-		splitAddress: Address,
-		options?: EvmExecuteOptions,
-	): Promise<EvmExecuteResult>;
+  /**
+   * Execute split distribution.
+   * Anyone can call this - it's permissionless.
+   */
+  execute(
+    splitAddress: Address,
+    options?: EvmExecuteOptions,
+  ): Promise<EvmExecuteResult>;
 
-	/**
-	 * Get split configuration from an address.
-	 * Returns null if not a valid split.
-	 */
-	getSplit(splitAddress: Address): Promise<EvmSplitConfig | null>;
+  /**
+   * Get split configuration from an address.
+   * Returns null if not a valid split.
+   */
+  getSplit(splitAddress: Address): Promise<EvmSplitConfig | null>;
 
-	/**
-	 * Get the token balance of a split.
-	 */
-	getBalance(splitAddress: Address): Promise<bigint>;
+  /**
+   * Get the token balance of a split.
+   */
+  getBalance(splitAddress: Address): Promise<bigint>;
 
-	/**
-	 * Check if an address is a Cascade Split.
-	 */
-	isCascadeSplit(address: Address): Promise<boolean>;
+  /**
+   * Check if an address is a Cascade Split.
+   */
+  isCascadeSplit(address: Address): Promise<boolean>;
 
-	/**
-	 * Preview what will happen when executeSplit is called.
-	 */
-	previewExecution(splitAddress: Address): Promise<EvmExecutionPreview>;
+  /**
+   * Preview what will happen when executeSplit is called.
+   */
+  previewExecution(splitAddress: Address): Promise<EvmExecutionPreview>;
 
-	/**
-	 * Predict the address of a split before creation.
-	 */
-	predictSplitAddress(params: ClientEnsureParams): Promise<Address>;
+  /**
+   * Predict the address of a split before creation.
+   */
+  predictSplitAddress(params: ClientEnsureParams): Promise<Address>;
 }

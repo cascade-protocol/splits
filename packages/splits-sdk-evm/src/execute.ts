@@ -28,99 +28,99 @@ import { isCascadeSplit, getSplitBalance, hasPendingFunds } from "./helpers.js";
  * ```
  */
 export async function executeSplit(
-	publicClient: PublicClient,
-	walletClient: WalletClient,
-	splitAddress: Address,
-	options?: EvmExecuteOptions,
+  publicClient: PublicClient,
+  walletClient: WalletClient,
+  splitAddress: Address,
+  options?: EvmExecuteOptions,
 ): Promise<EvmExecuteResult> {
-	// Get wallet account
-	const account = walletClient.account;
-	if (!account) {
-		return {
-			status: "FAILED",
-			reason: "wallet_disconnected",
-			message: "Wallet account not connected",
-		};
-	}
+  // Get wallet account
+  const account = walletClient.account;
+  if (!account) {
+    return {
+      status: "FAILED",
+      reason: "wallet_disconnected",
+      message: "Wallet account not connected",
+    };
+  }
 
-	try {
-		// Check if it's a valid split
-		const isValid = await isCascadeSplit(publicClient, splitAddress);
-		if (!isValid) {
-			return { status: "SKIPPED", reason: "not_a_split" };
-		}
+  try {
+    // Check if it's a valid split
+    const isValid = await isCascadeSplit(publicClient, splitAddress);
+    if (!isValid) {
+      return { status: "SKIPPED", reason: "not_a_split" };
+    }
 
-		// Check balance threshold
-		if (options?.minBalance !== undefined) {
-			const balance = await getSplitBalance(publicClient, splitAddress);
-			if (balance < options.minBalance) {
-				return { status: "SKIPPED", reason: "below_threshold" };
-			}
-		}
+    // Check balance threshold
+    if (options?.minBalance !== undefined) {
+      const balance = await getSplitBalance(publicClient, splitAddress);
+      if (balance < options.minBalance) {
+        return { status: "SKIPPED", reason: "below_threshold" };
+      }
+    }
 
-		// Check if there's anything to distribute
-		const hasFunds = await hasPendingFunds(publicClient, splitAddress);
-		if (!hasFunds) {
-			return { status: "SKIPPED", reason: "no_pending_funds" };
-		}
+    // Check if there's anything to distribute
+    const hasFunds = await hasPendingFunds(publicClient, splitAddress);
+    if (!hasFunds) {
+      return { status: "SKIPPED", reason: "no_pending_funds" };
+    }
 
-		// Execute the split
-		const hash = await walletClient.writeContract({
-			address: splitAddress,
-			abi: splitConfigImplAbi,
-			functionName: "executeSplit",
-			args: [],
-			account,
-			chain: publicClient.chain,
-		});
+    // Execute the split
+    const hash = await walletClient.writeContract({
+      address: splitAddress,
+      abi: splitConfigImplAbi,
+      functionName: "executeSplit",
+      args: [],
+      account,
+      chain: publicClient.chain,
+    });
 
-		// Wait for confirmation
-		await publicClient.waitForTransactionReceipt({ hash });
+    // Wait for confirmation
+    await publicClient.waitForTransactionReceipt({ hash });
 
-		return { status: "EXECUTED", signature: hash };
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
+    return { status: "EXECUTED", signature: hash };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
 
-		// Check for user rejection
-		if (
-			message.includes("rejected") ||
-			message.includes("denied") ||
-			message.includes("cancelled")
-		) {
-			return {
-				status: "FAILED",
-				reason: "wallet_rejected",
-				message: "Transaction rejected by user",
-				error: error instanceof Error ? error : undefined,
-			};
-		}
+    // Check for user rejection
+    if (
+      message.includes("rejected") ||
+      message.includes("denied") ||
+      message.includes("cancelled")
+    ) {
+      return {
+        status: "FAILED",
+        reason: "wallet_rejected",
+        message: "Transaction rejected by user",
+        error: error instanceof Error ? error : undefined,
+      };
+    }
 
-		// Check for revert
-		if (message.includes("revert") || message.includes("execution reverted")) {
-			return {
-				status: "FAILED",
-				reason: "transaction_reverted",
-				message,
-				error: error instanceof Error ? error : undefined,
-			};
-		}
+    // Check for revert
+    if (message.includes("revert") || message.includes("execution reverted")) {
+      return {
+        status: "FAILED",
+        reason: "transaction_reverted",
+        message,
+        error: error instanceof Error ? error : undefined,
+      };
+    }
 
-		// Check for gas issues
-		if (message.includes("gas") || message.includes("insufficient funds")) {
-			return {
-				status: "FAILED",
-				reason: "insufficient_gas",
-				message,
-				error: error instanceof Error ? error : undefined,
-			};
-		}
+    // Check for gas issues
+    if (message.includes("gas") || message.includes("insufficient funds")) {
+      return {
+        status: "FAILED",
+        reason: "insufficient_gas",
+        message,
+        error: error instanceof Error ? error : undefined,
+      };
+    }
 
-		// Generic failure
-		return {
-			status: "FAILED",
-			reason: "transaction_failed",
-			message,
-			error: error instanceof Error ? error : undefined,
-		};
-	}
+    // Generic failure
+    return {
+      status: "FAILED",
+      reason: "transaction_failed",
+      message,
+      error: error instanceof Error ? error : undefined,
+    };
+  }
 }

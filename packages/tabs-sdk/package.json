@@ -1,84 +1,84 @@
 {
-	"name": "@cascade-fyi/tabs-sdk",
-	"version": "0.1.1",
-	"type": "module",
-	"description": "TypeScript SDK for Cascade Tabs - x402 payment authorization via Squads Smart Accounts",
-	"scripts": {
-		"generate": "tsx scripts/generate-clients.ts",
-		"build": "pnpm generate && tsdown",
-		"prepublishOnly": "pnpm build",
-		"type-check": "tsc --noEmit",
-		"check": "pnpm type-check && biome check --write",
-		"test": "vitest run",
-		"test:watch": "vitest"
-	},
-	"dependencies": {},
-	"devDependencies": {
-		"@codama/nodes-from-anchor": "^1.3.6",
-		"vitest": "^3.2.4",
-		"@codama/renderers-js": "^1.5.5",
-		"@codama/visitors": "^1.4.4",
-		"@codama/visitors-core": "^1.4.4",
-		"codama": "^1.4.4",
-		"tsdown": "^0.16.6",
-		"tsx": "^4.20.6",
-		"typescript": "^5.9.3"
-	},
-	"peerDependencies": {
-		"@solana/kit": ">=2.0.0"
-	},
-	"main": "./dist/index.cjs",
-	"module": "./dist/index.mjs",
-	"types": "./dist/index.d.cts",
-	"sideEffects": false,
-	"exports": {
-		".": {
-			"import": {
-				"types": "./dist/index.d.mts",
-				"default": "./dist/index.mjs"
-			},
-			"require": {
-				"types": "./dist/index.d.cts",
-				"default": "./dist/index.cjs"
-			}
-		},
-		"./generated": {
-			"import": {
-				"types": "./dist/generated.d.mts",
-				"default": "./dist/generated.mjs"
-			},
-			"require": {
-				"types": "./dist/generated.d.cts",
-				"default": "./dist/generated.cjs"
-			}
-		}
-	},
-	"files": [
-		"dist/**",
-		"README.md",
-		"idl.json"
-	],
-	"keywords": [
-		"solana",
-		"x402",
-		"squads",
-		"smart-account",
-		"spending-limit",
-		"tabs",
-		"cascade",
-		"payment-authorization"
-	],
-	"author": "Cascade <hello@cascade.fyi>",
-	"license": "Apache-2.0",
-	"publishConfig": {
-		"access": "public"
-	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/cascade-protocol/splits"
-	},
-	"bugs": {
-		"url": "https://github.com/cascade-protocol/splits/issues"
-	},
-	"homepage": "https://github.com/cascade-protocol/splits#readme"
+  "name": "@cascade-fyi/tabs-sdk",
+  "version": "0.1.1",
+  "type": "module",
+  "description": "TypeScript SDK for Cascade Tabs - x402 payment authorization via Squads Smart Accounts",
+  "scripts": {
+    "generate": "tsx scripts/generate-clients.ts",
+    "build": "pnpm generate && tsdown",
+    "prepublishOnly": "pnpm build",
+    "type-check": "tsc --noEmit",
+    "check": "pnpm type-check && biome check --write",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@codama/nodes-from-anchor": "^1.3.6",
+    "vitest": "^3.2.4",
+    "@codama/renderers-js": "^1.5.5",
+    "@codama/visitors": "^1.4.4",
+    "@codama/visitors-core": "^1.4.4",
+    "codama": "^1.4.4",
+    "tsdown": "^0.16.6",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "@solana/kit": ">=2.0.0"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./generated": {
+      "import": {
+        "types": "./dist/generated.d.mts",
+        "default": "./dist/generated.mjs"
+      },
+      "require": {
+        "types": "./dist/generated.d.cts",
+        "default": "./dist/generated.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "idl.json"
+  ],
+  "keywords": [
+    "solana",
+    "x402",
+    "squads",
+    "smart-account",
+    "spending-limit",
+    "tabs",
+    "cascade",
+    "payment-authorization"
+  ],
+  "author": "Cascade <hello@cascade.fyi>",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cascade-protocol/splits"
+  },
+  "bugs": {
+    "url": "https://github.com/cascade-protocol/splits/issues"
+  },
+  "homepage": "https://github.com/cascade-protocol/splits#readme"
 }

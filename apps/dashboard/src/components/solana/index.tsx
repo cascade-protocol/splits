@@ -1,8 +1,8 @@
 export { CloseSplitDialog } from "./close-split-dialog";
 export {
-	createColumns,
-	mobileHiddenColumns,
-	type SplitActions,
+  createColumns,
+  mobileHiddenColumns,
+  type SplitActions,
 } from "./columns";
 export { CreateSplitDialog } from "./create-split-dialog";
 export { CreateSplitForm } from "./create-split-form";

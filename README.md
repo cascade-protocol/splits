@@ -109,7 +109,7 @@ See [docs/benchmarks/compute_units.md](docs/benchmarks/compute_units.md) for ful
 
 ```typescript
 import { createSolanaRpc } from "@solana/kit";
-import { executeSplit, isCascadeSplit } from "@cascade-fyi/splits-sdk/solana";
+import { executeSplit, isCascadeSplit } from "@cascade-fyi/splits-sdk";
 
 const rpc = createSolanaRpc("https://api.mainnet-beta.solana.com");
 
@@ -127,22 +127,28 @@ if (await isCascadeSplit(rpc, vault)) {
 }
 ```
 
-> **Note:** The core module returns instructions — transaction building is your responsibility, enabling compatibility with any @solana/kit version. For high-level convenience with WebSocket confirmation, use `executeAndConfirmSplit` from `@cascade-fyi/splits-sdk/solana/client`.
+> **Note:** The core module returns instructions — transaction building is your responsibility, enabling compatibility with any @solana/kit version. For high-level convenience with WebSocket confirmation, use `executeAndConfirmSplit` from `@cascade-fyi/splits-sdk`.
 
 ### Create a Split (Merchants)
 
 ```typescript
-import { createSplitConfig } from "@cascade-fyi/splits-sdk/solana";
+import { createSplitsClient } from "@cascade-fyi/splits-sdk";
+import { createSolanaRpc, createSolanaRpcSubscriptions, createKeyPairSignerFromBytes } from "@solana/kit";
 
-const { instruction, splitConfig } = await createSplitConfig({
-  authority: myWallet,
+const rpc = createSolanaRpc("https://api.mainnet-beta.solana.com");
+const rpcSubscriptions = createSolanaRpcSubscriptions("wss://api.mainnet-beta.solana.com");
+const signer = await createKeyPairSignerFromBytes(secretKey);
+
+const splits = createSplitsClient({ rpc, rpcSubscriptions, signer });
+
+const result = await splits.ensureSplit({
   recipients: [
     { address: "Agent111111111111111111111111111111111111111", share: 90 },
     { address: "Marketplace1111111111111111111111111111111", share: 10 },
   ],
 });
 
-// Sign and send instruction, then use splitConfig as your x402 payTo
+// result.vault is your payment address (use as x402 payTo)
 ```
 
 See [SDK documentation](packages/splits-sdk/README.md) for complete API reference.
@@ -187,7 +193,7 @@ No separate claim instruction needed - single interface for all operations.
 Cascade Splits integrates seamlessly with x402 payment facilitators:
 
 ```typescript
-import { isCascadeSplit, executeSplit } from "@cascade-fyi/splits-sdk/solana";
+import { isCascadeSplit, executeSplit } from "@cascade-fyi/splits-sdk";
 
 // In your facilitator's settle handler:
 if (await isCascadeSplit(rpc, paymentDestination)) {

@@ -1,32 +1,50 @@
 {
-	"name": "@cascade-fyi/splits-sdk",
-	"$schema": "../../node_modules/nx/schemas/project-schema.json",
-	"sourceRoot": "packages/splits-sdk/src",
-	"projectType": "library",
-	"tags": ["type:sdk", "platform:solana", "scope:packages"],
-	"targets": {
-		"build": {
-			"inputs": ["production", "^production"],
-			"outputs": ["{projectRoot}/dist"]
-		},
-		"test": {
-			"inputs": ["default", "^production"],
-			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
-		},
-		"type-check": {
-			"inputs": ["default", "^production"]
-		},
-		"generate": {
-			"dependsOn": ["^build"],
-			"inputs": [
-				"{workspaceRoot}/target/idl/cascade_splits.json",
-				"{projectRoot}/scripts/generate-clients.ts"
-			],
-			"outputs": [
-				"{projectRoot}/idl.json",
-				"{projectRoot}/src/solana/generated"
-			],
-			"cache": true
-		}
-	}
+  "name": "@cascade-fyi/splits-sdk",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/splits-sdk/src",
+  "projectType": "library",
+  "tags": ["type:sdk", "platform:solana", "scope:packages"],
+  "targets": {
+    "build": {
+      "inputs": ["production", "^production"],
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "test": {
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
+    },
+    "type-check": {
+      "inputs": ["default", "^production"]
+    },
+    "generate": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "{workspaceRoot}/target/idl/cascade_splits.json",
+        "{projectRoot}/scripts/generate-clients.ts"
+      ],
+      "outputs": [
+        "{projectRoot}/idl.json",
+        "{projectRoot}/src/solana/generated"
+      ],
+      "cache": true
+    },
+    "test:integration": {
+      "dependsOn": [
+        "@cascade-fyi/splits-sdk:build",
+        "cascade-splits-program:build",
+        "@cascade-fyi/splits-sdk:build:test"
+      ],
+      "inputs": [
+        "{workspaceRoot}/tests/**/*.ts",
+        "{workspaceRoot}/Anchor.toml",
+        "{projectRoot}/dist/**/*"
+      ],
+      "cache": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "anchor test --skip-build",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
 }

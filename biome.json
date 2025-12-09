@@ -1,66 +1,66 @@
 {
-	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-	"vcs": {
-		"enabled": true,
-		"clientKind": "git",
-		"useIgnoreFile": true
-	},
-	"files": {
-		"ignoreUnknown": false,
-		"includes": [
-			"tests/**/*.ts",
-			"scripts/**/*.ts",
-			"packages/**/*.ts",
-			"packages/**/*.tsx",
-			"apps/**/*.ts",
-			"apps/**/*.tsx",
-			"**/*.json",
-			"!!**/dist",
-			"!**/idl.json",
-			"!apps/dashboard/src/components/ui",
-			"!packages/splits-sdk/src/solana/generated",
-			"!packages/tabs-sdk/src/generated",
-			"!apps/docs/.source",
-			"!apps/docs/.react-router"
-		]
-	},
-	"formatter": {
-		"enabled": true,
-		"indentStyle": "tab"
-	},
-	"linter": {
-		"enabled": true,
-		"rules": {
-			"recommended": true,
-			"a11y": {
-				"useValidAnchor": "off",
-				"noLabelWithoutControl": "off"
-			},
-			"style": {
-				"useComponentExportOnlyModules": "off",
-				"noRestrictedGlobals": {
-					"level": "error",
-					"options": {
-						"deniedGlobals": {
-							"Buffer": "Buffer is a Node.js global. Use Uint8Array + atob() for browser compatibility."
-						}
-					}
-				}
-			}
-		}
-	},
-	"javascript": {
-		"formatter": {
-			"quoteStyle": "double"
-		}
-	},
-	"assist": {
-		"enabled": true,
-		"actions": {
-			"source": {
-				"organizeImports": "off",
-				"recommended": true
-			}
-		}
-	}
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": [
+      "tests/**/*.ts",
+      "scripts/**/*.ts",
+      "packages/**/*.ts",
+      "packages/**/*.tsx",
+      "apps/**/*.ts",
+      "apps/**/*.tsx",
+      "**/*.json",
+      "!!**/dist",
+      "!**/idl.json",
+      "!apps/dashboard/src/components/ui",
+      "!packages/**/generated",
+      "!apps/docs/.source",
+      "!apps/docs/.react-router"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "useValidAnchor": "off",
+        "noLabelWithoutControl": "off"
+      },
+      "style": {
+        "useComponentExportOnlyModules": "off",
+        "noRestrictedGlobals": {
+          "level": "error",
+          "options": {
+            "deniedGlobals": {
+              "Buffer": "Buffer is a Node.js global. Use Uint8Array + atob() for browser compatibility."
+            }
+          }
+        }
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "off",
+        "recommended": true
+      }
+    }
+  }
 }

@@ -9,7 +9,7 @@ import { SolanaDashboard } from "./SolanaDashboard";
 import { EvmDashboard } from "./EvmDashboard";
 
 export function Dashboard() {
-	const { isSolana } = useChain();
+  const { isSolana } = useChain();
 
-	return isSolana ? <SolanaDashboard /> : <EvmDashboard />;
+  return isSolana ? <SolanaDashboard /> : <EvmDashboard />;
 }

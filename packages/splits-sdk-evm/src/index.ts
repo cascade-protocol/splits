@@ -18,44 +18,44 @@ export { splitFactoryAbi, splitConfigImplAbi } from "./abi.js";
 
 // Addresses
 export {
-	SPLIT_FACTORY_ADDRESSES,
-	USDC_ADDRESSES,
-	SUPPORTED_CHAIN_IDS,
-	getSplitFactoryAddress,
-	getUsdcAddress,
-	isSupportedChain,
-	type SupportedChainId,
+  SPLIT_FACTORY_ADDRESSES,
+  USDC_ADDRESSES,
+  SUPPORTED_CHAIN_IDS,
+  getSplitFactoryAddress,
+  getUsdcAddress,
+  isSupportedChain,
+  type SupportedChainId,
 } from "./addresses.js";
 
 // Types
 export type {
-	EvmRecipient,
-	EvmSplitConfig,
-	EvmExecutionPreview,
-	EvmEnsureStatus,
-	EvmExecuteStatus,
-	EvmFailedReason,
-	EvmSkippedReason,
-	EvmEnsureResult,
-	EvmExecuteResult,
-	EvmEnsureParams,
-	EvmRecipientInput,
-	EvmExecuteOptions,
+  EvmRecipient,
+  EvmSplitConfig,
+  EvmExecutionPreview,
+  EvmEnsureStatus,
+  EvmExecuteStatus,
+  EvmFailedReason,
+  EvmSkippedReason,
+  EvmEnsureResult,
+  EvmExecuteResult,
+  EvmEnsureParams,
+  EvmRecipientInput,
+  EvmExecuteOptions,
 } from "./types.js";
 
 // Helpers
 export {
-	predictSplitAddress,
-	isCascadeSplit,
-	getSplitBalance,
-	hasPendingFunds,
-	getPendingAmount,
-	getTotalUnclaimed,
-	previewExecution,
-	getSplitConfig,
-	getDefaultToken,
-	toEvmRecipient,
-	toEvmRecipients,
+  predictSplitAddress,
+  isCascadeSplit,
+  getSplitBalance,
+  hasPendingFunds,
+  getPendingAmount,
+  getTotalUnclaimed,
+  previewExecution,
+  getSplitConfig,
+  getDefaultToken,
+  toEvmRecipient,
+  toEvmRecipients,
 } from "./helpers.js";
 
 // Core operations

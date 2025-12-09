@@ -63,18 +63,18 @@ See `packages/splits-sdk/ARCHITECTURE.md` for design rationale.
 
 ```typescript
 // Core module - instructions + helpers (kit-agnostic, works with any kit version >=2.0.0)
-import { executeSplit, isCascadeSplit, createSplitConfig } from '@cascade-fyi/splits-sdk/solana';
+import { executeSplit, isCascadeSplit, createSplitConfig } from '@cascade-fyi/splits-sdk';
 
 // High-level client - WebSocket confirmation (requires kit@5.0)
-import { ensureSplitConfig, executeAndConfirmSplit } from '@cascade-fyi/splits-sdk/solana/client';
+import { ensureSplitConfig, executeAndConfirmSplit } from '@cascade-fyi/splits-sdk';
 
 // Browser with wallet-adapter
-import { createSplitsClient } from '@cascade-fyi/splits-sdk/solana/client';
-import { fromWalletAdapter } from '@cascade-fyi/splits-sdk/solana/web3-compat';
+import { createSplitsClient } from '@cascade-fyi/splits-sdk';
+import { fromWalletAdapter } from '@cascade-fyi/splits-sdk/web3-compat';
 ```
 
 Core module returns instructions; transaction building is consumer's responsibility.
-High-level client uses discriminated unions (`CREATED`, `UPDATED`, `BLOCKED`, `FAILED`), not exceptions.
+High-level client uses discriminated unions (`created`, `updated`, `blocked`, `failed`), not exceptions.
 
 ### @cascade-fyi/splits-sdk-evm (Base)
 

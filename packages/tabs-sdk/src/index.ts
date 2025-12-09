@@ -42,34 +42,34 @@ export * from "./constants.js";
 // =============================================================================
 
 export {
-	// PDA derivation
-	deriveProgramConfig,
-	deriveSettings,
-	deriveSmartAccount,
-	deriveSpendingLimit,
-	deriveAta,
-	// Sync message compilation
-	compileToSynchronousMessage,
-	type SyncAccountMeta,
-	type SyncMessageResult,
-	// Instruction builders (Address-accepting)
-	buildCreateSmartAccountInstruction,
-	buildAddSpendingLimitInstruction,
-	buildRemoveSpendingLimitInstruction,
-	type CreateSmartAccountInput,
-	type CreateSmartAccountResult,
-	type AddSpendingLimitInput,
-	type AddSpendingLimitResult,
-	type RemoveSpendingLimitInput,
-	// Utilities
-	decodeBase64,
-	readBigUInt64LE,
-	base58Decode,
-	// API Key encoding/decoding
-	decodeTabsApiKey,
-	encodeTabsApiKey,
-	type TabsApiKeyPayload,
-	type EncodeTabsApiKeyInput,
+  // PDA derivation
+  deriveProgramConfig,
+  deriveSettings,
+  deriveSmartAccount,
+  deriveSpendingLimit,
+  deriveAta,
+  // Sync message compilation
+  compileToSynchronousMessage,
+  type SyncAccountMeta,
+  type SyncMessageResult,
+  // Instruction builders (Address-accepting)
+  buildCreateSmartAccountInstruction,
+  buildAddSpendingLimitInstruction,
+  buildRemoveSpendingLimitInstruction,
+  type CreateSmartAccountInput,
+  type CreateSmartAccountResult,
+  type AddSpendingLimitInput,
+  type AddSpendingLimitResult,
+  type RemoveSpendingLimitInput,
+  // Utilities
+  decodeBase64,
+  readBigUInt64LE,
+  base58Decode,
+  // API Key encoding/decoding
+  decodeTabsApiKey,
+  encodeTabsApiKey,
+  type TabsApiKeyPayload,
+  type EncodeTabsApiKeyInput,
 } from "./helpers.js";
 
 // =============================================================================
@@ -77,12 +77,12 @@ export {
 // =============================================================================
 
 export {
-	// State fetching
-	fetchSmartAccountStateByOwner,
-	hasSmartAccount,
-	// Types
-	type SmartAccountState,
-	type SpendingLimitConfig,
+  // State fetching
+  fetchSmartAccountStateByOwner,
+  hasSmartAccount,
+  // Types
+  type SmartAccountState,
+  type SpendingLimitConfig,
 } from "./discovery.js";
 
 // =============================================================================
@@ -90,8 +90,8 @@ export {
 // =============================================================================
 
 export {
-	tabsFetch,
-	TabsPaymentError,
-	type TabsFetchOptions,
-	type PaymentRequirements,
+  tabsFetch,
+  TabsPaymentError,
+  type TabsFetchOptions,
+  type PaymentRequirements,
 } from "./tabsFetch.js";
