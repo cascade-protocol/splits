@@ -1,6 +1,6 @@
 [project]
 name = "cascade-splits-sdk-evm"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python SDK for Cascade Splits - Non-custodial payment splitting on Base (EVM)"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-12-09
+
+### Fixed
+
+- Storage slot computation now includes required `0x` prefix for Anvil compatibility
+- Proper aiohttp session cleanup via `provider.disconnect()` to prevent resource leak warnings
+- Type errors with `ChecksumAddress` parameter handling
+- Nullable `result.message` and `result.split` type guards in tests
+
+### Added
+
+- Async context manager support for `AsyncCascadeSplitsClient` (`async with client:`)
+- `close()` method for explicit session cleanup
+
 ## [0.1.0] - 2025-12-09
 
 ### Added
