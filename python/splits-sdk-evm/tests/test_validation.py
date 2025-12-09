@@ -60,6 +60,7 @@ class TestRecipientCountValidation:
 
         assert result.status == "FAILED"
         assert result.reason == "transaction_failed"
+        assert result.message is not None
         assert "1-20" in result.message or "Recipients" in result.message
 
     @pytest.mark.asyncio
@@ -93,6 +94,7 @@ class TestRecipientCountValidation:
 
         assert result.status == "FAILED"
         assert result.reason == "transaction_failed"
+        assert result.message is not None
         assert "21" in result.message or "20" in result.message
 
     @pytest.mark.asyncio
@@ -109,20 +111,21 @@ class TestRecipientCountValidation:
         mock_account.sign_transaction.return_value = MagicMock(raw_transaction=b"signed")
 
         mock_factory = MagicMock()
-        mock_factory.functions.predictSplitAddress.return_value.call = AsyncMock(
-            return_value="0xPredictedSplit"
-        )
+        mock_factory.functions.predictSplitAddress.return_value.call = AsyncMock(return_value="0xPredictedSplit")
         mock_factory.functions.createSplitConfig.return_value.build_transaction = AsyncMock(
             return_value={"gas": 300000}
         )
         mock_w3.eth.contract.return_value = mock_factory
 
-        with patch(
-            "cascade_splits_evm.ensure.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
-        ), patch(
-            "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
+        with (
+            patch(
+                "cascade_splits_evm.ensure.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
+            patch(
+                "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
         ):
             result = await ensure_split(
                 mock_w3,
@@ -153,9 +156,7 @@ class TestRecipientCountValidation:
         mock_account.sign_transaction.return_value = MagicMock(raw_transaction=b"signed")
 
         mock_factory = MagicMock()
-        mock_factory.functions.predictSplitAddress.return_value.call = AsyncMock(
-            return_value="0xPredictedSplit"
-        )
+        mock_factory.functions.predictSplitAddress.return_value.call = AsyncMock(return_value="0xPredictedSplit")
         mock_factory.functions.createSplitConfig.return_value.build_transaction = AsyncMock(
             return_value={"gas": 300000}
         )
@@ -164,12 +165,15 @@ class TestRecipientCountValidation:
         # Create exactly 20 recipients: 19 with 5% each + 1 with 5% = 100%
         recipients = [Recipient(address=f"0x{i:040x}", share=5) for i in range(20)]
 
-        with patch(
-            "cascade_splits_evm.ensure.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
-        ), patch(
-            "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
+        with (
+            patch(
+                "cascade_splits_evm.ensure.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
+            patch(
+                "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
         ):
             result = await ensure_split(
                 mock_w3,
@@ -213,6 +217,7 @@ class TestShareValidation:
 
         assert result.status == "FAILED"
         assert result.reason == "transaction_failed"
+        assert result.message is not None
         assert "100" in result.message or "sum" in result.message.lower()
 
     @pytest.mark.asyncio
@@ -276,12 +281,15 @@ class TestUniqueIdHandling:
         )
         mock_w3.eth.contract.return_value = mock_factory
 
-        with patch(
-            "cascade_splits_evm.ensure.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
-        ), patch(
-            "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
+        with (
+            patch(
+                "cascade_splits_evm.ensure.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
+            patch(
+                "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
         ):
             result = await ensure_split(
                 mock_w3,
@@ -335,12 +343,15 @@ class TestUniqueIdHandling:
         long_id = b"this-is-a-very-long-unique-id-that-exceeds-32-bytes"
         assert len(long_id) > 32
 
-        with patch(
-            "cascade_splits_evm.ensure.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
-        ), patch(
-            "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
+        with (
+            patch(
+                "cascade_splits_evm.ensure.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
+            patch(
+                "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
         ):
             result = await ensure_split(
                 mock_w3,
@@ -393,12 +404,15 @@ class TestUniqueIdHandling:
         exact_32 = b"exactly-32-bytes-long-id-here!!!"  # 32 bytes
         assert len(exact_32) == 32
 
-        with patch(
-            "cascade_splits_evm.ensure.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
-        ), patch(
-            "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
+        with (
+            patch(
+                "cascade_splits_evm.ensure.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
+            patch(
+                "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
         ):
             result = await ensure_split(
                 mock_w3,

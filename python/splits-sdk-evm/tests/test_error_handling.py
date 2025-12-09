@@ -73,6 +73,7 @@ class TestEnsureSplitErrorHandling:
 
         assert result.status == "FAILED"
         assert result.reason == "transaction_reverted"
+        assert result.message is not None
         assert "InvalidRecipientCount" in result.message
 
     @pytest.mark.asyncio
@@ -272,6 +273,7 @@ class TestEnsureSplitErrorHandling:
 
         assert result.status == "FAILED"
         assert result.reason == "transaction_failed"
+        assert result.message is not None
         assert "Unexpected error" in result.message
 
 
@@ -295,12 +297,15 @@ class TestExecuteSplitErrorHandling:
         )
         mock_w3.eth.contract.return_value = mock_contract
 
-        with patch(
-            "cascade_splits_evm.execute.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
-        ), patch(
-            "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
+        with (
+            patch(
+                "cascade_splits_evm.execute.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
+            patch(
+                "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
         ):
             result = await execute_split(
                 mock_w3,
@@ -327,12 +332,15 @@ class TestExecuteSplitErrorHandling:
         )
         mock_w3.eth.contract.return_value = mock_contract
 
-        with patch(
-            "cascade_splits_evm.execute.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
-        ), patch(
-            "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
+        with (
+            patch(
+                "cascade_splits_evm.execute.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
+            patch(
+                "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
         ):
             result = await execute_split(
                 mock_w3,
@@ -359,12 +367,15 @@ class TestExecuteSplitErrorHandling:
         )
         mock_w3.eth.contract.return_value = mock_contract
 
-        with patch(
-            "cascade_splits_evm.execute.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
-        ), patch(
-            "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
+        with (
+            patch(
+                "cascade_splits_evm.execute.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
+            patch(
+                "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
         ):
             result = await execute_split(
                 mock_w3,
@@ -391,12 +402,15 @@ class TestExecuteSplitErrorHandling:
         )
         mock_w3.eth.contract.return_value = mock_contract
 
-        with patch(
-            "cascade_splits_evm.execute.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
-        ), patch(
-            "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
-            side_effect=lambda x: x,
+        with (
+            patch(
+                "cascade_splits_evm.execute.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
+            patch(
+                "cascade_splits_evm.async_helpers.AsyncWeb3.to_checksum_address",
+                side_effect=lambda x: x,
+            ),
         ):
             result = await execute_split(
                 mock_w3,
@@ -406,4 +420,5 @@ class TestExecuteSplitErrorHandling:
 
         assert result.status == "FAILED"
         assert result.reason == "transaction_failed"
+        assert result.message is not None
         assert "Connection lost" in result.message

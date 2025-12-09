@@ -1,5 +1,7 @@
 """Async helper functions for Cascade Splits EVM SDK."""
 
+from typing import cast
+
 from eth_typing import ChecksumAddress
 from web3 import AsyncWeb3
 from web3.contract.async_contract import AsyncContractFunction
@@ -50,7 +52,7 @@ def get_default_token(chain_id: int) -> str:
 
 async def build_tx_params(
     w3: AsyncWeb3,
-    sender: ChecksumAddress,
+    sender: ChecksumAddress | str,
     chain_id: int,
     default_gas: int,
     gas_options: GasOptions | None = None,
@@ -75,7 +77,7 @@ async def build_tx_params(
     Returns:
         Transaction parameters dict
     """
-    nonce = await w3.eth.get_transaction_count(sender)
+    nonce = await w3.eth.get_transaction_count(cast(ChecksumAddress, sender))
 
     tx_params: TxParams = {
         "from": sender,
@@ -99,9 +101,7 @@ async def build_tx_params(
         tx_params["type"] = "0x2"
         tx_params["maxFeePerGas"] = opts.max_fee_per_gas
         tx_params["maxPriorityFeePerGas"] = (
-            opts.max_priority_fee_per_gas
-            if opts.max_priority_fee_per_gas is not None
-            else DEFAULT_PRIORITY_FEE
+            opts.max_priority_fee_per_gas if opts.max_priority_fee_per_gas is not None else DEFAULT_PRIORITY_FEE
         )
 
     return tx_params

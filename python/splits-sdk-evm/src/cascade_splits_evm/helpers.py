@@ -192,9 +192,7 @@ def build_tx_params(
         tx_params["type"] = "0x2"
         tx_params["maxFeePerGas"] = opts.max_fee_per_gas
         tx_params["maxPriorityFeePerGas"] = (
-            opts.max_priority_fee_per_gas
-            if opts.max_priority_fee_per_gas is not None
-            else DEFAULT_PRIORITY_FEE
+            opts.max_priority_fee_per_gas if opts.max_priority_fee_per_gas is not None else DEFAULT_PRIORITY_FEE
         )
 
     return tx_params

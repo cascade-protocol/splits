@@ -100,6 +100,7 @@ class TestSyncClientEnsureSplitValidation:
                 )
 
                 assert result.status == "FAILED"
+                assert result.message is not None
                 assert "1-20" in result.message or "Recipients" in result.message
 
     def test_sync_ensure_fails_too_many_recipients(self) -> None:
@@ -160,6 +161,7 @@ class TestSyncClientEnsureSplitValidation:
                 )
 
                 assert result.status == "FAILED"
+                assert result.message is not None
                 assert "100" in result.message or "sum" in result.message.lower()
 
 

@@ -82,7 +82,10 @@ async def execute_split(
         contract_call = split_contract.functions.executeSplit()
         gas_opts = options.gas if options else None
         tx_params = await build_tx_params(
-            w3, account.address, chain_id, DEFAULT_GAS_EXECUTE,
+            w3,
+            account.address,
+            chain_id,
+            DEFAULT_GAS_EXECUTE,
             gas_options=gas_opts,
             contract_call=contract_call,
         )

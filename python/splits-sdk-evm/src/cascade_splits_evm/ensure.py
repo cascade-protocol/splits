@@ -113,11 +113,12 @@ async def ensure_split(
             return EnsureResult(status="NO_CHANGE", split=predicted)
 
         # Build transaction with gas options
-        contract_call = factory.functions.createSplitConfig(
-            authority, token, unique_id, recipient_tuples
-        )
+        contract_call = factory.functions.createSplitConfig(authority, token, unique_id, recipient_tuples)
         tx_params = await build_tx_params(
-            w3, account.address, chain_id, DEFAULT_GAS_CREATE,
+            w3,
+            account.address,
+            chain_id,
+            DEFAULT_GAS_CREATE,
             gas_options=params.gas,
             contract_call=contract_call,
         )

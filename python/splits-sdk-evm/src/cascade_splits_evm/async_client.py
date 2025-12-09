@@ -102,12 +102,22 @@ class AsyncCascadeSplitsClient:
         self.chain_id = chain_id
 
         # Get factory address
-        self.factory_address = AsyncWeb3.to_checksum_address(
-            factory_address or get_split_factory_address(chain_id)
-        )
+        self.factory_address = AsyncWeb3.to_checksum_address(factory_address or get_split_factory_address(chain_id))
 
         # Default token (USDC)
         self.default_token = AsyncWeb3.to_checksum_address(get_usdc_address(chain_id))
+
+    async def close(self) -> None:
+        """Close the underlying HTTP session."""
+        await self.w3.provider.disconnect()
+
+    async def __aenter__(self) -> "AsyncCascadeSplitsClient":
+        """Enter async context manager."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Exit async context manager and close session."""
+        await self.close()
 
     @property
     def address(self) -> str:

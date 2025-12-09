@@ -50,4 +50,6 @@ markers = [
 filterwarnings = [
     # web3.py imports LegacyWebSocketProvider unconditionally (ethereum/web3.py#3530)
     "ignore:websockets.legacy is deprecated:DeprecationWarning",
+    # aiohttp 3.x on Python 3.13 - internal deprecation (aio-libs/aiohttp#8823)
+    "ignore:enable_cleanup_closed ignored:DeprecationWarning",
 ]

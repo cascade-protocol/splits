@@ -73,9 +73,7 @@ class TestAsyncContractCalls:
         """Test is_cascade_split returns True for valid split."""
         mock_w3 = MagicMock()
         mock_contract = MagicMock()
-        mock_contract.functions.isCascadeSplitConfig.return_value.call = AsyncMock(
-            return_value=True
-        )
+        mock_contract.functions.isCascadeSplitConfig.return_value.call = AsyncMock(return_value=True)
         mock_w3.eth.contract.return_value = mock_contract
         mock_w3.to_checksum_address = lambda x: x
 
@@ -199,9 +197,7 @@ class TestAsyncContractCalls:
         mock_contract = MagicMock()
 
         # Setup mock calls
-        mock_contract.functions.isCascadeSplitConfig.return_value.call = AsyncMock(
-            return_value=True
-        )
+        mock_contract.functions.isCascadeSplitConfig.return_value.call = AsyncMock(return_value=True)
         mock_contract.functions.authority.return_value.call = AsyncMock(return_value="0xAuthority")
         mock_contract.functions.token.return_value.call = AsyncMock(return_value="0xToken")
         mock_contract.functions.uniqueId.return_value.call = AsyncMock(return_value=b"unique-id")
@@ -226,9 +222,7 @@ class TestAsyncContractCalls:
         """Test get_split_config returns None for invalid split."""
         mock_w3 = MagicMock()
         mock_contract = MagicMock()
-        mock_contract.functions.isCascadeSplitConfig.return_value.call = AsyncMock(
-            return_value=False
-        )
+        mock_contract.functions.isCascadeSplitConfig.return_value.call = AsyncMock(return_value=False)
         mock_w3.eth.contract.return_value = mock_contract
 
         with patch(
@@ -244,9 +238,7 @@ class TestAsyncContractCalls:
         """Test predicting split address."""
         mock_w3 = MagicMock()
         mock_factory = MagicMock()
-        mock_factory.functions.predictSplitAddress.return_value.call = AsyncMock(
-            return_value="0xPredictedAddress"
-        )
+        mock_factory.functions.predictSplitAddress.return_value.call = AsyncMock(return_value="0xPredictedAddress")
         mock_w3.eth.contract.return_value = mock_factory
 
         recipients = [

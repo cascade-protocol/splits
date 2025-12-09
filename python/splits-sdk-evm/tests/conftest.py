@@ -2,9 +2,10 @@
 
 import subprocess
 import time
+from contextlib import asynccontextmanager
 
 import pytest
-from web3 import Web3
+from web3 import AsyncWeb3, Web3
 
 # Anvil's pre-funded test accounts (same as Hardhat/Foundry)
 # Private keys are well-known - DO NOT use on mainnet
@@ -137,7 +138,8 @@ def _compute_balance_slot(address: str, mapping_slot: int = 0) -> str:
     # Concatenate and hash
     data = address_bytes + slot_bytes
     slot_hash = Web3.keccak(data)
-    return slot_hash.hex()
+    # anvil_setStorageAt requires 0x prefix
+    return "0x" + slot_hash.hex()
 
 
 async def fund_with_usdc(w3, address: str, amount: int, usdc_address: str = BASE_SEPOLIA_USDC) -> None:
@@ -202,3 +204,13 @@ def get_usdc_balance_sync(w3, address: str, usdc_address: str = BASE_SEPOLIA_USD
     """Sync version of get_usdc_balance."""
     usdc = w3.eth.contract(address=Web3.to_checksum_address(usdc_address), abi=ERC20_BALANCE_ABI)
     return usdc.functions.balanceOf(Web3.to_checksum_address(address)).call()
+
+
+@asynccontextmanager
+async def async_w3(rpc_url: str):
+    """Context manager for AsyncWeb3 that properly closes the session."""
+    w3 = AsyncWeb3(AsyncWeb3.AsyncHTTPProvider(rpc_url))
+    try:
+        yield w3
+    finally:
+        await w3.provider.disconnect()

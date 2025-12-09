@@ -100,9 +100,7 @@ class CascadeSplitsClient:
         self.chain_id = chain_id
 
         # Get factory address
-        self.factory_address = Web3.to_checksum_address(
-            factory_address or get_split_factory_address(chain_id)
-        )
+        self.factory_address = Web3.to_checksum_address(factory_address or get_split_factory_address(chain_id))
 
         # Initialize factory contract
         self.factory = self.w3.eth.contract(
@@ -190,12 +188,14 @@ class CascadeSplitsClient:
                 return EnsureResult(status="NO_CHANGE", split=predicted)
 
             # Build transaction with gas options
-            contract_call = self.factory.functions.createSplitConfig(
-                authority, token, unique_id, recipient_tuples
-            )
+            contract_call = self.factory.functions.createSplitConfig(authority, token, unique_id, recipient_tuples)
             tx_params = build_tx_params(
-                self.w3, self.account.address, self.chain_id, DEFAULT_GAS_CREATE,
-                gas_options=gas, contract_call=contract_call,
+                self.w3,
+                self.account.address,
+                self.chain_id,
+                DEFAULT_GAS_CREATE,
+                gas_options=gas,
+                contract_call=contract_call,
             )
             tx = contract_call.build_transaction(tx_params)
 
@@ -272,8 +272,12 @@ class CascadeSplitsClient:
             # Build transaction with gas options
             contract_call = split_contract.functions.executeSplit()
             tx_params = build_tx_params(
-                self.w3, self.account.address, self.chain_id, DEFAULT_GAS_EXECUTE,
-                gas_options=gas, contract_call=contract_call,
+                self.w3,
+                self.account.address,
+                self.chain_id,
+                DEFAULT_GAS_EXECUTE,
+                gas_options=gas,
+                contract_call=contract_call,
             )
             tx = contract_call.build_transaction(tx_params)
 
