@@ -3,6 +3,7 @@
 **Date:** 2025-12-11
 **Status:** Accepted
 **Goal:** Build "ngrok for paid MCPs" - MCP monetization platform that drives Cascade Splits adoption
+**Chain:** Solana (Base support deferred to ADR-0005)
 
 ---
 
@@ -158,6 +159,121 @@ export default defineConfig({
 
 > **Note:** Using `@solana/client` and `@solana/react-hooks` from Solana Kit (web3.js v2) - fully browser-native, no Node.js polyfills required.
 
+### Authentication (SIWS)
+
+Sign-In With Solana (SIWS) provides wallet-based authentication following the CAIP-122 standard.
+
+**Why SIWS:**
+- Proves wallet ownership without sharing private keys
+- Standard message format recognizable by users
+- Enables OAuth flows for MCP clients (Claude Code, etc.)
+- Foundation for future x402 SIWx extension contribution
+
+**Auth Flow (Dashboard):**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. User connects Solana wallet                                         │
+│  2. Frontend requests nonce from server                                 │
+│  3. Server generates nonce, stores in KV (5min TTL)                     │
+│  4. Frontend constructs SIWS message:                                   │
+│                                                                         │
+│     cascade.fyi wants you to sign in with your Solana account:          │
+│     DYw4...abc                                                          │
+│                                                                         │
+│     Sign in to Cascade Market                                           │
+│                                                                         │
+│     URI: https://cascade.fyi                                            │
+│     Nonce: abc123...                                                    │
+│     Issued At: 2025-12-11T12:00:00Z                                     │
+│                                                                         │
+│  5. User signs message with wallet                                      │
+│  6. Frontend sends signature to server                                  │
+│  7. Server verifies signature (Ed25519) + validates nonce               │
+│  8. Server issues JWT (30-day, httpOnly cookie)                         │
+│  9. User is authenticated                                               │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**JWT Design:**
+
+```typescript
+// 30-day stateless JWT
+{
+  sub: "DYw4...abc",     // Solana public key
+  iat: 1702300800,       // Issued at
+  exp: 1704892800,       // 30 days later
+}
+
+// Stored in httpOnly cookie (prevents XSS)
+Set-Cookie: session=<jwt>; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000
+```
+
+**SIWS Library (`packages/siws`):**
+
+Standalone package structured for x402 contribution:
+
+```typescript
+// Server-side
+import { generateNonce, validateSIWSMessage, verifySIWSSignature } from "@cascade-fyi/siws";
+
+// Client-side
+import { createSIWSMessage, createSIWSPayload } from "@cascade-fyi/siws";
+```
+
+### OAuth for MCP Clients
+
+MCP clients (Claude Code, etc.) authenticate via OAuth2 to use Tabs for payments.
+
+**Why OAuth:**
+- MCP SDK has built-in OAuth2 support with PKCE
+- Enables long-running sessions for AI agents
+- User authorizes once, agent pays automatically via Tabs
+
+**OAuth Flow:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. MCP client connects to https://example.mcps.cascade.fyi             │
+│  2. Gateway returns 401 + OAuth metadata URL                            │
+│  3. MCP client fetches /.well-known/oauth-authorization-server          │
+│  4. MCP client opens browser → /oauth/authorize                         │
+│                                                                         │
+│     ┌─────────────────────────────────────────────────────────────┐     │
+│     │  Authorize Claude Code                                      │     │
+│     │                                                             │     │
+│     │  This application wants to:                                 │     │
+│     │  ✓ Use your Tabs balance for payments                       │     │
+│     │                                                             │     │
+│     │  Current balance: $142.50 USDC                              │     │
+│     │                                                             │     │
+│     │  [Deny]  [Authorize]                                        │     │
+│     └─────────────────────────────────────────────────────────────┘     │
+│                                                                         │
+│  5. User signs SIWS (if not logged in) + approves                       │
+│  6. Server generates auth code, redirects to localhost callback         │
+│  7. MCP client exchanges code for tokens (PKCE verification)            │
+│  8. MCP client stores tokens locally                                    │
+│  9. All MCP requests include Bearer token                               │
+│ 10. Gateway verifies token, uses Tabs for payment                       │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Token Design:**
+
+| Token | Lifetime | Storage | Purpose |
+|-------|----------|---------|---------|
+| Access Token | 1 hour | Memory | Bearer auth for MCP requests |
+| Refresh Token | 30 days | D1 (hashed) | Obtain new access tokens |
+
+**OAuth Endpoints:**
+
+```
+/.well-known/oauth-authorization-server  → OAuth metadata
+/oauth/authorize                         → Consent screen
+/oauth/token                             → Token exchange
+```
+
 ### Why Not Refactor Existing Apps?
 
 - `apps/dashboard` and `apps/tabs` have their own patterns and quirks
@@ -307,6 +423,9 @@ cascade-splits/
 │       │   │   │   └── $id.tsx        # Service detail
 │       │   │   ├── explore.tsx        # Browse MCPs
 │       │   │   ├── pay.tsx            # Client onboarding (embedded Tabs)
+│       │   │   ├── oauth/
+│       │   │   │   ├── authorize.tsx  # OAuth consent screen
+│       │   │   │   └── callback.tsx   # OAuth callback handler
 │       │   │   ├── tabs/              # Tabs developer console
 │       │   │   └── splits/            # Splits developer console
 │       │   │
@@ -318,7 +437,9 @@ cascade-splits/
 │       │   │
 │       │   ├── server/                # Server functions (D1 CRUD)
 │       │   │   ├── services.ts        # createService, getServices, etc.
-│       │   │   └── tokens.ts          # Token generation/validation
+│       │   │   ├── tokens.ts          # Token generation/validation
+│       │   │   ├── auth.ts            # SIWS nonce, verify, JWT
+│       │   │   └── oauth.ts           # OAuth authorize, token endpoints
 │       │   │
 │       │   ├── gateway/               # Hono app for *.mcps.cascade.fyi
 │       │   │   ├── index.ts           # x402HTTPResourceServer + routing
@@ -334,6 +455,15 @@ cascade-splits/
 │       └── wrangler.jsonc
 │
 ├── packages/
+│   ├── siws/                          # Sign-In With Solana library
+│   │   ├── src/
+│   │   │   ├── index.ts               # Re-exports
+│   │   │   ├── types.ts               # SIWSPayload, SIWSExtension
+│   │   │   ├── message.ts             # CAIP-122 message construction
+│   │   │   ├── verify.ts              # Ed25519 signature verification
+│   │   │   ├── server.ts              # Server helpers
+│   │   │   └── client.ts              # Client helpers
+│   │   └── package.json
 │   ├── cascade-cli/                   # CLI (Node.js initially)
 │   │   ├── src/
 │   │   │   ├── index.ts
@@ -626,7 +756,36 @@ CREATE TABLE services (
 CREATE INDEX idx_services_pending ON services(pending_balance, last_executed_at)
   WHERE pending_balance > '0';
 
+-- OAuth refresh tokens (for MCP client auth)
+CREATE TABLE refresh_tokens (
+  id TEXT PRIMARY KEY,
+  user_address TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  revoked_at TIMESTAMP
+);
+
+CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_address);
+
+-- OAuth authorization codes (short-lived, 10min)
+CREATE TABLE auth_codes (
+  code TEXT PRIMARY KEY,
+  user_address TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  redirect_uri TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  code_challenge TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  used_at TIMESTAMP
+);
+
 -- Note: Payment history queried from on-chain indexer (Helius/Solscan), not duplicated here
+-- Note: Nonces stored in KV (5min TTL), not D1
 ```
 
 ---
@@ -635,11 +794,14 @@ CREATE INDEX idx_services_pending ON services(pending_balance, last_executed_at)
 
 1. **Market App Scaffold** - TanStack Start + Vite + Cloudflare + shadcn sidebar
 2. **Landing + Dashboard UI** - Basic routes and navigation
-3. **Service Creation Flow** - Server functions → Split creation → Token generation
-4. **Gateway Integration** - Add gateway/ with x402HTTPResourceServer + TunnelRelay DO
-5. **CLI** - Node.js tunnel client (packages/cascade-cli)
-6. **Client Onboarding** - Embedded Tabs flow at /pay
-7. **Explore Page** - MCP discovery (backed by Bazaar extension)
+3. **SIWS Library** - `packages/siws` with message construction and verification
+4. **Authentication** - SIWS auth flow, JWT sessions, protected routes
+5. **Service Creation Flow** - Server functions → Split creation → Token generation
+6. **Gateway Integration** - Add gateway/ with x402HTTPResourceServer + TunnelRelay DO
+7. **OAuth for MCP Clients** - OAuth server, consent screen, token management
+8. **CLI** - Node.js tunnel client (packages/cascade-cli)
+9. **Client Onboarding** - Embedded Tabs flow at /pay
+10. **Explore Page** - MCP discovery (backed by Bazaar extension)
 
 ---
 
@@ -677,14 +839,25 @@ CREATE INDEX idx_services_pending ON services(pending_balance, last_executed_at)
 
 16. **Minimal SSR** - Only landing (`/`) and explore (`/explore`) pages use SSR for SEO. All authenticated/wallet routes use `ssr: false` to avoid hydration complexity.
 
+17. **SIWS for authentication** - Sign-In With Solana following CAIP-122 standard. Proves wallet ownership, enables OAuth for MCP clients. Structured for x402 SIWx contribution.
+
+18. **30-day stateless JWT** - Simple auth without refresh complexity for dashboard. httpOnly cookie prevents XSS. Re-sign on expiry.
+
+19. **OAuth2 for MCP clients** - Full OAuth2 with PKCE for Claude Code and other MCP clients. Access token (1hr) + refresh token (30d) pattern.
+
+20. **KV for nonces** - Short-lived (5min) nonces in Cloudflare KV, not D1. Faster reads, automatic TTL cleanup.
+
+21. **Architecture ready for multi-chain** - Data model and auth patterns support adding Base later. No UI changes for MVP - Solana only. See ADR-0005 for Base implementation.
+
 ---
 
 ## Future Considerations (Deferred)
 
 - **Split Executor** - Batch `execute_split()` service (CF Queue + Worker) for automatic revenue distribution
 - **Shared UI package** - Extract common components to `packages/ui` once market app stabilizes
+- **x402 SIWx contribution** - Contribute `packages/siws` to x402 as reference implementation for Solana signature scheme
 - ERC-8004 integration for on-chain discovery/reputation
-- Multi-chain support (Base EVM)
+- **Multi-chain support (Base EVM)** - See ADR-0005 for implementation details
 - Custom split configurations (revenue sharing with API providers)
 - Subscription/tiered pricing models
 - Advanced Bazaar features (capability descriptions, categories, ratings)
