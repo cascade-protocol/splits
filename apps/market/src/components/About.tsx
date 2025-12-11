@@ -17,7 +17,7 @@ export function About() {
       <div className="w-full max-w-2xl space-y-10">
         {/* Hero */}
         <div className="text-center space-y-3">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-balance text-foreground/90">
             Monetize your MCP in one command
           </h1>
           <p className="text-lg text-muted-foreground">
