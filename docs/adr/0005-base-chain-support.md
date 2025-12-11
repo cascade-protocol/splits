@@ -69,8 +69,34 @@ Issued At: 2025-12-11T12:00:00Z
 
 **Implementation:**
 - Use `siwe` npm package (established standard)
-- Same JWT structure, different signature verification
+- Same JWT structure, different signature verification (ECDSA vs Ed25519)
 - Same OAuth flow for MCP clients
+
+### OAuth for MCP Clients (Base)
+
+Same OAuth structure as Solana (see ADR-0004), with chain-specific metadata:
+
+**Protected Resource Metadata (RFC 9728):**
+
+```typescript
+// /.well-known/oauth-protected-resource
+// Chain determined from context (hostname, session, or x402 network field)
+{
+  resource: "https://cascade.fyi",
+  authorization_servers: ["https://cascade.fyi"],
+  scopes_supported: ["spend-permission:use", "services:read"],
+  resource_name: "Cascade Market (Base)",
+}
+```
+
+**OAuth flow is identical to Solana:**
+1. MCP client gets 401 → fetches OAuth metadata
+2. User authenticates via SIWE (not SIWS)
+3. User approves → auth code → tokens
+4. If payment required → x402 with Base network (Spend Permissions)
+
+**Important:** OAuth (authentication) and x402 (payments) remain separate concerns.
+The only difference is the signature verification method and payment mechanism.
 
 ### Payments: Coinbase Smart Wallet Spend Permissions
 
@@ -197,10 +223,12 @@ ALTER TABLE auth_codes ADD COLUMN chain TEXT DEFAULT 'solana';
 
 | Component | Description |
 |-----------|-------------|
-| `packages/siwe` | SIWE library (or use existing `siwe` package) |
 | `apps/market/src/lib/evm-wallet.tsx` | wagmi/viem wallet provider |
-| `apps/market/src/server/auth-evm.ts` | SIWE verification |
-| `apps/market/src/components/spend-permission.tsx` | Coinbase SDK integration |
+| `apps/market/src/server/auth-evm.ts` | SIWE verification (uses `siwe` npm package directly) |
+| `apps/market/src/components/spend-permission.tsx` | Coinbase Smart Wallet SDK integration |
+
+**Note:** No custom `packages/siwe` needed - use the established `siwe` npm package directly.
+Same approach as Solana: no custom SIWS package, use native Wallet Standard `solana:signIn`.
 
 ---
 

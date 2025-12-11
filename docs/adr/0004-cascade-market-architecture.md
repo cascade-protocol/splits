@@ -167,7 +167,28 @@ Sign-In With Solana (SIWS) provides wallet-based authentication following the CA
 - Proves wallet ownership without sharing private keys
 - Standard message format recognizable by users
 - Enables OAuth flows for MCP clients (Claude Code, etc.)
-- Foundation for future x402 SIWx extension contribution
+
+**Implementation Approach:**
+
+Uses the native Wallet Standard `solana:signIn` feature (`@solana/wallet-standard-features`) with fallback to `signMessage` for older wallets. No custom SIWS package needed.
+
+```typescript
+// Client-side: Check for native signIn feature
+const signInFeature = wallet.features?.["solana:signIn"];
+
+if (signInFeature) {
+  // Native SIWS - wallet handles message construction
+  const [result] = await signInFeature.signIn(input);
+} else if (wallet.signMessage) {
+  // Fallback: construct CAIP-122 message manually
+  const message = constructSIWSMessage(input);
+  const signature = await wallet.signMessage(new TextEncoder().encode(message));
+}
+
+// Server-side: Verify using @solana/kit
+import { getPublicKeyFromAddress } from "@solana/addresses";
+import { verifySignature } from "@solana/keys";
+```
 
 **Auth Flow (Dashboard):**
 
@@ -176,7 +197,7 @@ Sign-In With Solana (SIWS) provides wallet-based authentication following the CA
 │  1. User connects Solana wallet                                         │
 │  2. Frontend requests nonce from server                                 │
 │  3. Server generates nonce, stores in KV (5min TTL)                     │
-│  4. Frontend constructs SIWS message:                                   │
+│  4. Frontend uses wallet.signIn() or constructs SIWS message:           │
 │                                                                         │
 │     cascade.fyi wants you to sign in with your Solana account:          │
 │     DYw4...abc                                                          │
@@ -209,35 +230,32 @@ Sign-In With Solana (SIWS) provides wallet-based authentication following the CA
 Set-Cookie: session=<jwt>; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000
 ```
 
-**SIWS Library (`packages/siws`):**
-
-Standalone package structured for x402 contribution:
-
-```typescript
-// Server-side
-import { generateNonce, validateSIWSMessage, verifySIWSSignature } from "@cascade-fyi/siws";
-
-// Client-side
-import { createSIWSMessage, createSIWSPayload } from "@cascade-fyi/siws";
-```
-
 ### OAuth for MCP Clients
 
 MCP clients (Claude Code, etc.) authenticate via OAuth2 to use Tabs for payments.
+
+**Important:** MCP OAuth and x402 payments are **separate concerns**:
+- **MCP OAuth**: Authenticates MCP clients (who are you?)
+- **x402 Payments**: Handles payment for resources (PAYMENT-REQUIRED/PAYMENT-SIGNATURE headers)
+
+They work together: OAuth authenticates the client, then x402 handles payment if required.
 
 **Why OAuth:**
 - MCP SDK has built-in OAuth2 support with PKCE
 - Enables long-running sessions for AI agents
 - User authorizes once, agent pays automatically via Tabs
 
-**OAuth Flow:**
+**OAuth Discovery Flow:**
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  1. MCP client connects to https://example.mcps.cascade.fyi             │
-│  2. Gateway returns 401 + OAuth metadata URL                            │
-│  3. MCP client fetches /.well-known/oauth-authorization-server          │
-│  4. MCP client opens browser → /oauth/authorize                         │
+│  2. Gateway returns 401 + WWW-Authenticate header                       │
+│  3. MCP client fetches /.well-known/oauth-protected-resource (RFC 9728) │
+│     → { authorization_servers: ["https://cascade.fyi"], ... }           │
+│  4. MCP client fetches /.well-known/oauth-authorization-server (RFC 8414)│
+│     → { authorization_endpoint, token_endpoint, ... }                   │
+│  5. MCP client opens browser → /oauth/authorize                         │
 │                                                                         │
 │     ┌─────────────────────────────────────────────────────────────┐     │
 │     │  Authorize Claude Code                                      │     │
@@ -250,12 +268,13 @@ MCP clients (Claude Code, etc.) authenticate via OAuth2 to use Tabs for payments
 │     │  [Deny]  [Authorize]                                        │     │
 │     └─────────────────────────────────────────────────────────────┘     │
 │                                                                         │
-│  5. User signs SIWS (if not logged in) + approves                       │
-│  6. Server generates auth code, redirects to localhost callback         │
-│  7. MCP client exchanges code for tokens (PKCE verification)            │
-│  8. MCP client stores tokens locally                                    │
-│  9. All MCP requests include Bearer token                               │
-│ 10. Gateway verifies token, uses Tabs for payment                       │
+│  6. User signs SIWS (if not logged in) + approves                       │
+│  7. Server generates auth code, redirects to localhost callback         │
+│  8. MCP client exchanges code for tokens (PKCE verification)            │
+│  9. MCP client stores tokens locally                                    │
+│ 10. All MCP requests include Bearer token                               │
+│ 11. If payment required → 402 + PAYMENT-REQUIRED (x402 takes over)      │
+│ 12. Pay via Tabs → PAYMENT-SIGNATURE header                             │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -269,9 +288,40 @@ MCP clients (Claude Code, etc.) authenticate via OAuth2 to use Tabs for payments
 **OAuth Endpoints:**
 
 ```
-/.well-known/oauth-authorization-server  → OAuth metadata
-/oauth/authorize                         → Consent screen
-/oauth/token                             → Token exchange
+/.well-known/oauth-protected-resource    → RFC 9728 resource metadata
+/.well-known/oauth-authorization-server  → RFC 8414 OAuth metadata
+/oauth/authorize                         → Consent screen (SIWS if needed)
+/oauth/token                             → Token exchange (PKCE)
+```
+
+**Gateway 401 Response (Critical for OAuth Discovery):**
+
+The MCP SDK discovers OAuth via the `WWW-Authenticate` header. Gateway must return:
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer resource_metadata="https://cascade.fyi/.well-known/oauth-protected-resource"
+```
+
+For invalid tokens:
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer error="invalid_token", resource_metadata="https://cascade.fyi/.well-known/oauth-protected-resource"
+```
+
+**Token Verification (AuthInfo for MCP SDK):**
+
+```typescript
+interface AuthInfo {
+  token: string;
+  clientId: string;
+  scopes: string[];        // e.g., ["tabs:spend", "services:read"]
+  expiresAt?: number;      // seconds since epoch
+  resource?: URL;
+  extra?: {
+    walletAddress: string; // Solana address from SIWS
+  };
+}
 ```
 
 ### Why Not Refactor Existing Apps?
@@ -423,9 +473,12 @@ cascade-splits/
 │       │   │   │   └── $id.tsx        # Service detail
 │       │   │   ├── explore.tsx        # Browse MCPs
 │       │   │   ├── pay.tsx            # Client onboarding (embedded Tabs)
+│       │   │   ├── .well-known/
+│       │   │   │   ├── oauth-protected-resource.ts   # RFC 9728 metadata
+│       │   │   │   └── oauth-authorization-server.ts # RFC 8414 metadata
 │       │   │   ├── oauth/
-│       │   │   │   ├── authorize.tsx  # OAuth consent screen
-│       │   │   │   └── callback.tsx   # OAuth callback handler
+│       │   │   │   ├── authorize.tsx  # OAuth consent screen (SIWS)
+│       │   │   │   └── token.ts       # Token endpoint (PKCE)
 │       │   │   ├── tabs/              # Tabs developer console
 │       │   │   └── splits/            # Splits developer console
 │       │   │
@@ -455,15 +508,6 @@ cascade-splits/
 │       └── wrangler.jsonc
 │
 ├── packages/
-│   ├── siws/                          # Sign-In With Solana library
-│   │   ├── src/
-│   │   │   ├── index.ts               # Re-exports
-│   │   │   ├── types.ts               # SIWSPayload, SIWSExtension
-│   │   │   ├── message.ts             # CAIP-122 message construction
-│   │   │   ├── verify.ts              # Ed25519 signature verification
-│   │   │   ├── server.ts              # Server helpers
-│   │   │   └── client.ts              # Client helpers
-│   │   └── package.json
 │   ├── cascade-cli/                   # CLI (Node.js initially)
 │   │   ├── src/
 │   │   │   ├── index.ts
@@ -794,14 +838,13 @@ CREATE TABLE auth_codes (
 
 1. **Market App Scaffold** - TanStack Start + Vite + Cloudflare + shadcn sidebar
 2. **Landing + Dashboard UI** - Basic routes and navigation
-3. **SIWS Library** - `packages/siws` with message construction and verification
-4. **Authentication** - SIWS auth flow, JWT sessions, protected routes
-5. **Service Creation Flow** - Server functions → Split creation → Token generation
-6. **Gateway Integration** - Add gateway/ with x402HTTPResourceServer + TunnelRelay DO
-7. **OAuth for MCP Clients** - OAuth server, consent screen, token management
-8. **CLI** - Node.js tunnel client (packages/cascade-cli)
-9. **Client Onboarding** - Embedded Tabs flow at /pay
-10. **Explore Page** - MCP discovery (backed by Bazaar extension)
+3. **Authentication** - SIWS auth flow (native signIn), JWT sessions, protected routes
+4. **Service Creation Flow** - Server functions → Split creation → Token generation
+5. **Gateway Integration** - Add gateway/ with x402HTTPResourceServer + TunnelRelay DO
+6. **OAuth for MCP Clients** - OAuth server, consent screen, token management
+7. **CLI** - Node.js tunnel client (packages/cascade-cli)
+8. **Client Onboarding** - Embedded Tabs flow at /pay
+9. **Explore Page** - MCP discovery (backed by Bazaar extension)
 
 ---
 
@@ -839,7 +882,7 @@ CREATE TABLE auth_codes (
 
 16. **Minimal SSR** - Only landing (`/`) and explore (`/explore`) pages use SSR for SEO. All authenticated/wallet routes use `ssr: false` to avoid hydration complexity.
 
-17. **SIWS for authentication** - Sign-In With Solana following CAIP-122 standard. Proves wallet ownership, enables OAuth for MCP clients. Structured for x402 SIWx contribution.
+17. **SIWS via Wallet Standard** - Uses native `solana:signIn` feature from Wallet Standard (CAIP-122). No custom package needed - server-side verification only using `@solana/kit`.
 
 18. **30-day stateless JWT** - Simple auth without refresh complexity for dashboard. httpOnly cookie prevents XSS. Re-sign on expiry.
 
@@ -855,7 +898,6 @@ CREATE TABLE auth_codes (
 
 - **Split Executor** - Batch `execute_split()` service (CF Queue + Worker) for automatic revenue distribution
 - **Shared UI package** - Extract common components to `packages/ui` once market app stabilizes
-- **x402 SIWx contribution** - Contribute `packages/siws` to x402 as reference implementation for Solana signature scheme
 - ERC-8004 integration for on-chain discovery/reputation
 - **Multi-chain support (Base EVM)** - See ADR-0005 for implementation details
 - Custom split configurations (revenue sharing with API providers)
