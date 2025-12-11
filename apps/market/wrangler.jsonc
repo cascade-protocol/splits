@@ -1,0 +1,45 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cascade-market",
+  "account_id": "3db7dd8ff22ae68593205855d8bc0b25",
+  "main": "./src/server.ts",
+  "compatibility_date": "2025-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+
+  // D1 Database for service registry
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cascade-market",
+      "database_id": "placeholder-create-with-wrangler-d1-create"
+    }
+  ],
+
+  // Durable Objects for tunnel relay
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TUNNEL_RELAY",
+        "class_name": "TunnelRelay"
+      }
+    ]
+  },
+
+  // Routes: cascade.fyi (main) + *.mcps.cascade.fyi (gateway)
+  "routes": [
+    { "pattern": "cascade.fyi", "custom_domain": true },
+    { "pattern": "*.mcps.cascade.fyi", "custom_domain": true }
+  ],
+
+  // Durable Object migrations
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["TunnelRelay"]
+    }
+  ]
+}
