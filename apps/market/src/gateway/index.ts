@@ -7,11 +7,16 @@
 
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import type {
-  PaymentPayload,
-  PaymentRequirements,
-  Network,
-} from "@x402/core/types";
+import type { Network } from "@x402/core/types";
+import {
+  HTTPFacilitatorClient,
+  x402ResourceServer,
+  x402HTTPResourceServer,
+  type HTTPAdapter,
+  type HTTPRequestContext,
+  type HTTPProcessResult,
+} from "@x402/core/server";
+import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
 import { verifyAccessToken, type AuthInfo } from "../server/oauth";
 
 // USDC mint on Solana mainnet
@@ -25,6 +30,9 @@ const RATE_LIMIT = {
   mcp: { limit: 60, windowSec: 60 }, // 60 req/min per IP for MCP
 };
 
+// Cascade facilitator URL (x402 v2)
+const FACILITATOR_URL = "https://facilitator.cascade.fyi";
+
 type Bindings = {
   DB: D1Database;
   KV: KVNamespace;
@@ -34,7 +42,18 @@ type Bindings = {
 
 type Variables = {
   authInfo?: AuthInfo;
+  subdomain?: string;
+  service?: ServiceRecord;
 };
+
+interface ServiceRecord {
+  id: string;
+  name: string;
+  split_config: string; // SplitConfig PDA (used as payTo)
+  split_vault: string; // Vault ATA (where funds land)
+  price: string;
+  status: string;
+}
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -43,6 +62,192 @@ app.use("/*", cors());
 
 // Health check
 app.get("/health", (c) => c.json({ ok: true, timestamp: Date.now() }));
+
+/**
+ * Discovery endpoint - lists available MCP services
+ * Returns service URLs and metadata for direct browsing (not via facilitator)
+ */
+app.get("/discovery/resources", async (c) => {
+  const limit = Math.min(
+    Number.parseInt(c.req.query("limit") || "50", 10),
+    100,
+  );
+  const offset = Number.parseInt(c.req.query("offset") || "0", 10);
+
+  const services = await c.env.DB.prepare(
+    `SELECT name, price, split_config, status
+     FROM services
+     WHERE status = 'online'
+     ORDER BY total_calls DESC
+     LIMIT ? OFFSET ?`,
+  )
+    .bind(limit, offset)
+    .all<{
+      name: string;
+      price: string;
+      split_config: string;
+      status: string;
+    }>();
+
+  const total = await c.env.DB.prepare(
+    "SELECT COUNT(*) as count FROM services WHERE status = 'online'",
+  ).first<{ count: number }>();
+
+  return c.json({
+    resources: services.results.map((s) => ({
+      url: `https://${s.name}.mcps.cascade.fyi/mcp`,
+      type: "mcp",
+      metadata: {
+        name: s.name,
+        price: s.price,
+        payTo: s.split_config,
+        network: "solana:mainnet",
+        asset: USDC_MINT,
+      },
+    })),
+    total: total?.count ?? 0,
+    limit,
+    offset,
+  });
+});
+
+/**
+ * Hono HTTP Adapter for x402HTTPResourceServer
+ * Implements the HTTPAdapter interface for Hono context
+ */
+class HonoHTTPAdapter implements HTTPAdapter {
+  constructor(private req: Request) {}
+
+  getHeader(name: string): string | undefined {
+    return this.req.headers.get(name) ?? undefined;
+  }
+
+  getMethod(): string {
+    return this.req.method;
+  }
+
+  getPath(): string {
+    const url = new URL(this.req.url);
+    return url.pathname;
+  }
+
+  getUrl(): string {
+    return this.req.url;
+  }
+
+  getAcceptHeader(): string {
+    return this.req.headers.get("Accept") ?? "";
+  }
+
+  getUserAgent(): string {
+    return this.req.headers.get("User-Agent") ?? "";
+  }
+
+  getQueryParams(): Record<string, string | string[]> {
+    const url = new URL(this.req.url);
+    const params: Record<string, string | string[]> = {};
+    for (const [key, value] of url.searchParams.entries()) {
+      const existing = params[key];
+      if (existing) {
+        params[key] = Array.isArray(existing)
+          ? [...existing, value]
+          : [existing, value];
+      } else {
+        params[key] = value;
+      }
+    }
+    return params;
+  }
+
+  getQueryParam(name: string): string | string[] | undefined {
+    const url = new URL(this.req.url);
+    const values = url.searchParams.getAll(name);
+    if (values.length === 0) return undefined;
+    if (values.length === 1) return values[0];
+    return values;
+  }
+}
+
+// Initialize x402 HTTP server (cached per isolate)
+let httpServer: x402HTTPResourceServer | null = null;
+let serverNetwork: Network | null = null;
+
+async function getX402Server(): Promise<{
+  httpServer: x402HTTPResourceServer;
+  network: Network;
+}> {
+  if (httpServer && serverNetwork) {
+    return { httpServer, network: serverNetwork };
+  }
+
+  // Create facilitator client
+  const facilitator = new HTTPFacilitatorClient({ url: FACILITATOR_URL });
+
+  // Create resource server with Bazaar extension for discovery
+  const resourceServer = new x402ResourceServer(facilitator);
+  resourceServer.registerExtension(bazaarResourceServerExtension);
+
+  // Create HTTP server with dynamic route
+  // Note: payTo and price are resolved dynamically per-request via context
+  httpServer = new x402HTTPResourceServer(resourceServer, {
+    "POST /mcp/*": {
+      accepts: {
+        scheme: "exact",
+        // Dynamic payTo - resolved from service.split_config
+        payTo: (ctx: HTTPRequestContext) => {
+          const service = (
+            ctx as HTTPRequestContext & { service?: ServiceRecord }
+          ).service;
+          if (!service) throw new Error("Service not found in context");
+          return service.split_config;
+        },
+        // Dynamic price - resolved from service.price
+        price: (ctx: HTTPRequestContext) => {
+          const service = (
+            ctx as HTTPRequestContext & { service?: ServiceRecord }
+          ).service;
+          if (!service) throw new Error("Service not found in context");
+          return { asset: USDC_MINT, amount: service.price };
+        },
+        network: "solana:mainnet" as Network,
+        maxTimeoutSeconds: 60,
+      },
+      description: "MCP service endpoint",
+      mimeType: "application/json",
+      // Bazaar discovery extension - declares MCP JSON-RPC interface
+      extensions: {
+        bazaar: {
+          info: {
+            input: {
+              type: "http" as const,
+              method: "POST" as const,
+              bodyType: "json" as const,
+              body: {
+                jsonrpc: "2.0",
+                method: "string",
+                params: {},
+                id: "string|number",
+              },
+            },
+            output: {
+              type: "application/json",
+              example: { jsonrpc: "2.0", result: {}, id: "1" },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Initialize (fetches facilitator support info)
+  await httpServer.initialize();
+
+  // Cache the network from facilitator
+  const supported = await facilitator.getSupported();
+  serverNetwork = supported.kinds[0]?.network ?? ("solana:mainnet" as Network);
+
+  return { httpServer, network: serverNetwork };
+}
 
 /**
  * Check rate limit using KV with sliding window
@@ -73,16 +278,10 @@ async function checkRateLimit(
 async function getServiceBySubdomain(subdomain: string, db: D1Database) {
   return db
     .prepare(
-      "SELECT id, name, split_vault, price, status FROM services WHERE name = ?",
+      "SELECT id, name, split_config, split_vault, price, status FROM services WHERE name = ?",
     )
     .bind(subdomain)
-    .first<{
-      id: string;
-      name: string;
-      split_vault: string;
-      price: string;
-      status: string;
-    }>();
+    .first<ServiceRecord>();
 }
 
 // x402 payment-required endpoint for MCP calls
@@ -127,6 +326,10 @@ app.all("/mcp/*", async (c) => {
     return c.json({ error: "Service offline" }, 503);
   }
 
+  // Store for later use
+  c.set("subdomain", subdomain);
+  c.set("service", service);
+
   // OAuth Authentication (MCP SDK discovers via WWW-Authenticate header)
   const authHeader = c.req.header("Authorization");
 
@@ -149,7 +352,7 @@ app.all("/mcp/*", async (c) => {
     const token = authHeader.slice(7);
 
     try {
-      const authInfo = await verifyAccessToken(token);
+      const authInfo = await verifyAccessToken(c.env.JWT_SECRET, token);
       // Store auth info for payment handling (wallet address used by Tabs)
       c.set("authInfo", authInfo);
 
@@ -200,77 +403,97 @@ app.all("/mcp/*", async (c) => {
     );
   }
 
-  // Check for payment header (x402 spec: X-PAYMENT or Payment-Signature)
+  // Initialize x402 server (cached)
+  const { httpServer: x402Server } = await getX402Server();
+
+  // Create HTTP context for x402
+  const adapter = new HonoHTTPAdapter(c.req.raw);
   const paymentHeader =
     c.req.header("X-PAYMENT") || c.req.header("Payment-Signature");
 
-  // Get facilitator info for fee payer
-  let facilitatorInfo: { feePayer: string; network: Network };
-  try {
-    facilitatorInfo = await getFacilitatorInfo();
-  } catch {
-    return c.json({ error: "Facilitator unavailable" }, 503);
-  }
-
-  // Construct payment requirements
-  const requirements: PaymentRequirements = {
-    scheme: "exact",
-    network: facilitatorInfo.network,
-    amount: service.price,
-    asset: USDC_MINT,
-    payTo: service.split_vault,
-    maxTimeoutSeconds: 60,
-    extra: {
-      feePayer: facilitatorInfo.feePayer,
-      facilitator: FACILITATOR_URL,
-    },
+  // Extend context with service for dynamic payTo/price resolution
+  const httpContext: HTTPRequestContext & { service: ServiceRecord } = {
+    adapter,
+    path: adapter.getPath(),
+    method: adapter.getMethod(),
+    paymentHeader,
+    service,
   };
 
-  if (!paymentHeader) {
-    // Return 402 with payment requirements (x402 v2 spec)
-    return c.json(
-      {
-        x402Version: 2,
-        error: "Payment required",
-        accepts: [
-          {
-            ...requirements,
-            maxAmountRequired: requirements.amount,
-            resource: `https://${subdomain}.mcps.market.cascade.fyi/mcp`,
-          },
-        ],
-      },
-      402,
-    );
+  // Process payment request
+  const result: HTTPProcessResult =
+    await x402Server.processHTTPRequest(httpContext);
+
+  switch (result.type) {
+    case "no-payment-required":
+      // Should not happen for our routes, but forward anyway
+      break;
+
+    case "payment-error":
+      // Return 402 with payment requirements or error
+      return new Response(
+        result.response.isHtml
+          ? (result.response.body as string)
+          : JSON.stringify(result.response.body),
+        {
+          status: result.response.status,
+          headers: result.response.headers,
+        },
+      );
+
+    case "payment-verified": {
+      // Forward to tunnel
+      const tunnelId = c.env.TUNNEL_RELAY.idFromName(subdomain);
+      const tunnel = c.env.TUNNEL_RELAY.get(tunnelId);
+      const tunnelResponse = await tunnel.fetch(c.req.raw);
+
+      // Settle payment after successful tunnel response
+      if (tunnelResponse.ok) {
+        const settleResult = await x402Server.processSettlement(
+          result.paymentPayload,
+          result.paymentRequirements,
+        );
+
+        if (settleResult.success) {
+          // Record payment for later split execution
+          await c.env.DB.prepare(
+            `UPDATE services
+             SET pending_balance = pending_balance + ?,
+                 total_calls = total_calls + 1,
+                 total_revenue = total_revenue + ?,
+                 last_payment_tx = ?,
+                 last_payment_at = datetime('now')
+             WHERE name = ?`,
+          )
+            .bind(
+              service.price,
+              service.price,
+              settleResult.transaction ?? null,
+              subdomain,
+            )
+            .run();
+
+          // Add settlement headers to response
+          const responseHeaders = new Headers(tunnelResponse.headers);
+          for (const [key, value] of Object.entries(settleResult.headers)) {
+            responseHeaders.set(key, value);
+          }
+
+          return new Response(tunnelResponse.body, {
+            status: tunnelResponse.status,
+            headers: responseHeaders,
+          });
+        }
+        // Settlement failed but tunnel succeeded - return tunnel response
+        // (payment may have been partially processed)
+        console.error("Settlement failed:", settleResult.errorReason);
+      }
+
+      return tunnelResponse;
+    }
   }
 
-  // Step 1: Verify payment with facilitator
-  const verified = await verifyPayment(paymentHeader, requirements);
-  if (!verified.valid || !verified.payload) {
-    return c.json({ error: verified.error }, 400);
-  }
-
-  // Step 2: Settle payment (signs and broadcasts transaction)
-  const settled = await settlePayment(verified.payload, requirements);
-  if (!settled.success) {
-    return c.json({ error: settled.error || "Settlement failed" }, 402);
-  }
-
-  // Record payment for later split execution
-  // Store tx signature and last payment time for audit
-  await c.env.DB.prepare(
-    `UPDATE services
-     SET pending_balance = pending_balance + ?,
-         total_calls = total_calls + 1,
-         total_revenue = total_revenue + ?,
-         last_payment_tx = ?,
-         last_payment_at = datetime('now')
-     WHERE name = ?`,
-  )
-    .bind(service.price, service.price, settled.txSignature ?? null, subdomain)
-    .run();
-
-  // Forward to tunnel
+  // Fallback: forward to tunnel without payment
   const tunnelId = c.env.TUNNEL_RELAY.idFromName(subdomain);
   const tunnel = c.env.TUNNEL_RELAY.get(tunnelId);
   return tunnel.fetch(c.req.raw);
@@ -288,154 +511,5 @@ app.get("/tunnel/connect", async (c) => {
   const tunnel = c.env.TUNNEL_RELAY.get(tunnelId);
   return tunnel.fetch(c.req.raw);
 });
-
-// Cascade facilitator URL (x402 v2)
-const FACILITATOR_URL = "https://facilitator.cascade.fyi";
-
-// Cached facilitator info
-let cachedFacilitatorInfo: { feePayer: string; network: Network } | null = null;
-
-/**
- * Get facilitator capabilities (cached)
- */
-async function getFacilitatorInfo(): Promise<{
-  feePayer: string;
-  network: Network;
-}> {
-  if (cachedFacilitatorInfo) {
-    return cachedFacilitatorInfo;
-  }
-
-  const response = await fetch(`${FACILITATOR_URL}/supported`);
-  const data = (await response.json()) as {
-    kinds: Array<{
-      network: Network;
-      extra?: { feePayer?: string };
-    }>;
-  };
-
-  const kind = data.kinds[0];
-  if (!kind?.extra?.feePayer) {
-    throw new Error("Facilitator missing fee payer");
-  }
-
-  cachedFacilitatorInfo = {
-    feePayer: kind.extra.feePayer,
-    network: kind.network,
-  };
-
-  return cachedFacilitatorInfo;
-}
-
-/**
- * Verify payment with Cascade facilitator (x402 v2)
- *
- * Validates:
- * 1. x402 version compatibility
- * 2. Payment payload has required fields
- * 3. Facilitator verifies transaction (amount, recipient, signatures)
- */
-async function verifyPayment(
-  paymentHeader: string,
-  requirements: PaymentRequirements,
-): Promise<{
-  valid: boolean;
-  error?: string;
-  payload?: PaymentPayload;
-  payer?: string;
-}> {
-  try {
-    const decoded = JSON.parse(atob(paymentHeader)) as PaymentPayload;
-
-    // 1. Check x402 version
-    if (decoded.x402Version !== 2) {
-      return { valid: false, error: "Unsupported x402 version" };
-    }
-
-    // 2. Check payload has transaction
-    if (!decoded.payload?.transaction) {
-      return { valid: false, error: "Missing transaction in payment payload" };
-    }
-
-    // 3. Check scheme/network match
-    if (
-      decoded.accepted.scheme !== requirements.scheme ||
-      decoded.accepted.network !== requirements.network
-    ) {
-      return { valid: false, error: "Scheme or network mismatch" };
-    }
-
-    // 4. Verify with facilitator
-    const verifyResponse = await fetch(`${FACILITATOR_URL}/verify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        x402Version: 2,
-        paymentPayload: decoded,
-        paymentRequirements: requirements,
-      }),
-    });
-
-    const verification = (await verifyResponse.json()) as {
-      isValid: boolean;
-      invalidReason?: string;
-      payer?: string;
-    };
-
-    if (!verification.isValid) {
-      return {
-        valid: false,
-        error: verification.invalidReason || "Verification failed",
-      };
-    }
-
-    return { valid: true, payload: decoded, payer: verification.payer };
-  } catch {
-    return { valid: false, error: "Invalid payment header format" };
-  }
-}
-
-/**
- * Settle payment with Cascade facilitator (x402 v2)
- *
- * Signs and broadcasts the transaction to Solana.
- * Returns the transaction signature on success.
- */
-async function settlePayment(
-  payload: PaymentPayload,
-  requirements: PaymentRequirements,
-): Promise<{ success: boolean; txSignature?: string; error?: string }> {
-  try {
-    const settleResponse = await fetch(`${FACILITATOR_URL}/settle`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        x402Version: 2,
-        paymentPayload: payload,
-        paymentRequirements: requirements,
-      }),
-    });
-
-    const result = (await settleResponse.json()) as {
-      success: boolean;
-      transaction?: string;
-      errorReason?: string;
-    };
-
-    if (!result.success) {
-      return {
-        success: false,
-        error: result.errorReason || "Settlement failed",
-      };
-    }
-
-    return { success: true, txSignature: result.transaction };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Settlement error",
-    };
-  }
-}
 
 export { app as gatewayApp };

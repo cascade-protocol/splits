@@ -9,8 +9,14 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { json } from "@tanstack/react-start";
+import { env } from "cloudflare:workers";
 
 import { exchangeCodeForTokens, refreshAccessToken } from "@/server/oauth";
+
+interface CloudflareEnv {
+  DB: D1Database;
+  JWT_SECRET: string;
+}
 
 export const Route = createFileRoute("/oauth/token")({
   server: {
@@ -58,7 +64,8 @@ export const Route = createFileRoute("/oauth/token")({
             );
           }
 
-          const tokens = await exchangeCodeForTokens({
+          const { DB, JWT_SECRET } = env as CloudflareEnv;
+          const tokens = await exchangeCodeForTokens(DB, JWT_SECRET, {
             code,
             codeVerifier,
             clientId,
@@ -100,7 +107,8 @@ export const Route = createFileRoute("/oauth/token")({
             );
           }
 
-          const tokens = await refreshAccessToken({
+          const { DB, JWT_SECRET } = env as CloudflareEnv;
+          const tokens = await refreshAccessToken(DB, JWT_SECRET, {
             refreshToken,
             clientId,
           });

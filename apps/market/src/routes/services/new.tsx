@@ -1,8 +1,19 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import { env } from "cloudflare:workers";
 import { useState } from "react";
 import { ArrowLeft, Loader2, Check, Copy, AlertCircle } from "lucide-react";
-import { useWalletConnection, useSendTransaction } from "@solana/react-hooks";
-import { createSplitConfig, labelToSeed } from "@cascade-fyi/splits-sdk";
+import { useWalletConnection, useSolanaClient } from "@solana/react-hooks";
+import type {
+  Rpc,
+  SolanaRpcApi,
+  RpcSubscriptions,
+  SignatureNotificationsApi,
+  SlotNotificationsApi,
+} from "@solana/kit";
+import { ensureSplitConfig, labelToSeed } from "@cascade-fyi/splits-sdk";
+import { signerFromFrameworkKit } from "@cascade-fyi/splits-sdk/adapters/framework-kit";
+import { usdc } from "@/lib/utils";
 
 import {
   Card,
@@ -14,8 +25,42 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createService } from "@/server/services";
-import { createServiceToken } from "@/server/tokens";
+import { generateServiceToken, createTokenSchema } from "@/server/tokens";
+
+interface CloudflareEnv {
+  TOKEN_SECRET?: string;
+}
+
+/**
+ * Server function to create a service token
+ * Following Cloudflare docs pattern: env accessed inside createServerFn handler
+ */
+const createServiceTokenFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => createTokenSchema.parse(data))
+  .handler(
+    async ({
+      data,
+    }: {
+      data: {
+        splitConfig: string;
+        splitVault: string;
+        price: string;
+      };
+    }) => {
+      const { TOKEN_SECRET } = env as CloudflareEnv;
+      // Development fallback - DO NOT USE IN PRODUCTION
+      const tokenSecret =
+        TOKEN_SECRET || "cascade-market-dev-secret-change-in-production";
+      if (!TOKEN_SECRET) {
+        console.warn("TOKEN_SECRET not set, using development fallback");
+      }
+      // Use splitConfig address as serviceId (chain is source of truth)
+      return generateServiceToken(tokenSecret, {
+        serviceId: data.splitConfig,
+        ...data,
+      });
+    },
+  );
 
 export const Route = createFileRoute("/services/new")({
   ssr: false, // Client-only - requires wallet
@@ -27,7 +72,11 @@ type Step = "details" | "creating" | "success";
 function NewService() {
   const navigate = useNavigate();
   const { wallet, connected } = useWalletConnection();
-  const { send: sendTransaction, isSending } = useSendTransaction();
+  const client = useSolanaClient();
+  const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
+  const rpcSubscriptions = client.runtime.rpcSubscriptions as RpcSubscriptions<
+    SignatureNotificationsApi & SlotNotificationsApi
+  >;
 
   const [step, setStep] = useState<Step>("details");
   const [name, setName] = useState("");
@@ -48,37 +97,32 @@ function NewService() {
     setStep("creating");
 
     try {
-      // 1. Build split creation instruction
       const uniqueId = labelToSeed(name);
-      const authority = wallet.account.address;
+      const signer = signerFromFrameworkKit(wallet);
 
-      const { instruction, splitConfig, vault } = await createSplitConfig({
-        authority,
-        recipients: [{ address: authority, share: 99 }], // 99% to owner
+      // Idempotent split creation - handles all edge cases
+      const result = await ensureSplitConfig({
+        rpc,
+        rpcSubscriptions,
+        signer,
+        recipients: [{ address: signer.address, share: 100 }],
         uniqueId,
       });
 
-      // 2. Send transaction (wallet signs)
-      await sendTransaction({
-        instructions: [instruction],
-        feePayer: authority,
-      });
+      if (result.status === "failed") {
+        throw new Error(result.message);
+      }
 
-      // 3. Store service in D1
-      const service = await createService({
-        data: {
-          name,
-          ownerAddress: authority,
-          splitConfig,
-          splitVault: vault,
-          price,
-        },
-      });
+      if (result.status === "blocked") {
+        throw new Error(result.message);
+      }
 
-      // 4. Generate token
-      const { token: generatedToken } = await createServiceToken({
+      // result.status is 'created' or 'no_change'
+      const { splitConfig, vault } = result;
+
+      // Generate token (chain is source of truth, no D1 needed)
+      const { token: generatedToken } = await createServiceTokenFn({
         data: {
-          serviceId: service.id,
           splitConfig,
           splitVault: vault,
           price,
@@ -140,7 +184,7 @@ function NewService() {
               <p>
                 Price:{" "}
                 <code className="text-foreground">
-                  ${(Number(price) / 1_000_000).toFixed(6)}/call
+                  ${usdc.toDecimalString(BigInt(price))}/call
                 </code>
               </p>
             </div>
@@ -190,7 +234,7 @@ function NewService() {
                 }
                 placeholder="twitter-research"
                 required
-                pattern="[a-z0-9-]+"
+                pattern="[a-z0-9\-]+"
                 minLength={3}
                 maxLength={32}
                 disabled={step === "creating"}
@@ -210,11 +254,9 @@ function NewService() {
                 <Input
                   id="price"
                   type="number"
-                  value={(Number(price) / 1_000_000).toString()}
+                  value={usdc.toDecimalString(BigInt(price))}
                   onChange={(e) =>
-                    setPrice(
-                      (parseFloat(e.target.value) * 1_000_000).toString(),
-                    )
+                    setPrice(usdc.fromDecimal(e.target.value || "0").toString())
                   }
                   placeholder="0.001"
                   step="0.000001"
@@ -253,9 +295,9 @@ function NewService() {
             <Button
               type="submit"
               className="w-full"
-              disabled={step === "creating" || isSending || !name || !connected}
+              disabled={step === "creating" || !name || !connected}
             >
-              {step === "creating" || isSending ? (
+              {step === "creating" ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating Service...

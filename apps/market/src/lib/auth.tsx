@@ -26,7 +26,7 @@ import {
   createSignInMessageText,
   type SolanaSignInInputWithRequiredFields,
 } from "@solana/wallet-standard-util";
-import { getAddressEncoder } from "@solana/kit";
+import { getAddressEncoder, type Address } from "@solana/kit";
 
 /** Shape of verify request body (arrays because JSON doesn't support Uint8Array) */
 interface VerifyRequestOutput {
@@ -77,7 +77,7 @@ async function fetchSignOut(): Promise<void> {
 // Auth state
 interface AuthState {
   isAuthenticated: boolean;
-  address: string | null;
+  address: Address | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (mounted) {
           setState({
             isAuthenticated: session.authenticated,
-            address: session.address,
+            address: session.address as Address | null,
             isLoading: false,
             error: null,
           });
@@ -226,7 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setState({
         isAuthenticated: true,
-        address: verifiedAddress,
+        address: verifiedAddress as Address,
         isLoading: false,
         error: null,
       });

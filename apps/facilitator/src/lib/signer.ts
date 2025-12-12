@@ -2,6 +2,19 @@
  * Facilitator SVM Signer
  *
  * Handles signing, simulation, and broadcasting of Solana transactions.
+ *
+ * NOTE: This is a custom implementation, NOT using x402's `toFacilitatorSvmSigner()`.
+ * Reason: We need `innerInstructions` from simulation for RFC #646 CPI verification.
+ *
+ * When smart wallets (e.g., Squads multisig) pay, the actual transfer happens via
+ * Cross-Program Invocation (CPI) inside the multisig instruction. x402's signer
+ * returns `void` from simulateTransaction() and doesn't request innerInstructions,
+ * so it cannot verify CPI transfers. Our signer returns SimulationResult with
+ * innerInstructions which validateCpiTransfer() uses to find and verify the
+ * actual TransferChecked instruction inside the CPI.
+ *
+ * @see https://github.com/coinbase/x402/issues/646
+ * @see validation.ts - validateCpiTransfer()
  */
 
 import {
@@ -9,8 +22,10 @@ import {
   type Signature,
   type Transaction,
   type Base64EncodedWireTransaction,
+  type KeyPairSigner,
   createSolanaRpc,
   createKeyPairSignerFromBytes,
+  getBase58Encoder,
   getBase64Encoder,
   getBase64EncodedWireTransaction,
   getTransactionDecoder,
@@ -21,6 +36,9 @@ import {
 // =============================================================================
 
 export interface FacilitatorSigner {
+  /** The underlying KeyPairSigner for SDK usage */
+  keyPairSigner: KeyPairSigner;
+
   /** Get all fee payer addresses */
   getAddresses(): readonly Address[];
 
@@ -62,40 +80,6 @@ export interface InnerInstruction {
 }
 
 // =============================================================================
-// Base58 Utilities
-// =============================================================================
-
-const BASE58_ALPHABET =
-  "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-
-export function base58Decode(str: string): Uint8Array {
-  const bytes: number[] = [];
-  for (const char of str) {
-    const value = BASE58_ALPHABET.indexOf(char);
-    if (value === -1) throw new Error(`Invalid base58 character: ${char}`);
-
-    let carry = value;
-    for (let i = 0; i < bytes.length; i++) {
-      carry += (bytes[i] as number) * 58;
-      bytes[i] = carry & 0xff;
-      carry >>= 8;
-    }
-    while (carry > 0) {
-      bytes.push(carry & 0xff);
-      carry >>= 8;
-    }
-  }
-
-  // Handle leading zeros
-  for (const char of str) {
-    if (char !== "1") break;
-    bytes.push(0);
-  }
-
-  return new Uint8Array(bytes.reverse());
-}
-
-// =============================================================================
 // Transaction Utilities
 // =============================================================================
 
@@ -134,11 +118,13 @@ export async function createFacilitatorSigner(
   feePayerKeyBase58: string,
   rpcUrl: string,
 ): Promise<FacilitatorSigner> {
-  // Decode the fee payer key
-  const keyBytes = base58Decode(feePayerKeyBase58);
+  // Decode the fee payer key using kit's base58 encoder (encode string → bytes)
+  const base58Encoder = getBase58Encoder();
+  const keyBytes = base58Encoder.encode(feePayerKeyBase58);
   const signer = await createKeyPairSignerFromBytes(keyBytes);
 
   return {
+    keyPairSigner: signer,
     getAddresses: () => [signer.address],
 
     signTransaction: async (

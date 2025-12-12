@@ -11,8 +11,10 @@
 import {
   type Address,
   type CompiledTransactionMessage,
+  type ReadonlyUint8Array,
   type Transaction,
   decompileTransactionMessage,
+  getBase64Encoder,
   getCompiledTransactionMessageDecoder,
 } from "@solana/kit";
 import {
@@ -494,19 +496,13 @@ export async function verifyDirectTransfer(
 }
 
 // =============================================================================
-// Base64 Utilities (browser-compatible)
+// Binary Utilities
 // =============================================================================
 
-function base64ToBytes(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
-
-function readU64LE(bytes: Uint8Array, offset: number): bigint {
+function readU64LE(
+  bytes: Uint8Array | ReadonlyUint8Array,
+  offset: number,
+): bigint {
   const view = new DataView(bytes.buffer, bytes.byteOffset + offset, 8);
   return view.getBigUint64(0, true);
 }
@@ -542,11 +538,13 @@ export async function verifyCpiTransfer(
   let transferFound = false;
   let transferAmount: bigint | undefined;
 
+  const base64Encoder = getBase64Encoder();
+
   for (const inner of innerInstructions) {
     for (const ix of inner.instructions) {
       // Check if this is a TransferChecked instruction
       // Data format: [discriminator (1 byte), amount (8 bytes LE), decimals (1 byte)]
-      const dataBytes = base64ToBytes(ix.data);
+      const dataBytes = base64Encoder.encode(ix.data);
       if (
         dataBytes[0] === TRANSFER_CHECKED_DISCRIMINATOR &&
         dataBytes.length >= 10

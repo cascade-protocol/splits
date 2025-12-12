@@ -7,6 +7,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { env } from "cloudflare:workers";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -20,10 +21,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { createAuthCode as createAuthCodeServer } from "@/server/oauth";
+import { createAuthCode } from "@/server/oauth";
 
-// Server function wrapper for createAuthCode
-const createAuthCode = createServerFn({ method: "POST" })
+/**
+ * Server function to create an auth code
+ * Following Cloudflare docs pattern: env accessed inside createServerFn handler
+ */
+const createAuthCodeFn = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
       userAddress: string;
@@ -33,15 +37,27 @@ const createAuthCode = createServerFn({ method: "POST" })
       codeChallenge: string;
     }) => data,
   )
-  .handler(async ({ data }) => {
-    return createAuthCodeServer({
-      userAddress: data.userAddress,
-      clientId: data.clientId,
-      redirectUri: data.redirectUri,
-      scope: data.scope,
-      codeChallenge: data.codeChallenge,
-    });
-  });
+  .handler(
+    async ({
+      data,
+    }: {
+      data: {
+        userAddress: string;
+        clientId: string;
+        redirectUri: string;
+        scope: string;
+        codeChallenge: string;
+      };
+    }) => {
+      return createAuthCode(env.DB, {
+        userAddress: data.userAddress,
+        clientId: data.clientId,
+        redirectUri: data.redirectUri,
+        scope: data.scope,
+        codeChallenge: data.codeChallenge,
+      });
+    },
+  );
 
 // Supported OAuth scopes
 const SUPPORTED_SCOPES = ["tabs:spend", "services:read"] as const;
@@ -132,7 +148,7 @@ function AuthorizePage() {
 
     try {
       // Create authorization code
-      const code = await createAuthCode({
+      const code = await createAuthCodeFn({
         data: {
           userAddress: address,
           clientId: searchParams.client_id,

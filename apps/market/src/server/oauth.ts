@@ -1,14 +1,17 @@
 /**
- * OAuth Server Functions
+ * OAuth Business Logic
  *
- * Handles OAuth2 token exchange and refresh for MCP clients.
+ * Pure functions for OAuth2 token exchange and refresh.
  * Uses PKCE for security (required by MCP SDK).
+ *
+ * Note: These functions accept D1Database and JWT secret as parameters.
+ * Server functions that access cloudflare:workers env should be defined
+ * in route files following TanStack Start patterns.
  */
 
 import { SignJWT, jwtVerify } from "jose";
 import { verifyChallenge } from "pkce-challenge";
 import { nanoid } from "nanoid";
-import { env } from "cloudflare:workers";
 
 // JWT issuer for token validation
 const JWT_ISSUER = "https://market.cascade.fyi";
@@ -38,20 +41,24 @@ export interface AuthInfo {
  * Create an authorization code
  * Called when user approves OAuth consent
  */
-export async function createAuthCode(params: {
-  userAddress: string;
-  clientId: string;
-  redirectUri: string;
-  scope: string;
-  codeChallenge: string;
-}): Promise<string> {
+export async function createAuthCode(
+  db: D1Database,
+  params: {
+    userAddress: string;
+    clientId: string;
+    redirectUri: string;
+    scope: string;
+    codeChallenge: string;
+  },
+): Promise<string> {
   const code = nanoid(32);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
-  await env.DB.prepare(
-    `INSERT INTO auth_codes (code, user_address, client_id, redirect_uri, scope, code_challenge, expires_at)
+  await db
+    .prepare(
+      `INSERT INTO auth_codes (code, user_address, client_id, redirect_uri, scope, code_challenge, expires_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  )
+    )
     .bind(
       code,
       params.userAddress,
@@ -70,21 +77,24 @@ export async function createAuthCode(params: {
  * Exchange authorization code for tokens
  * Verifies PKCE code_verifier against stored code_challenge
  */
-export async function exchangeCodeForTokens(params: {
-  code: string;
-  codeVerifier: string;
-  clientId: string;
-  redirectUri: string;
-}): Promise<{
+export async function exchangeCodeForTokens(
+  db: D1Database,
+  jwtSecret: string,
+  params: {
+    code: string;
+    codeVerifier: string;
+    clientId: string;
+    redirectUri: string;
+  },
+): Promise<{
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
   scope: string;
 } | null> {
   // 1. Lookup auth code
-  const authCode = await env.DB.prepare(
-    "SELECT * FROM auth_codes WHERE code = ? AND used_at IS NULL",
-  )
+  const authCode = await db
+    .prepare("SELECT * FROM auth_codes WHERE code = ? AND used_at IS NULL")
     .bind(params.code)
     .first<{
       code: string;
@@ -123,14 +133,13 @@ export async function exchangeCodeForTokens(params: {
   }
 
   // 5. Mark code as used
-  await env.DB.prepare(
-    "UPDATE auth_codes SET used_at = datetime('now') WHERE code = ?",
-  )
+  await db
+    .prepare("UPDATE auth_codes SET used_at = datetime('now') WHERE code = ?")
     .bind(params.code)
     .run();
 
   // 6. Issue access token (1 hour)
-  const secret = new TextEncoder().encode(env.JWT_SECRET);
+  const secret = new TextEncoder().encode(jwtSecret);
   const accessToken = await new SignJWT({
     sub: authCode.user_address,
     client_id: params.clientId,
@@ -150,10 +159,11 @@ export async function exchangeCodeForTokens(params: {
   ).toISOString();
   const refreshTokenId = nanoid(16);
 
-  await env.DB.prepare(
-    `INSERT INTO refresh_tokens (id, user_address, token_hash, client_id, scope, expires_at)
+  await db
+    .prepare(
+      `INSERT INTO refresh_tokens (id, user_address, token_hash, client_id, scope, expires_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  )
+    )
     .bind(
       refreshTokenId,
       authCode.user_address,
@@ -175,10 +185,14 @@ export async function exchangeCodeForTokens(params: {
 /**
  * Refresh access token using refresh token
  */
-export async function refreshAccessToken(params: {
-  refreshToken: string;
-  clientId: string;
-}): Promise<{
+export async function refreshAccessToken(
+  db: D1Database,
+  jwtSecret: string,
+  params: {
+    refreshToken: string;
+    clientId: string;
+  },
+): Promise<{
   accessToken: string;
   expiresIn: number;
   scope: string;
@@ -187,10 +201,11 @@ export async function refreshAccessToken(params: {
   const tokenHash = await hashToken(params.refreshToken);
 
   // 2. Lookup refresh token
-  const storedToken = await env.DB.prepare(
-    `SELECT * FROM refresh_tokens
+  const storedToken = await db
+    .prepare(
+      `SELECT * FROM refresh_tokens
      WHERE token_hash = ? AND client_id = ? AND revoked_at IS NULL`,
-  )
+    )
     .bind(tokenHash, params.clientId)
     .first<{
       id: string;
@@ -209,7 +224,7 @@ export async function refreshAccessToken(params: {
   }
 
   // 4. Issue new access token
-  const secret = new TextEncoder().encode(env.JWT_SECRET);
+  const secret = new TextEncoder().encode(jwtSecret);
   const accessToken = await new SignJWT({
     sub: storedToken.user_address,
     client_id: params.clientId,
@@ -232,8 +247,11 @@ export async function refreshAccessToken(params: {
  * Verify access token and return AuthInfo for MCP SDK
  * Used by gateway to verify Bearer tokens
  */
-export async function verifyAccessToken(token: string): Promise<AuthInfo> {
-  const secret = new TextEncoder().encode(env.JWT_SECRET);
+export async function verifyAccessToken(
+  jwtSecret: string,
+  token: string,
+): Promise<AuthInfo> {
+  const secret = new TextEncoder().encode(jwtSecret);
   const { payload } = await jwtVerify(token, secret);
 
   return {
@@ -250,17 +268,21 @@ export async function verifyAccessToken(token: string): Promise<AuthInfo> {
 /**
  * Revoke a refresh token
  */
-export async function revokeRefreshToken(params: {
-  refreshToken: string;
-  clientId: string;
-}): Promise<boolean> {
+export async function revokeRefreshToken(
+  db: D1Database,
+  params: {
+    refreshToken: string;
+    clientId: string;
+  },
+): Promise<boolean> {
   const tokenHash = await hashToken(params.refreshToken);
 
-  const result = await env.DB.prepare(
-    `UPDATE refresh_tokens
+  const result = await db
+    .prepare(
+      `UPDATE refresh_tokens
      SET revoked_at = datetime('now')
      WHERE token_hash = ? AND client_id = ?`,
-  )
+    )
     .bind(tokenHash, params.clientId)
     .run();
 

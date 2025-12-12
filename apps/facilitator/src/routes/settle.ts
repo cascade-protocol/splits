@@ -19,9 +19,11 @@ import { decodeTransaction } from "../lib/signer.js";
 import {
   decompileTransactionMessage,
   getCompiledTransactionMessageDecoder,
+  createSolanaRpc,
   type CompiledTransactionMessage,
   type Address,
 } from "@solana/kit";
+import { executeAndSendSplit } from "@cascade-fyi/splits-sdk";
 
 export async function settleHandler(c: Context<{ Bindings: Env }>) {
   const { FEE_PAYER_KEY, HELIUS_RPC_URL } = c.env;
@@ -236,6 +238,20 @@ export async function settleHandler(c: Context<{ Bindings: Env }>) {
       network: paymentRequirements.network,
     } as SettleResponse);
   }
+
+  // Execute split if payTo is a Cascade split (fire and forget)
+  const rpc = createSolanaRpc(HELIUS_RPC_URL as `https://${string}`);
+  executeAndSendSplit({
+    rpc,
+    splitConfig: paymentRequirements.payTo as Address,
+    signer: signer.keyPairSigner,
+  }).then((r) => {
+    if (r.sent) {
+      console.log(`[splits] Executed: ${r.signature}`);
+    } else if (r.reason !== "not_a_split") {
+      console.warn(`[splits] Skipped: ${r.reason}`, r.error);
+    }
+  });
 
   return c.json({
     success: true,

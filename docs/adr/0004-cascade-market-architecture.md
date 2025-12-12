@@ -44,16 +44,18 @@ Cascade Ecosystem
 One unified app at `market.cascade.fyi` with distinct route trees:
 
 ```
-market.cascade.fyi/              → Market landing + dashboard (consumer-focused)
-market.cascade.fyi/dashboard     → Services dashboard
+market.cascade.fyi/              → Landing (About) when disconnected; Dashboard when connected
+market.cascade.fyi/dashboard     → Redirects to / (dashboard shown via conditional rendering)
+market.cascade.fyi/services      → Redirects to / (services shown in dashboard)
 market.cascade.fyi/services/new  → Create service wizard
-market.cascade.fyi/explore       → Browse MCPs
-market.cascade.fyi/pay           → Client onboarding (Tabs embedded)
-market.cascade.fyi/tabs          → Tabs developer console
-market.cascade.fyi/splits        → Splits developer console
+market.cascade.fyi/services/$id  → Service detail page
+market.cascade.fyi/explore       → Browse MCPs (SSR for SEO)
+market.cascade.fyi/pay           → Client onboarding (Tabs info + links)
+market.cascade.fyi/tabs          → Tabs developer console (embedded)
+market.cascade.fyi/splits        → Splits developer console (embedded)
 ```
 
-**Rationale:** Single deployment, shared wallet state, one codebase. Can migrate to separate apps later if needed.
+**Rationale:** Single deployment, shared wallet state, one codebase. Conditional rendering at `/` avoids separate dashboard route complexity while maintaining clean URLs.
 
 ### Tech Stack
 
@@ -63,8 +65,8 @@ market.cascade.fyi/splits        → Splits developer console
 | **Bundler** | Vite + Cloudflare plugin | Runs in actual Workers runtime locally |
 | **Deployment** | Cloudflare Workers | Modern full-stack approach, D1/KV bindings |
 | **Styling** | Tailwind CSS v4 | Primary styling, utility-first |
-| **UI Components** | shadcn/ui sidebar template | Built on Tailwind, pre-built responsive layout |
-| **Approach** | Mobile-first | Sidebar handles responsive behavior automatically |
+| **UI Components** | shadcn/ui | Built on Tailwind + Radix UI primitives |
+| **Approach** | Mobile-first | Header with responsive sheet menu |
 | **Starting point** | Fresh `apps/market` | Clean slate, no legacy patterns |
 
 ### SSR Strategy
@@ -396,8 +398,8 @@ Dashboard: https://market.cascade.fyi/dashboard
 │  ├── Bazaar extension: advertise MCP for discovery                      │
 │  └── onAfterSettle hook: record payment for split execution             │
 │                                                                         │
-│  HTTPFacilitatorClient → tabs.cascade.fyi                               │
-│  └── Verifies smart wallet (Squads) payment transactions                │
+│  HTTPFacilitatorClient → facilitator.cascade.fyi                        │
+│  └── Verifies and settles x402 payment transactions (Solana)            │
 │                                                                         │
 │  TunnelRelay (Durable Object with WebSocket Hibernation)                │
 │  └── Forward verified requests to developer's MCP                       │
@@ -466,7 +468,7 @@ cascade-splits/
 │   └── market/                        # Single deployment: market.cascade.fyi + *.mcps.cascade.fyi
 │       ├── src/
 │       │   ├── routes/                # TanStack Start file-based routes
-│       │   │   ├── __root.tsx         # Root layout with SidebarProvider
+│       │   │   ├── __root.tsx         # Root layout with providers
 │       │   │   ├── index.tsx          # Landing page
 │       │   │   ├── dashboard.tsx      # Services overview
 │       │   │   ├── services/
@@ -485,10 +487,10 @@ cascade-splits/
 │       │   │   └── splits/            # Splits developer console
 │       │   │
 │       │   ├── components/
-│       │   │   ├── app-sidebar.tsx    # shadcn sidebar
-│       │   │   ├── nav-main.tsx
-│       │   │   ├── nav-user.tsx
-│       │   │   └── ...
+│       │   │   ├── Header.tsx         # Responsive header with nav
+│       │   │   ├── Dashboard.tsx      # Services overview
+│       │   │   ├── About.tsx          # Landing page content
+│       │   │   └── ui/                # shadcn/ui components
 │       │   │
 │       │   ├── server/                # Server functions (D1 CRUD)
 │       │   │   ├── services.ts        # createService, getServices, etc.
@@ -563,30 +565,29 @@ export default createServerEntry({
 
 ## UI Structure
 
-### Sidebar Navigation
+### Header Navigation
+
+The app uses a responsive Header component instead of sidebar for simpler navigation:
 
 ```tsx
-// Market section (consumer-focused)
-const marketNav = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "My Services", url: "/services", icon: Server },
-  { title: "Explore", url: "/explore", icon: Search },
-]
+// Header with navigation links
+const navItems = [
+  { title: "Dashboard", to: "/" },
+  { title: "About", to: "/about" },
+];
 
-// Developer tools section
-const devNav = [
-  { title: "Tabs", url: "/tabs", icon: CreditCard },
-  { title: "Splits", url: "/splits", icon: GitBranch },
-]
-
-// Sidebar footer = wallet button + user menu
+// Additional routes accessible via direct links:
+// /tabs - Tabs developer console
+// /splits - Splits developer console
+// /explore - Browse MCPs
+// /pay - Client onboarding
 ```
 
-### Responsive Behavior (handled by shadcn)
+### Responsive Behavior
 
-- **Mobile**: Sidebar becomes off-canvas drawer (hamburger trigger)
-- **Desktop**: Persistent sidebar, collapsible to icons
-- **State**: Persisted via cookie
+- **Desktop**: Horizontal navigation bar with links + wallet button
+- **Mobile**: Sheet-based slide-out menu (hamburger trigger)
+- **Wallet**: Connection button in header, user menu when connected
 
 ---
 
@@ -704,7 +705,7 @@ async function getServiceBySubdomain(subdomain: string, db: D1Database) {
 
 // Configure x402 resource server
 const x402Server = new x402ResourceServer({
-  facilitatorClient: new HTTPFacilitatorClient("https://tabs.cascade.fyi/api"),
+  facilitatorClient: new HTTPFacilitatorClient("https://facilitator.cascade.fyi"),
 
   // Dynamic payTo: route payments to split vault by subdomain
   payTo: async (context) => {
@@ -765,7 +766,7 @@ export default app;
 |---------|-------|
 | **Dynamic payTo** | Route payments to per-service split vaults |
 | **Dynamic price** | Per-service pricing from D1 |
-| **HTTPFacilitatorClient** | Delegate verify/settle to tabs.cascade.fyi (understands smart wallet payments) |
+| **HTTPFacilitatorClient** | Delegate verify/settle to facilitator.cascade.fyi (x402 payment verification) |
 | **Bazaar extension** | Advertise MCPs for client/agent discovery |
 | **onAfterSettle hook** | Update cached stats in D1 for dashboard |
 
@@ -862,15 +863,15 @@ CREATE TABLE auth_codes (
 
 3. **TanStack Start** - Server functions for type-safe D1 CRUD, collocated server/client code, built-in TanStack Query integration
 
-4. **shadcn sidebar template** - Pre-built responsive layout, removes maintenance burden
+4. **Header-based navigation** - Simpler than sidebar, responsive sheet menu for mobile
 
-5. **Mobile-first** - Sidebar handles responsive behavior automatically
+5. **Mobile-first** - Header with sheet component handles responsive behavior
 
 6. **Fresh app from scratch** - Cleaner than refactoring existing dashboard/tabs apps
 
 7. **Developer pays rent** - ~$2 registration (refundable), natural skin in game
 
-8. **Tabs facilitator for everything** - `tabs.cascade.fyi` handles both client-side settlement (tabsFetch) AND Gateway payment verification (understands smart wallet transactions)
+8. **Separate facilitator service** - `facilitator.cascade.fyi` handles Gateway payment verification/settlement. `tabs.cascade.fyi` handles client-side settlement via tabsFetch (smart wallet transactions)
 
 9. **Batched execute_split (deferred)** - Platform bears gas cost (covered by 1%), implement later
 

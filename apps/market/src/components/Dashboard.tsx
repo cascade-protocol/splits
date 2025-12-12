@@ -1,6 +1,17 @@
 import { Link } from "@tanstack/react-router";
-import { Plus, Server, Activity, DollarSign, Loader2 } from "lucide-react";
+import {
+  Plus,
+  Server,
+  Activity,
+  DollarSign,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useSolanaClient, useWalletConnection } from "@solana/react-hooks";
+import type { Rpc, SolanaRpcApi } from "@solana/kit";
+import { usdc } from "@/lib/utils";
+import { getSplitsByAuthority, seedToLabel } from "@cascade-fyi/splits-sdk";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,50 +21,44 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from "@/components/ui/empty";
-import { useAuth } from "@/lib/auth";
-import { getServices, getServiceStats } from "@/server/services";
 
 interface ServiceDisplay {
-  id: string;
-  name: string;
-  status: "online" | "offline";
-  price: string;
-  totalCalls: number;
-  totalRevenue: string;
+  id: string; // split config address
+  name: string; // derived from uniqueId via seedToLabel
+  vaultBalance: bigint;
 }
 
 export function Dashboard() {
-  const { address, isAuthenticated } = useAuth();
+  const { wallet, connected } = useWalletConnection();
+  const address = wallet?.account.address;
+  const client = useSolanaClient();
+  const rpc = client.runtime.rpc as Rpc<SolanaRpcApi>;
 
-  // Fetch services for this owner
-  const { data: servicesData = [], isLoading: servicesLoading } = useQuery({
-    queryKey: ["services", address],
-    queryFn: () => {
-      if (!address) return []; // Guard - never reached due to enabled
-      return getServices({ data: { ownerAddress: address } });
+  // Fetch splits from chain (source of truth)
+  const {
+    data: splits = [],
+    isLoading: splitsLoading,
+    error: splitsError,
+  } = useQuery({
+    queryKey: ["splits", address],
+    queryFn: async () => {
+      if (!address) return [];
+      const result = await getSplitsByAuthority(rpc, address);
+      return result;
     },
-    enabled: !!address && isAuthenticated,
+    enabled: !!address && connected,
   });
 
-  // Fetch aggregate stats
-  const { data: stats } = useQuery({
-    queryKey: ["service-stats", address],
-    queryFn: () => {
-      if (!address) return null; // Guard - never reached due to enabled
-      return getServiceStats({ data: { ownerAddress: address } });
-    },
-    enabled: !!address && isAuthenticated,
-  });
-
-  // Map D1 service format to display format
-  const services: ServiceDisplay[] = servicesData.map((s) => ({
-    id: s.id,
-    name: s.name,
-    status: s.status as "online" | "offline",
-    price: `$${(Number(s.price) / 1_000_000).toFixed(6)}`,
-    totalCalls: s.total_calls,
-    totalRevenue: s.total_revenue,
+  // Derive display data from chain
+  const services: ServiceDisplay[] = splits.map((split) => ({
+    id: split.address,
+    name: seedToLabel(split.uniqueId) ?? split.address.slice(0, 8),
+    vaultBalance: split.vaultBalance,
   }));
+
+  // Calculate stats from chain data
+  const totalBalance = splits.reduce((sum, s) => sum + s.vaultBalance, 0n);
+  const activeSplits = splits.filter((s) => s.vaultBalance > 0n).length;
 
   return (
     <div className="container mx-auto px-4 py-6 md:px-6 space-y-6">
@@ -78,24 +83,20 @@ export function Dashboard() {
         <StatCard
           icon={<Server className="h-4 w-4" />}
           label="Services"
-          value={
-            servicesLoading ? "..." : (stats?.total_services ?? 0).toString()
-          }
+          value={splitsLoading ? "..." : splits.length.toString()}
         />
         <StatCard
           icon={<Activity className="h-4 w-4" />}
-          label="Total Calls"
-          value={
-            servicesLoading ? "..." : (stats?.total_calls ?? 0).toLocaleString()
-          }
+          label="With Balance"
+          value={splitsLoading ? "..." : activeSplits.toString()}
         />
         <StatCard
           icon={<DollarSign className="h-4 w-4" />}
-          label="Total Revenue"
+          label="Total Balance"
           value={
-            servicesLoading
+            splitsLoading
               ? "..."
-              : `$${((stats?.total_revenue ?? 0) / 1_000_000).toFixed(2)}`
+              : `$${usdc.toDecimalString(totalBalance, { minimumFractionDigits: 2, trimTrailingZeros: false })}`
           }
         />
       </div>
@@ -106,10 +107,22 @@ export function Dashboard() {
           <CardTitle>My Services</CardTitle>
         </CardHeader>
         <CardContent>
-          {servicesLoading ? (
+          {splitsLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
+          ) : splitsError ? (
+            <Empty>
+              <EmptyMedia variant="icon">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+              </EmptyMedia>
+              <EmptyTitle>Failed to load services</EmptyTitle>
+              <EmptyDescription>
+                {splitsError instanceof Error
+                  ? splitsError.message
+                  : "Unable to fetch your services. Please try again."}
+              </EmptyDescription>
+            </Empty>
           ) : services.length === 0 ? (
             <Empty>
               <EmptyMedia variant="icon">
@@ -162,31 +175,34 @@ function StatCard({
 }
 
 function ServiceRow({ service }: { service: ServiceDisplay }) {
+  const hasBalance = service.vaultBalance > 0n;
+
   return (
-    <Link
-      to="/services/$id"
-      params={{ id: service.id }}
+    <a
+      href={`https://solscan.io/account/${service.id}`}
+      target="_blank"
+      rel="noopener noreferrer"
       className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
     >
       <div className="flex items-center gap-4">
         <div
           className={`w-2 h-2 rounded-full ${
-            service.status === "online" ? "bg-green-500" : "bg-muted-foreground"
+            hasBalance ? "bg-green-500" : "bg-muted-foreground"
           }`}
         />
         <div>
           <div className="font-medium">{service.name}</div>
-          <div className="text-sm text-muted-foreground">
-            {service.name}.mcps.cascade.fyi
+          <div className="text-sm text-muted-foreground font-mono">
+            {service.id.slice(0, 8)}...{service.id.slice(-4)}
           </div>
         </div>
       </div>
       <div className="text-right">
-        <div className="font-medium">{service.totalCalls} calls</div>
-        <div className="text-sm text-muted-foreground">
-          {service.price}/call
+        <div className="font-medium">
+          ${usdc.toDecimalString(service.vaultBalance)}
         </div>
+        <div className="text-sm text-muted-foreground">balance</div>
       </div>
-    </Link>
+    </a>
   );
 }

@@ -35,6 +35,7 @@ interface TunnelResponse {
 interface Env {
   DB: D1Database;
   TUNNEL_RELAY: DurableObjectNamespace;
+  TOKEN_SECRET?: string;
 }
 
 export class TunnelRelay extends DurableObject<Env> {
@@ -106,7 +107,10 @@ export class TunnelRelay extends DurableObject<Env> {
     }
 
     // Verify HMAC signature
-    const isValid = await verifyServiceToken(token);
+    // Development fallback - DO NOT USE IN PRODUCTION
+    const tokenSecret =
+      this.env.TOKEN_SECRET || "cascade-market-dev-secret-change-in-production";
+    const isValid = await verifyServiceToken(tokenSecret, token);
     if (!isValid) {
       return new Response("Invalid token signature", { status: 401 });
     }

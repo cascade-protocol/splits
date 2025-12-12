@@ -6,9 +6,11 @@ import {
   type Address,
   type Rpc,
   type SolanaRpcApi,
+  type Base58EncodedBytes,
   getProgramDerivedAddress,
   getAddressEncoder,
   getAddressDecoder,
+  getBase58Decoder,
 } from "@solana/kit";
 import type { Instruction } from "@solana/kit";
 import {
@@ -33,7 +35,10 @@ import {
   ProtocolNotInitializedError,
   MintNotFoundError,
 } from "./errors.js";
-import { fetchMaybeSplitConfig } from "./generated/accounts/splitConfig.js";
+import {
+  fetchMaybeSplitConfig,
+  SPLIT_CONFIG_DISCRIMINATOR,
+} from "./generated/accounts/splitConfig.js";
 import { fetchProtocolConfig } from "./generated/accounts/protocolConfig.js";
 
 const addressEncoder = getAddressEncoder();
@@ -105,6 +110,13 @@ export interface SplitConfig {
   lastActivity: bigint;
   /** Account that paid rent */
   rentPayer: Address;
+}
+
+/**
+ * Split configuration with vault balance for display
+ */
+export interface SplitWithBalance extends SplitConfig {
+  vaultBalance: bigint;
 }
 
 /**
@@ -422,6 +434,74 @@ export async function isCascadeSplit(
     // Unknown error (RPC failure, etc.) - don't cache, propagate
     throw e;
   }
+}
+
+/**
+ * Get all splits owned by an authority.
+ *
+ * Uses getProgramAccounts with memcmp filters to find all split configs
+ * where the authority matches. Returns splits with their vault balances.
+ *
+ * @example
+ * ```typescript
+ * const splits = await getSplitsByAuthority(rpc, walletAddress);
+ * for (const split of splits) {
+ *   console.log(split.address, split.vaultBalance);
+ * }
+ * ```
+ */
+export async function getSplitsByAuthority(
+  rpc: Rpc<SolanaRpcApi>,
+  authority: Address,
+): Promise<SplitWithBalance[]> {
+  const base58Decoder = getBase58Decoder();
+
+  // Build filters:
+  // - discriminator at offset 0 (8 bytes)
+  // - authority at offset 9 (after 8-byte discriminator + 1-byte version)
+  const discriminatorBase58 = base58Decoder.decode(
+    SPLIT_CONFIG_DISCRIMINATOR,
+  ) as Base58EncodedBytes;
+  const authorityBytes = addressEncoder.encode(authority);
+  const authorityBase58 = base58Decoder.decode(
+    authorityBytes,
+  ) as Base58EncodedBytes;
+
+  // Fetch all split config accounts for this authority
+  const accounts = await rpc
+    .getProgramAccounts(PROGRAM_ID, {
+      encoding: "base64",
+      filters: [
+        {
+          memcmp: {
+            offset: 0n,
+            bytes: discriminatorBase58,
+            encoding: "base58",
+          },
+        },
+        {
+          memcmp: {
+            offset: 9n,
+            bytes: authorityBase58,
+            encoding: "base58",
+          },
+        },
+      ],
+    })
+    .send();
+
+  // Parse accounts and fetch balances in parallel
+  const results = await Promise.all(
+    accounts.map(async ({ pubkey }) => {
+      const config = await getSplitConfig(rpc, pubkey);
+      const vaultBalance = await getVaultBalance(rpc, config.vault).catch(
+        () => 0n,
+      );
+      return { ...config, vaultBalance };
+    }),
+  );
+
+  return results;
 }
 
 // =============================================================================

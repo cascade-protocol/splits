@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Copy, Check, ExternalLink, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { usdc } from "@/lib/utils";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -84,7 +85,7 @@ function ServiceDetail() {
         <StatCard label="Status" value={service.status} />
         <StatCard
           label="Price"
-          value={`$${(Number(service.price) / 1_000_000).toFixed(6)}`}
+          value={`$${usdc.toDecimalString(BigInt(service.price))}`}
         />
         <StatCard label="Total Calls" value={service.total_calls.toString()} />
         <StatCard label="Total Revenue" value={`$${service.total_revenue}`} />

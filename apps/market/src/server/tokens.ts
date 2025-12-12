@@ -3,9 +3,12 @@
  *
  * Tokens encode service metadata for CLI authentication.
  * Format: csc_<base64url(JSON)>
+ *
+ * Note: Pure functions accept secrets as parameters.
+ * Server functions that access cloudflare:workers env should be defined
+ * in route files following TanStack Start patterns.
  */
 
-import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 // Token payload structure
@@ -19,38 +22,24 @@ export interface ServiceToken {
 }
 
 // Validation schemas
-const createTokenSchema = z.object({
-  serviceId: z.string().uuid(),
-  splitConfig: z.string().min(32),
-  splitVault: z.string().min(32),
+// Note: serviceId is now derived from splitConfig (chain is source of truth)
+export const createTokenSchema = z.object({
+  splitConfig: z.string().min(32).max(44), // base58 Solana address
+  splitVault: z.string().min(32).max(44),
   price: z.string().regex(/^\d+$/),
 });
 
-const verifyTokenSchema = z.object({
+export const verifyTokenSchema = z.object({
   token: z.string().startsWith("csc_"),
 });
-
-// Get secret for HMAC signing
-const getTokenSecret = async (): Promise<string> => {
-  // In production, this would come from env
-  // For MVP, using a placeholder that should be set in wrangler.jsonc
-  const { env } = await import("cloudflare:workers");
-  const secret = (env as { TOKEN_SECRET?: string }).TOKEN_SECRET;
-  if (!secret) {
-    // Development fallback - DO NOT USE IN PRODUCTION
-    console.warn("TOKEN_SECRET not set, using development fallback");
-    return "cascade-market-dev-secret-change-in-production";
-  }
-  return secret;
-};
 
 /**
  * Create HMAC signature for token payload
  */
 async function createSignature(
+  tokenSecret: string,
   payload: Omit<ServiceToken, "signature">,
 ): Promise<string> {
-  const secret = await getTokenSecret();
   const data = JSON.stringify({
     serviceId: payload.serviceId,
     splitConfig: payload.splitConfig,
@@ -60,7 +49,7 @@ async function createSignature(
   });
 
   const encoder = new TextEncoder();
-  const keyData = encoder.encode(secret);
+  const keyData = encoder.encode(tokenSecret);
   const messageData = encoder.encode(data);
 
   const key = await crypto.subtle.importKey(
@@ -81,8 +70,11 @@ async function createSignature(
 /**
  * Verify HMAC signature
  */
-async function verifySignature(payload: ServiceToken): Promise<boolean> {
-  const expectedSignature = await createSignature({
+async function verifySignature(
+  tokenSecret: string,
+  payload: ServiceToken,
+): Promise<boolean> {
+  const expectedSignature = await createSignature(tokenSecret, {
     serviceId: payload.serviceId,
     splitConfig: payload.splitConfig,
     splitVault: payload.splitVault,
@@ -142,63 +134,76 @@ export function decodeServiceToken(token: string): ServiceToken | null {
 /**
  * Verify a service token's signature
  */
-export async function verifyServiceToken(token: string): Promise<boolean> {
+export async function verifyServiceToken(
+  tokenSecret: string,
+  token: string,
+): Promise<boolean> {
   const payload = decodeServiceToken(token);
   if (!payload) {
     return false;
   }
-  return verifySignature(payload);
+  return verifySignature(tokenSecret, payload);
 }
 
 /**
- * Server function to create a new service token
+ * Generate a signed service token
+ * Used by server functions that have access to TOKEN_SECRET
  */
-export const createServiceToken = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => createTokenSchema.parse(data))
-  .handler(async (ctx) => {
-    const { data } = ctx;
-    const payload: Omit<ServiceToken, "signature"> = {
-      serviceId: data.serviceId,
-      splitConfig: data.splitConfig,
-      splitVault: data.splitVault,
-      price: data.price,
-      createdAt: Date.now(),
-    };
+export async function generateServiceToken(
+  tokenSecret: string,
+  data: {
+    serviceId: string;
+    splitConfig: string;
+    splitVault: string;
+    price: string;
+  },
+): Promise<{ token: string; expiresAt: null }> {
+  const payload: Omit<ServiceToken, "signature"> = {
+    serviceId: data.serviceId,
+    splitConfig: data.splitConfig,
+    splitVault: data.splitVault,
+    price: data.price,
+    createdAt: Date.now(),
+  };
 
-    const signature = await createSignature(payload);
-    const token: ServiceToken = { ...payload, signature };
+  const signature = await createSignature(tokenSecret, payload);
+  const token: ServiceToken = { ...payload, signature };
 
-    return {
-      token: encodeServiceToken(token),
-      expiresAt: null, // Tokens don't expire for MVP
-    };
-  });
+  return {
+    token: encodeServiceToken(token),
+    expiresAt: null, // Tokens don't expire for MVP
+  };
+}
 
 /**
- * Server function to verify a token
+ * Verify a token and return its payload
+ * Used by server functions that have access to TOKEN_SECRET
  */
-export const verifyToken = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => verifyTokenSchema.parse(data))
-  .handler(async (ctx) => {
-    const { data } = ctx;
-    const payload = decodeServiceToken(data.token);
-    if (!payload) {
-      return { valid: false, error: "Invalid token format" };
-    }
+export async function verifyTokenPayload(
+  tokenSecret: string,
+  token: string,
+): Promise<
+  | { valid: true; payload: Omit<ServiceToken, "signature"> }
+  | { valid: false; error: string }
+> {
+  const payload = decodeServiceToken(token);
+  if (!payload) {
+    return { valid: false, error: "Invalid token format" };
+  }
 
-    const signatureValid = await verifySignature(payload);
-    if (!signatureValid) {
-      return { valid: false, error: "Invalid signature" };
-    }
+  const signatureValid = await verifySignature(tokenSecret, payload);
+  if (!signatureValid) {
+    return { valid: false, error: "Invalid signature" };
+  }
 
-    return {
-      valid: true,
-      payload: {
-        serviceId: payload.serviceId,
-        splitConfig: payload.splitConfig,
-        splitVault: payload.splitVault,
-        price: payload.price,
-        createdAt: payload.createdAt,
-      },
-    };
-  });
+  return {
+    valid: true,
+    payload: {
+      serviceId: payload.serviceId,
+      splitConfig: payload.splitConfig,
+      splitVault: payload.splitVault,
+      price: payload.price,
+      createdAt: payload.createdAt,
+    },
+  };
+}

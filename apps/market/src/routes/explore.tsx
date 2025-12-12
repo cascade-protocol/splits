@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Server, ExternalLink } from "lucide-react";
+import { usdc } from "@/lib/utils";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -72,7 +73,7 @@ function ServiceCard({
     total_revenue: string;
   };
 }) {
-  const priceDisplay = `$${(Number(service.price) / 1_000_000).toFixed(6)}`;
+  const priceDisplay = `$${usdc.toDecimalString(BigInt(service.price))}`;
 
   return (
     <Card className="hover:border-foreground/20 transition-colors">

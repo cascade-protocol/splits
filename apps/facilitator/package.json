@@ -13,6 +13,7 @@
     "check": "pnpm type-check && biome check --write"
   },
   "dependencies": {
+    "@cascade-fyi/splits-sdk": "workspace:*",
     "@coinbase/x402": "^2.0.0",
     "@solana-program/compute-budget": "^0.7.0",
     "@solana-program/system": "^0.10.0",
