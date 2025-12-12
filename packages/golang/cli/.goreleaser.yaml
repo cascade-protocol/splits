@@ -3,6 +3,13 @@ version: 2
 
 project_name: cascade
 
+# Monorepo tag format: cli-vX.Y.Z
+git:
+  tag_sort: -version:refname
+  prerelease_suffix: "-"
+  ignore_tags:
+    - "^(?!cli-v).*" # Only process cli-v* tags
+
 before:
   hooks:
     - go mod tidy
