@@ -9,6 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TabsRouteImport } from './routes/tabs'
+import { Route as SplitsRouteImport } from './routes/splits'
+import { Route as PayRouteImport } from './routes/pay'
+import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -24,6 +28,26 @@ import { Route as ApiAuthSignoutRouteImport } from './routes/api/auth/signout'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
 import { Route as ApiAuthNonceRouteImport } from './routes/api/auth/nonce'
 
+const TabsRoute = TabsRouteImport.update({
+  id: '/tabs',
+  path: '/tabs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SplitsRoute = SplitsRouteImport.update({
+  id: '/splits',
+  path: '/splits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PayRoute = PayRouteImport.update({
+  id: '/pay',
+  path: '/pay',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExploreRoute = ExploreRouteImport.update({
+  id: '/explore',
+  path: '/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -101,6 +125,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/dashboard': typeof DashboardRoute
+  '/explore': typeof ExploreRoute
+  '/pay': typeof PayRoute
+  '/splits': typeof SplitsRoute
+  '/tabs': typeof TabsRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
@@ -117,6 +145,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/dashboard': typeof DashboardRoute
+  '/explore': typeof ExploreRoute
+  '/pay': typeof PayRoute
+  '/splits': typeof SplitsRoute
+  '/tabs': typeof TabsRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
@@ -134,6 +166,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/dashboard': typeof DashboardRoute
+  '/explore': typeof ExploreRoute
+  '/pay': typeof PayRoute
+  '/splits': typeof SplitsRoute
+  '/tabs': typeof TabsRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
@@ -152,6 +188,10 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/dashboard'
+    | '/explore'
+    | '/pay'
+    | '/splits'
+    | '/tabs'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/oauth/authorize'
@@ -168,6 +208,10 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/dashboard'
+    | '/explore'
+    | '/pay'
+    | '/splits'
+    | '/tabs'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/oauth/authorize'
@@ -184,6 +228,10 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/dashboard'
+    | '/explore'
+    | '/pay'
+    | '/splits'
+    | '/tabs'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/oauth/authorize'
@@ -201,6 +249,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   DashboardRoute: typeof DashboardRoute
+  ExploreRoute: typeof ExploreRoute
+  PayRoute: typeof PayRoute
+  SplitsRoute: typeof SplitsRoute
+  TabsRoute: typeof TabsRoute
   DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
   DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
   OauthAuthorizeRoute: typeof OauthAuthorizeRoute
@@ -216,6 +268,34 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tabs': {
+      id: '/tabs'
+      path: '/tabs'
+      fullPath: '/tabs'
+      preLoaderRoute: typeof TabsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/splits': {
+      id: '/splits'
+      path: '/splits'
+      fullPath: '/splits'
+      preLoaderRoute: typeof SplitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pay': {
+      id: '/pay'
+      path: '/pay'
+      fullPath: '/pay'
+      preLoaderRoute: typeof PayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/explore': {
+      id: '/explore'
+      path: '/explore'
+      fullPath: '/explore'
+      preLoaderRoute: typeof ExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -321,6 +401,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   DashboardRoute: DashboardRoute,
+  ExploreRoute: ExploreRoute,
+  PayRoute: PayRoute,
+  SplitsRoute: SplitsRoute,
+  TabsRoute: TabsRoute,
   DotwellKnownOauthAuthorizationServerRoute:
     DotwellKnownOauthAuthorizationServerRoute,
   DotwellKnownOauthProtectedResourceRoute:

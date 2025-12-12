@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { Plus, Server, Activity, DollarSign } from "lucide-react";
+import { Plus, Server, Activity, DollarSign, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,8 +10,10 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from "@/components/ui/empty";
+import { useAuth } from "@/lib/auth";
+import { getServices, getServiceStats } from "@/server/services";
 
-interface Service {
+interface ServiceDisplay {
   id: string;
   name: string;
   status: "online" | "offline";
@@ -20,8 +23,37 @@ interface Service {
 }
 
 export function Dashboard() {
-  // TODO: Fetch services from server function
-  const services: Service[] = [];
+  const { address, isAuthenticated } = useAuth();
+
+  // Fetch services for this owner
+  const { data: servicesData = [], isLoading: servicesLoading } = useQuery({
+    queryKey: ["services", address],
+    queryFn: () => {
+      if (!address) return []; // Guard - never reached due to enabled
+      return getServices({ data: { ownerAddress: address } });
+    },
+    enabled: !!address && isAuthenticated,
+  });
+
+  // Fetch aggregate stats
+  const { data: stats } = useQuery({
+    queryKey: ["service-stats", address],
+    queryFn: () => {
+      if (!address) return null; // Guard - never reached due to enabled
+      return getServiceStats({ data: { ownerAddress: address } });
+    },
+    enabled: !!address && isAuthenticated,
+  });
+
+  // Map D1 service format to display format
+  const services: ServiceDisplay[] = servicesData.map((s) => ({
+    id: s.id,
+    name: s.name,
+    status: s.status as "online" | "offline",
+    price: `$${(Number(s.price) / 1_000_000).toFixed(6)}`,
+    totalCalls: s.total_calls,
+    totalRevenue: s.total_revenue,
+  }));
 
   return (
     <div className="container mx-auto px-4 py-6 md:px-6 space-y-6">
@@ -46,17 +78,25 @@ export function Dashboard() {
         <StatCard
           icon={<Server className="h-4 w-4" />}
           label="Services"
-          value={services.length.toString()}
+          value={
+            servicesLoading ? "..." : (stats?.total_services ?? 0).toString()
+          }
         />
         <StatCard
           icon={<Activity className="h-4 w-4" />}
           label="Total Calls"
-          value="0"
+          value={
+            servicesLoading ? "..." : (stats?.total_calls ?? 0).toLocaleString()
+          }
         />
         <StatCard
           icon={<DollarSign className="h-4 w-4" />}
           label="Total Revenue"
-          value="$0.00"
+          value={
+            servicesLoading
+              ? "..."
+              : `$${((stats?.total_revenue ?? 0) / 1_000_000).toFixed(2)}`
+          }
         />
       </div>
 
@@ -66,7 +106,11 @@ export function Dashboard() {
           <CardTitle>My Services</CardTitle>
         </CardHeader>
         <CardContent>
-          {services.length === 0 ? (
+          {servicesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : services.length === 0 ? (
             <Empty>
               <EmptyMedia variant="icon">
                 <Server className="h-6 w-6" />
@@ -117,7 +161,7 @@ function StatCard({
   );
 }
 
-function ServiceRow({ service }: { service: Service }) {
+function ServiceRow({ service }: { service: ServiceDisplay }) {
   return (
     <Link
       to="/services/$id"

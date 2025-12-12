@@ -1,10 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Copy, Check, ExternalLink } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, Copy, Check, ExternalLink, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getService } from "@/server/services";
 
 export const Route = createFileRoute("/services/$id")({
   ssr: false, // Client-only - requires wallet
@@ -13,21 +15,40 @@ export const Route = createFileRoute("/services/$id")({
 
 function ServiceDetail() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const [copied, setCopied] = useState<string | null>(null);
 
-  // TODO: Fetch service from server function
-  const service = {
-    id,
-    name: "twitter-research",
-    status: "online" as const,
-    price: "1000",
-    splitConfig: "7xK9...3mP",
-    splitVault: "8yL2...4nQ",
-    totalCalls: 1234,
-    totalRevenue: "12.34",
-    pendingBalance: "1.23",
-    createdAt: new Date().toISOString(),
-  };
+  // Fetch service data
+  const {
+    data: service,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["service", id],
+    queryFn: () => getService({ data: { id } }),
+  });
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Error or not found
+  if (error || !service) {
+    return (
+      <div className="text-center py-16">
+        <h2 className="text-xl font-semibold mb-2">Service not found</h2>
+        <p className="text-muted-foreground mb-4">
+          The service you're looking for doesn't exist or you don't have access.
+        </p>
+        <Button onClick={() => navigate({ to: "/" })}>Back to Dashboard</Button>
+      </div>
+    );
+  }
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -65,8 +86,8 @@ function ServiceDetail() {
           label="Price"
           value={`$${(Number(service.price) / 1_000_000).toFixed(6)}`}
         />
-        <StatCard label="Total Calls" value={service.totalCalls.toString()} />
-        <StatCard label="Total Revenue" value={`$${service.totalRevenue}`} />
+        <StatCard label="Total Calls" value={service.total_calls.toString()} />
+        <StatCard label="Total Revenue" value={`$${service.total_revenue}`} />
       </div>
 
       {/* CLI Command */}
@@ -102,25 +123,25 @@ function ServiceDetail() {
         <CardContent className="space-y-4">
           <DetailRow
             label="Split Config"
-            value={service.splitConfig}
-            onCopy={() => copyToClipboard(service.splitConfig, "config")}
+            value={service.split_config}
+            onCopy={() => copyToClipboard(service.split_config, "config")}
             copied={copied === "config"}
-            explorerUrl={`https://solscan.io/account/${service.splitConfig}`}
+            explorerUrl={`https://solscan.io/account/${service.split_config}`}
           />
           <DetailRow
             label="Split Vault"
-            value={service.splitVault}
-            onCopy={() => copyToClipboard(service.splitVault, "vault")}
+            value={service.split_vault}
+            onCopy={() => copyToClipboard(service.split_vault, "vault")}
             copied={copied === "vault"}
-            explorerUrl={`https://solscan.io/account/${service.splitVault}`}
+            explorerUrl={`https://solscan.io/account/${service.split_vault}`}
           />
           <DetailRow
             label="Pending Balance"
-            value={`$${service.pendingBalance}`}
+            value={`$${service.pending_balance}`}
           />
           <DetailRow
             label="Created"
-            value={new Date(service.createdAt).toLocaleDateString()}
+            value={new Date(service.created_at).toLocaleDateString()}
           />
         </CardContent>
       </Card>

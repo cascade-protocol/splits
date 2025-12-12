@@ -6,6 +6,7 @@
  */
 
 import { DurableObject } from "cloudflare:workers";
+import { verifyServiceToken, decodeServiceToken } from "../server/tokens";
 
 interface TunnelSession {
   serviceId: string;
@@ -93,10 +94,21 @@ export class TunnelRelay extends DurableObject<Env> {
       return new Response("Missing service token", { status: 401 });
     }
 
-    // TODO: Verify token signature
-    // For MVP, we'll accept any token that looks valid
+    // Verify token format
     if (!token.startsWith("csc_")) {
       return new Response("Invalid token format", { status: 401 });
+    }
+
+    // Decode and extract service info
+    const tokenPayload = decodeServiceToken(token);
+    if (!tokenPayload) {
+      return new Response("Failed to decode token", { status: 401 });
+    }
+
+    // Verify HMAC signature
+    const isValid = await verifyServiceToken(token);
+    if (!isValid) {
+      return new Response("Invalid token signature", { status: 401 });
     }
 
     // Create WebSocket pair
@@ -106,9 +118,9 @@ export class TunnelRelay extends DurableObject<Env> {
     // Accept with hibernation support
     this.ctx.acceptWebSocket(server);
 
-    // Store session state (survives hibernation)
+    // Store session state with actual service info (survives hibernation)
     const session: TunnelSession = {
-      serviceId: "unknown", // TODO: Extract from token
+      serviceId: tokenPayload.serviceId,
       token,
       connectedAt: Date.now(),
     };

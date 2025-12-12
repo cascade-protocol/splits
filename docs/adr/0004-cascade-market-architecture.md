@@ -23,7 +23,7 @@ MCP developers need a simple way to monetize their MCPs. Currently:
 ```
 Cascade Ecosystem
 │
-├── Market (PRIMARY) ─────── Main consumer-facing product at cascade.fyi
+├── Market (PRIMARY) ─────── Main consumer-facing product at market.cascade.fyi
 │   └── MCP devs monetizing + Clients paying via Tabs under the hood
 │
 ├── Tabs (DEVELOPER TOOL) ── SDK/API for payment integration
@@ -41,16 +41,16 @@ Cascade Ecosystem
 
 ### Single App with Route-Based Separation
 
-One unified app at `cascade.fyi` with distinct route trees:
+One unified app at `market.cascade.fyi` with distinct route trees:
 
 ```
-cascade.fyi/              → Market landing + dashboard (consumer-focused)
-cascade.fyi/dashboard     → Services dashboard
-cascade.fyi/services/new  → Create service wizard
-cascade.fyi/explore       → Browse MCPs
-cascade.fyi/pay           → Client onboarding (Tabs embedded)
-cascade.fyi/tabs          → Tabs developer console
-cascade.fyi/splits        → Splits developer console
+market.cascade.fyi/              → Market landing + dashboard (consumer-focused)
+market.cascade.fyi/dashboard     → Services dashboard
+market.cascade.fyi/services/new  → Create service wizard
+market.cascade.fyi/explore       → Browse MCPs
+market.cascade.fyi/pay           → Client onboarding (Tabs embedded)
+market.cascade.fyi/tabs          → Tabs developer console
+market.cascade.fyi/splits        → Splits developer console
 ```
 
 **Rationale:** Single deployment, shared wallet state, one codebase. Can migrate to separate apps later if needed.
@@ -99,6 +99,8 @@ export const Route = createFileRoute('/explore')({
   component: Explore,
 })
 ```
+
+> **Note:** The domain is `market.cascade.fyi` to avoid conflicts with the existing dashboard app at `cascade.fyi`. This can be migrated to `cascade.fyi` later when the legacy dashboard is retired.
 
 ### Wallet Integration
 
@@ -199,12 +201,12 @@ import { verifySignature } from "@solana/keys";
 │  3. Server generates nonce, stores in KV (5min TTL)                     │
 │  4. Frontend uses wallet.signIn() or constructs SIWS message:           │
 │                                                                         │
-│     cascade.fyi wants you to sign in with your Solana account:          │
+│     market.cascade.fyi wants you to sign in with your Solana account:   │
 │     DYw4...abc                                                          │
 │                                                                         │
 │     Sign in to Cascade Market                                           │
 │                                                                         │
-│     URI: https://cascade.fyi                                            │
+│     URI: https://market.cascade.fyi                                     │
 │     Nonce: abc123...                                                    │
 │     Issued At: 2025-12-11T12:00:00Z                                     │
 │                                                                         │
@@ -252,7 +254,7 @@ They work together: OAuth authenticates the client, then x402 handles payment if
 │  1. MCP client connects to https://example.mcps.cascade.fyi             │
 │  2. Gateway returns 401 + WWW-Authenticate header                       │
 │  3. MCP client fetches /.well-known/oauth-protected-resource (RFC 9728) │
-│     → { authorization_servers: ["https://cascade.fyi"], ... }           │
+│     → { authorization_servers: ["https://market.cascade.fyi"], ... }    │
 │  4. MCP client fetches /.well-known/oauth-authorization-server (RFC 8414)│
 │     → { authorization_endpoint, token_endpoint, ... }                   │
 │  5. MCP client opens browser → /oauth/authorize                         │
@@ -300,13 +302,13 @@ The MCP SDK discovers OAuth via the `WWW-Authenticate` header. Gateway must retu
 
 ```http
 HTTP/1.1 401 Unauthorized
-WWW-Authenticate: Bearer resource_metadata="https://cascade.fyi/.well-known/oauth-protected-resource"
+WWW-Authenticate: Bearer resource_metadata="https://market.cascade.fyi/.well-known/oauth-protected-resource"
 ```
 
 For invalid tokens:
 ```http
 HTTP/1.1 401 Unauthorized
-WWW-Authenticate: Bearer error="invalid_token", resource_metadata="https://cascade.fyi/.well-known/oauth-protected-resource"
+WWW-Authenticate: Bearer error="invalid_token", resource_metadata="https://market.cascade.fyi/.well-known/oauth-protected-resource"
 ```
 
 **Token Verification (AuthInfo for MCP SDK):**
@@ -344,7 +346,7 @@ $ cascade --token csc_xxx localhost:3000
 ✓ Price: $0.001/call
 ✓ Live at: https://twitter-research.mcps.cascade.fyi
 
-Dashboard: https://cascade.fyi/dashboard
+Dashboard: https://market.cascade.fyi/dashboard
 ```
 
 **What happens behind the scenes:**
@@ -447,10 +449,10 @@ Tabs remains separate - it's general-purpose x402 client infrastructure, not spe
 | Component | Description | Tech |
 |-----------|-------------|------|
 | **Market App** | Dashboard + Gateway (single deployment) | TanStack Start + Hono + Durable Objects |
-| **cascade CLI** | Tunnel client, connects to gateway | Node.js (can port to Go later) |
+| **cascade CLI** | Tunnel client, connects to gateway | Go (urfave/cli, goreleaser) |
 
 > **Note:** Market App and Gateway are a single Cloudflare Workers deployment.
-> TanStack Start handles `cascade.fyi` (dashboard, server functions).
+> TanStack Start handles `market.cascade.fyi` (dashboard, server functions).
 > Hono handles `*.mcps.cascade.fyi` (x402 payments, tunnels).
 > Routing by hostname in custom server entry. Can extract Gateway later if needed.
 
@@ -461,7 +463,7 @@ Tabs remains separate - it's general-purpose x402 client infrastructure, not spe
 ```
 cascade-splits/
 ├── apps/
-│   └── market/                        # Single deployment: cascade.fyi + *.mcps.cascade.fyi
+│   └── market/                        # Single deployment: market.cascade.fyi + *.mcps.cascade.fyi
 │       ├── src/
 │       │   ├── routes/                # TanStack Start file-based routes
 │       │   │   ├── __root.tsx         # Root layout with SidebarProvider
@@ -508,12 +510,16 @@ cascade-splits/
 │       └── wrangler.jsonc
 │
 ├── packages/
-│   ├── cascade-cli/                   # CLI (Node.js initially)
-│   │   ├── src/
-│   │   │   ├── index.ts
-│   │   │   ├── tunnel.ts
-│   │   │   └── config.ts
-│   │   └── package.json
+│   ├── golang/
+│   │   └── cli/                       # Cascade CLI (Go)
+│   │       ├── main.go                # Entry point (urfave/cli/v3)
+│   │       ├── internal/
+│   │       │   ├── config/            # Token parsing
+│   │       │   │   └── config.go
+│   │       │   └── tunnel/            # WebSocket tunnel client
+│   │       │       └── client.go
+│   │       ├── go.mod
+│   │       └── .goreleaser.yaml       # Cross-platform release config
 │   ├── tabs-sdk/                      # Existing
 │   └── splits-sdk/                    # Existing
 │
@@ -541,7 +547,7 @@ export default createServerEntry({
       return gatewayApp.fetch(request, env);
     }
 
-    // Market: cascade.fyi → TanStack Start (dashboard, server functions)
+    // Market: market.cascade.fyi → TanStack Start (dashboard, server functions)
     return handler.fetch(request, { context: { env } });
   },
 })
@@ -588,7 +594,7 @@ const devNav = [
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  1. Developer visits cascade.fyi                                        │
+│  1. Developer visits market.cascade.fyi                                 │
 │     └── Sees landing page with value prop                               │
 │     └── Connects Solana wallet                                          │
 │                                                                         │
@@ -631,7 +637,7 @@ const devNav = [
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  1. Client discovers MCP on cascade.fyi/explore                         │
+│  1. Client discovers MCP on market.cascade.fyi/explore                  │
 │                                                                         │
 │  2. Clicks "Use this MCP" → redirected to /pay if no Tabs account       │
 │                                                                         │
@@ -842,7 +848,7 @@ CREATE TABLE auth_codes (
 4. **Service Creation Flow** - Server functions → Split creation → Token generation
 5. **Gateway Integration** - Add gateway/ with x402HTTPResourceServer + TunnelRelay DO
 6. **OAuth for MCP Clients** - OAuth server, consent screen, token management
-7. **CLI** - Node.js tunnel client (packages/cascade-cli)
+7. **CLI** - Go tunnel client (packages/golang/cli)
 8. **Client Onboarding** - Embedded Tabs flow at /pay
 9. **Explore Page** - MCP discovery (backed by Bazaar extension)
 
@@ -870,7 +876,7 @@ CREATE TABLE auth_codes (
 
 10. **Streamable HTTP only** - No stdio MCP support, modern transport only
 
-11. **Single deployment for Market + Gateway** - TanStack Start handles cascade.fyi, Hono handles *.mcps.cascade.fyi, hostname routing in server.ts. Can extract Gateway later if needed.
+11. **Single deployment for Market + Gateway** - TanStack Start handles market.cascade.fyi, Hono handles *.mcps.cascade.fyi, hostname routing in server.ts. Can extract Gateway later if needed.
 
 12. **x402HTTPResourceServer with dynamic payTo** - Route payments to per-service split vaults using subdomain lookup
 
@@ -878,19 +884,21 @@ CREATE TABLE auth_codes (
 
 14. **Shared D1 access** - Both dashboard and gateway read/write same D1 database directly. Appropriate for single-team MVP. Add API layer later if organizational boundaries require it.
 
-15. **Component strategy** - Fresh shadcn install in market app with same config as dashboard (new-york style, slate base, OKLCH colors). Copy `index.css` color tokens from dashboard for visual consistency. Consolidate to shared `packages/ui` later when both apps stabilize.
+15. **Go for CLI** - Single binary distribution, cross-platform (macOS/Linux/Windows), fast startup. Uses urfave/cli/v3 for CLI framework and goreleaser for releases.
 
-16. **Minimal SSR** - Only landing (`/`) and explore (`/explore`) pages use SSR for SEO. All authenticated/wallet routes use `ssr: false` to avoid hydration complexity.
+16. **Component strategy** - Fresh shadcn install in market app with same config as dashboard (new-york style, slate base, OKLCH colors). Copy `index.css` color tokens from dashboard for visual consistency. Consolidate to shared `packages/ui` later when both apps stabilize.
 
-17. **SIWS via Wallet Standard** - Uses native `solana:signIn` feature from Wallet Standard (CAIP-122). No custom package needed - server-side verification only using `@solana/kit`.
+17. **Minimal SSR** - Only landing (`/`) and explore (`/explore`) pages use SSR for SEO. All authenticated/wallet routes use `ssr: false` to avoid hydration complexity.
 
-18. **30-day stateless JWT** - Simple auth without refresh complexity for dashboard. httpOnly cookie prevents XSS. Re-sign on expiry.
+18. **SIWS via Wallet Standard** - Uses native `solana:signIn` feature from Wallet Standard (CAIP-122). No custom package needed - server-side verification only using `@solana/kit`.
 
-19. **OAuth2 for MCP clients** - Full OAuth2 with PKCE for Claude Code and other MCP clients. Access token (1hr) + refresh token (30d) pattern.
+19. **30-day stateless JWT** - Simple auth without refresh complexity for dashboard. httpOnly cookie prevents XSS. Re-sign on expiry.
 
-20. **KV for nonces** - Short-lived (5min) nonces in Cloudflare KV, not D1. Faster reads, automatic TTL cleanup.
+20. **OAuth2 for MCP clients** - Full OAuth2 with PKCE for Claude Code and other MCP clients. Access token (1hr) + refresh token (30d) pattern.
 
-21. **Architecture ready for multi-chain** - Data model and auth patterns support adding Base later. No UI changes for MVP - Solana only. See ADR-0005 for Base implementation.
+21. **KV for nonces** - Short-lived (5min) nonces in Cloudflare KV, not D1. Faster reads, automatic TTL cleanup.
+
+22. **Architecture ready for multi-chain** - Data model and auth patterns support adding Base later. No UI changes for MVP - Solana only. See ADR-0005 for Base implementation.
 
 ---
 

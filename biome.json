@@ -21,6 +21,7 @@
       "!apps/market/src/components/ui",
       "!apps/market/src/routeTree.gen.ts",
       "!packages/**/generated",
+      "!packages/golang",
       "!apps/docs/.source",
       "!apps/docs/.react-router"
     ]

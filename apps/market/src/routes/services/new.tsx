@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Loader2, Check, Copy } from "lucide-react";
+import { ArrowLeft, Loader2, Check, Copy, AlertCircle } from "lucide-react";
+import { useWalletConnection, useSendTransaction } from "@solana/react-hooks";
+import { createSplitConfig, labelToSeed } from "@cascade-fyi/splits-sdk";
 
 import {
   Card,
@@ -12,6 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createService } from "@/server/services";
+import { createServiceToken } from "@/server/tokens";
 
 export const Route = createFileRoute("/services/new")({
   ssr: false, // Client-only - requires wallet
@@ -22,27 +26,72 @@ type Step = "details" | "creating" | "success";
 
 function NewService() {
   const navigate = useNavigate();
+  const { wallet, connected } = useWalletConnection();
+  const { send: sendTransaction, isSending } = useSendTransaction();
+
   const [step, setStep] = useState<Step>("details");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("1000"); // Default: 0.001 USDC (1000 base units)
   const [token, setToken] = useState("");
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    if (!wallet || !connected) {
+      setError("Please connect your wallet first");
+      return;
+    }
+
     setStep("creating");
 
-    // TODO: Implement actual service creation
-    // 1. Build split creation transaction
-    // 2. User signs transaction
-    // 3. Wait for confirmation
-    // 4. Store service in D1
-    // 5. Generate token
+    try {
+      // 1. Build split creation instruction
+      const uniqueId = labelToSeed(name);
+      const authority = wallet.account.address;
 
-    // Simulate for now
-    await new Promise((r) => setTimeout(r, 2000));
-    setToken(`csc_${btoa(JSON.stringify({ name, price })).slice(0, 32)}`);
-    setStep("success");
+      const { instruction, splitConfig, vault } = await createSplitConfig({
+        authority,
+        recipients: [{ address: authority, share: 99 }], // 99% to owner
+        uniqueId,
+      });
+
+      // 2. Send transaction (wallet signs)
+      await sendTransaction({
+        instructions: [instruction],
+        feePayer: authority,
+      });
+
+      // 3. Store service in D1
+      const service = await createService({
+        data: {
+          name,
+          ownerAddress: authority,
+          splitConfig,
+          splitVault: vault,
+          price,
+        },
+      });
+
+      // 4. Generate token
+      const { token: generatedToken } = await createServiceToken({
+        data: {
+          serviceId: service.id,
+          splitConfig,
+          splitVault: vault,
+          price,
+        },
+      });
+
+      setToken(generatedToken);
+      setStep("success");
+    } catch (err) {
+      console.error("Service creation failed:", err);
+      setError(err instanceof Error ? err.message : "Failed to create service");
+      setStep("details");
+    }
   };
 
   const cliCommand = `cascade --token ${token} localhost:3000`;
@@ -192,17 +241,27 @@ function NewService() {
               </ol>
             </div>
 
+            {/* Error Display */}
+            {error && (
+              <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
             {/* Submit */}
             <Button
               type="submit"
               className="w-full"
-              disabled={step === "creating" || !name}
+              disabled={step === "creating" || isSending || !name || !connected}
             >
-              {step === "creating" ? (
+              {step === "creating" || isSending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating Service...
                 </>
+              ) : !connected ? (
+                "Connect Wallet to Continue"
               ) : (
                 "Create Service"
               )}

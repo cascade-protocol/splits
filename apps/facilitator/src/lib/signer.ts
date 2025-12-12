@@ -1,0 +1,256 @@
+/**
+ * Facilitator SVM Signer
+ *
+ * Handles signing, simulation, and broadcasting of Solana transactions.
+ */
+
+import {
+  type Address,
+  type Signature,
+  type Transaction,
+  type Base64EncodedWireTransaction,
+  createSolanaRpc,
+  createKeyPairSignerFromBytes,
+  getBase64Encoder,
+  getBase64EncodedWireTransaction,
+  getTransactionDecoder,
+} from "@solana/kit";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+export interface FacilitatorSigner {
+  /** Get all fee payer addresses */
+  getAddresses(): readonly Address[];
+
+  /** Sign a partial transaction with the fee payer */
+  signTransaction(
+    transaction: string,
+    feePayer: Address,
+    network: string,
+  ): Promise<string>;
+
+  /** Simulate a transaction to verify it would succeed */
+  simulateTransaction(
+    transaction: string,
+    network: string,
+  ): Promise<SimulationResult>;
+
+  /** Send a transaction to the network */
+  sendTransaction(transaction: string, network: string): Promise<string>;
+
+  /** Wait for transaction confirmation */
+  confirmTransaction(signature: string, network: string): Promise<void>;
+}
+
+export interface SimulationResult {
+  success: boolean;
+  error?: string;
+  logs?: string[];
+  unitsConsumed?: bigint;
+  innerInstructions?: InnerInstruction[];
+}
+
+export interface InnerInstruction {
+  index: number;
+  instructions: {
+    programIdIndex: number;
+    accounts: number[];
+    data: string;
+  }[];
+}
+
+// =============================================================================
+// Base58 Utilities
+// =============================================================================
+
+const BASE58_ALPHABET =
+  "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+export function base58Decode(str: string): Uint8Array {
+  const bytes: number[] = [];
+  for (const char of str) {
+    const value = BASE58_ALPHABET.indexOf(char);
+    if (value === -1) throw new Error(`Invalid base58 character: ${char}`);
+
+    let carry = value;
+    for (let i = 0; i < bytes.length; i++) {
+      carry += (bytes[i] as number) * 58;
+      bytes[i] = carry & 0xff;
+      carry >>= 8;
+    }
+    while (carry > 0) {
+      bytes.push(carry & 0xff);
+      carry >>= 8;
+    }
+  }
+
+  // Handle leading zeros
+  for (const char of str) {
+    if (char !== "1") break;
+    bytes.push(0);
+  }
+
+  return new Uint8Array(bytes.reverse());
+}
+
+// =============================================================================
+// Transaction Utilities
+// =============================================================================
+
+export function decodeTransaction(base64Tx: string): Transaction {
+  const base64Encoder = getBase64Encoder();
+  const transactionBytes = base64Encoder.encode(base64Tx);
+  const transactionDecoder = getTransactionDecoder();
+  return transactionDecoder.decode(transactionBytes);
+}
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+const SOLANA_MAINNET_CAIP2 = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+
+// =============================================================================
+// RPC Client Creation
+// =============================================================================
+
+function createRpc(network: string, rpcUrl: string) {
+  // Validate network - currently only mainnet is supported
+  if (network !== SOLANA_MAINNET_CAIP2) {
+    throw new Error(
+      `Unsupported network: ${network}. Only ${SOLANA_MAINNET_CAIP2} is supported.`,
+    );
+  }
+  return createSolanaRpc(rpcUrl as `https://${string}`);
+}
+
+// =============================================================================
+// Signer Factory
+// =============================================================================
+
+export async function createFacilitatorSigner(
+  feePayerKeyBase58: string,
+  rpcUrl: string,
+): Promise<FacilitatorSigner> {
+  // Decode the fee payer key
+  const keyBytes = base58Decode(feePayerKeyBase58);
+  const signer = await createKeyPairSignerFromBytes(keyBytes);
+
+  return {
+    getAddresses: () => [signer.address],
+
+    signTransaction: async (
+      transaction: string,
+      feePayer: Address,
+      _network: string,
+    ) => {
+      if (feePayer !== signer.address) {
+        throw new Error(
+          `No signer for feePayer ${feePayer}. Available: ${signer.address}`,
+        );
+      }
+
+      // Decode transaction
+      const tx = decodeTransaction(transaction);
+
+      // Sign the message
+      const signableMessage = {
+        content: tx.messageBytes,
+        signatures: tx.signatures,
+      };
+
+      const [facilitatorSignature] = await signer.signMessages([
+        signableMessage as never,
+      ]);
+
+      // Merge signatures
+      const fullySignedTx = {
+        ...tx,
+        signatures: {
+          ...tx.signatures,
+          ...facilitatorSignature,
+        },
+      };
+
+      return getBase64EncodedWireTransaction(fullySignedTx);
+    },
+
+    simulateTransaction: async (transaction: string, network: string) => {
+      const rpc = createRpc(network, rpcUrl);
+
+      const result = await rpc
+        .simulateTransaction(transaction as Base64EncodedWireTransaction, {
+          sigVerify: true,
+          replaceRecentBlockhash: false,
+          commitment: "confirmed",
+          encoding: "base64",
+          innerInstructions: true, // Request inner instructions for CPI verification
+        })
+        .send();
+
+      if (result.value.err) {
+        return {
+          success: false,
+          error: JSON.stringify(result.value.err),
+          logs: result.value.logs ?? undefined,
+        };
+      }
+
+      return {
+        success: true,
+        logs: result.value.logs ?? undefined,
+        unitsConsumed: result.value.unitsConsumed ?? undefined,
+        innerInstructions: result.value.innerInstructions as unknown as
+          | InnerInstruction[]
+          | undefined,
+      };
+    },
+
+    sendTransaction: async (transaction: string, network: string) => {
+      const rpc = createRpc(network, rpcUrl);
+
+      return await rpc
+        .sendTransaction(transaction as Base64EncodedWireTransaction, {
+          encoding: "base64",
+          skipPreflight: false,
+          preflightCommitment: "confirmed",
+        })
+        .send();
+    },
+
+    confirmTransaction: async (signature: string, network: string) => {
+      const rpc = createRpc(network, rpcUrl);
+
+      let confirmed = false;
+      let attempts = 0;
+      const maxAttempts = 30;
+
+      while (!confirmed && attempts < maxAttempts) {
+        const status = await rpc
+          .getSignatureStatuses([signature as Signature])
+          .send();
+
+        const txStatus = status.value[0];
+        if (
+          txStatus?.confirmationStatus === "confirmed" ||
+          txStatus?.confirmationStatus === "finalized"
+        ) {
+          if (txStatus.err) {
+            throw new Error(
+              `Transaction failed: ${JSON.stringify(txStatus.err)}`,
+            );
+          }
+          confirmed = true;
+          return;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        attempts++;
+      }
+
+      throw new Error("Transaction confirmation timeout");
+    },
+  };
+}

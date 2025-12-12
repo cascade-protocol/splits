@@ -205,3 +205,42 @@ export const getServiceStats = createServerFn({ method: "GET" })
       }
     );
   });
+
+/**
+ * Get public services for explore page (SSR)
+ */
+export const getPublicServices = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        limit: z.number().optional().default(50),
+        offset: z.number().optional().default(0),
+      })
+      .parse(data ?? {}),
+  )
+  .handler(async (ctx) => {
+    const { data } = ctx;
+    const db = await getDb();
+    const result = await db
+      .prepare(
+        `SELECT id, name, price, status, total_calls, total_revenue, created_at
+         FROM services
+         WHERE status = 'online'
+         ORDER BY total_calls DESC
+         LIMIT ? OFFSET ?`,
+      )
+      .bind(data.limit, data.offset)
+      .all<
+        Pick<
+          Service,
+          | "id"
+          | "name"
+          | "price"
+          | "status"
+          | "total_calls"
+          | "total_revenue"
+          | "created_at"
+        >
+      >();
+    return result.results;
+  });
