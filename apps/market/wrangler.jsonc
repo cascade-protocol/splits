@@ -19,6 +19,15 @@
     }
   ],
 
+  // KV namespace for auth nonces
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "adfccc6e137546f8b3f4ce37a60dcede",
+      "preview_id": "2bf87e8bc7bb4447b26cee074604d59b"
+    }
+  ],
+
   // Durable Objects for tunnel relay
   "durable_objects": {
     "bindings": [
@@ -29,9 +38,9 @@
     ]
   },
 
-  // Routes: cascade.fyi (main) + *.mcps.cascade.fyi (gateway)
+  // Routes: market.cascade.fyi + *.mcps.cascade.fyi (gateway)
   "routes": [
-    { "pattern": "cascade.fyi", "custom_domain": true },
+    { "pattern": "market.cascade.fyi", "custom_domain": true },
     { "pattern": "*.mcps.cascade.fyi", "custom_domain": true }
   ],
 

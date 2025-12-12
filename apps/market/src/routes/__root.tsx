@@ -18,6 +18,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { Toaster } from "@/components/ui/sonner";
 import { Header } from "@/components/Header";
+import { AuthProvider } from "@/lib/auth";
 import appCss from "../styles.css?url";
 
 // Solana client configuration
@@ -102,29 +103,31 @@ function AppWithProviders({ children }: { children: React.ReactNode }) {
   return (
     <SolanaProvider client={solanaClient}>
       <QueryClientProvider client={queryClient}>
-        <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-          <Header />
-          <main className="flex flex-1 flex-col min-h-0 overflow-auto">
-            {children}
-          </main>
-          <footer className="shrink-0 border-t py-4 px-4 md:px-6">
-            <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <span>Cascade Market</span>
-                <span className="text-xs">&copy; 2025</span>
-                <span className="text-xs text-amber-600">
-                  Beta — use at your own risk
-                </span>
+        <AuthProvider>
+          <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+            <Header />
+            <main className="flex flex-1 flex-col min-h-0 overflow-auto">
+              {children}
+            </main>
+            <footer className="shrink-0 border-t py-4 px-4 md:px-6">
+              <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span>Cascade Market</span>
+                  <span className="text-xs">&copy; 2025</span>
+                  <span className="text-xs text-amber-600">
+                    Beta — use at your own risk
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs bg-muted px-2 py-0.5 rounded">
+                    Solana Mainnet
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs bg-muted px-2 py-0.5 rounded">
-                  Solana Mainnet
-                </span>
-              </div>
-            </div>
-          </footer>
-        </div>
-        <Toaster />
+            </footer>
+          </div>
+          <Toaster />
+        </AuthProvider>
       </QueryClientProvider>
     </SolanaProvider>
   );

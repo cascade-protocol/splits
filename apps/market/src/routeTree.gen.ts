@@ -15,6 +15,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ServicesIndexRouteImport } from './routes/services/index'
 import { Route as ServicesNewRouteImport } from './routes/services/new'
 import { Route as ServicesIdRouteImport } from './routes/services/$id'
+import { Route as OauthTokenRouteImport } from './routes/oauth/token'
+import { Route as OauthAuthorizeRouteImport } from './routes/oauth/authorize'
+import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known/oauth-protected-resource'
+import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './routes/[.]well-known/oauth-authorization-server'
+import { Route as ApiAuthVerifyRouteImport } from './routes/api/auth/verify'
+import { Route as ApiAuthSignoutRouteImport } from './routes/api/auth/signout'
+import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
+import { Route as ApiAuthNonceRouteImport } from './routes/api/auth/nonce'
 
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
@@ -46,31 +54,97 @@ const ServicesIdRoute = ServicesIdRouteImport.update({
   path: '/services/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OauthTokenRoute = OauthTokenRouteImport.update({
+  id: '/oauth/token',
+  path: '/oauth/token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthAuthorizeRoute = OauthAuthorizeRouteImport.update({
+  id: '/oauth/authorize',
+  path: '/oauth/authorize',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotwellKnownOauthProtectedResourceRoute =
+  DotwellKnownOauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotwellKnownOauthAuthorizationServerRoute =
+  DotwellKnownOauthAuthorizationServerRouteImport.update({
+    id: '/.well-known/oauth-authorization-server',
+    path: '/.well-known/oauth-authorization-server',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAuthVerifyRoute = ApiAuthVerifyRouteImport.update({
+  id: '/api/auth/verify',
+  path: '/api/auth/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthSignoutRoute = ApiAuthSignoutRouteImport.update({
+  id: '/api/auth/signout',
+  path: '/api/auth/signout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
+  id: '/api/auth/session',
+  path: '/api/auth/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthNonceRoute = ApiAuthNonceRouteImport.update({
+  id: '/api/auth/nonce',
+  path: '/api/auth/nonce',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/dashboard': typeof DashboardRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/oauth/authorize': typeof OauthAuthorizeRoute
+  '/oauth/token': typeof OauthTokenRoute
   '/services/$id': typeof ServicesIdRoute
   '/services/new': typeof ServicesNewRoute
   '/services': typeof ServicesIndexRoute
+  '/api/auth/nonce': typeof ApiAuthNonceRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/auth/signout': typeof ApiAuthSignoutRoute
+  '/api/auth/verify': typeof ApiAuthVerifyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/dashboard': typeof DashboardRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/oauth/authorize': typeof OauthAuthorizeRoute
+  '/oauth/token': typeof OauthTokenRoute
   '/services/$id': typeof ServicesIdRoute
   '/services/new': typeof ServicesNewRoute
   '/services': typeof ServicesIndexRoute
+  '/api/auth/nonce': typeof ApiAuthNonceRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/auth/signout': typeof ApiAuthSignoutRoute
+  '/api/auth/verify': typeof ApiAuthVerifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/dashboard': typeof DashboardRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/oauth/authorize': typeof OauthAuthorizeRoute
+  '/oauth/token': typeof OauthTokenRoute
   '/services/$id': typeof ServicesIdRoute
   '/services/new': typeof ServicesNewRoute
   '/services/': typeof ServicesIndexRoute
+  '/api/auth/nonce': typeof ApiAuthNonceRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/auth/signout': typeof ApiAuthSignoutRoute
+  '/api/auth/verify': typeof ApiAuthVerifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -78,34 +152,66 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/dashboard'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/oauth/authorize'
+    | '/oauth/token'
     | '/services/$id'
     | '/services/new'
     | '/services'
+    | '/api/auth/nonce'
+    | '/api/auth/session'
+    | '/api/auth/signout'
+    | '/api/auth/verify'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/dashboard'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/oauth/authorize'
+    | '/oauth/token'
     | '/services/$id'
     | '/services/new'
     | '/services'
+    | '/api/auth/nonce'
+    | '/api/auth/session'
+    | '/api/auth/signout'
+    | '/api/auth/verify'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/dashboard'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/oauth/authorize'
+    | '/oauth/token'
     | '/services/$id'
     | '/services/new'
     | '/services/'
+    | '/api/auth/nonce'
+    | '/api/auth/session'
+    | '/api/auth/signout'
+    | '/api/auth/verify'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   DashboardRoute: typeof DashboardRoute
+  DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
+  DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
+  OauthAuthorizeRoute: typeof OauthAuthorizeRoute
+  OauthTokenRoute: typeof OauthTokenRoute
   ServicesIdRoute: typeof ServicesIdRoute
   ServicesNewRoute: typeof ServicesNewRoute
   ServicesIndexRoute: typeof ServicesIndexRoute
+  ApiAuthNonceRoute: typeof ApiAuthNonceRoute
+  ApiAuthSessionRoute: typeof ApiAuthSessionRoute
+  ApiAuthSignoutRoute: typeof ApiAuthSignoutRoute
+  ApiAuthVerifyRoute: typeof ApiAuthVerifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -152,6 +258,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/oauth/token': {
+      id: '/oauth/token'
+      path: '/oauth/token'
+      fullPath: '/oauth/token'
+      preLoaderRoute: typeof OauthTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/authorize': {
+      id: '/oauth/authorize'
+      path: '/oauth/authorize'
+      fullPath: '/oauth/authorize'
+      preLoaderRoute: typeof OauthAuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof DotwellKnownOauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-authorization-server': {
+      id: '/.well-known/oauth-authorization-server'
+      path: '/.well-known/oauth-authorization-server'
+      fullPath: '/.well-known/oauth-authorization-server'
+      preLoaderRoute: typeof DotwellKnownOauthAuthorizationServerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/verify': {
+      id: '/api/auth/verify'
+      path: '/api/auth/verify'
+      fullPath: '/api/auth/verify'
+      preLoaderRoute: typeof ApiAuthVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/signout': {
+      id: '/api/auth/signout'
+      path: '/api/auth/signout'
+      fullPath: '/api/auth/signout'
+      preLoaderRoute: typeof ApiAuthSignoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/session': {
+      id: '/api/auth/session'
+      path: '/api/auth/session'
+      fullPath: '/api/auth/session'
+      preLoaderRoute: typeof ApiAuthSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/nonce': {
+      id: '/api/auth/nonce'
+      path: '/api/auth/nonce'
+      fullPath: '/api/auth/nonce'
+      preLoaderRoute: typeof ApiAuthNonceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -159,9 +321,19 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   DashboardRoute: DashboardRoute,
+  DotwellKnownOauthAuthorizationServerRoute:
+    DotwellKnownOauthAuthorizationServerRoute,
+  DotwellKnownOauthProtectedResourceRoute:
+    DotwellKnownOauthProtectedResourceRoute,
+  OauthAuthorizeRoute: OauthAuthorizeRoute,
+  OauthTokenRoute: OauthTokenRoute,
   ServicesIdRoute: ServicesIdRoute,
   ServicesNewRoute: ServicesNewRoute,
   ServicesIndexRoute: ServicesIndexRoute,
+  ApiAuthNonceRoute: ApiAuthNonceRoute,
+  ApiAuthSessionRoute: ApiAuthSessionRoute,
+  ApiAuthSignoutRoute: ApiAuthSignoutRoute,
+  ApiAuthVerifyRoute: ApiAuthVerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

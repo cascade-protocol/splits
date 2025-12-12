@@ -1,0 +1,5 @@
+# Copy this file to .dev.vars and fill in values
+# Do not commit .dev.vars - it contains secrets
+
+# JWT secret for signing auth tokens (minimum 32 characters)
+JWT_SECRET=your-secret-here-minimum-32-characters
