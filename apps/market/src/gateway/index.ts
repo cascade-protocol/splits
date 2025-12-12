@@ -7,6 +7,11 @@
 
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import type {
+  PaymentPayload,
+  PaymentRequirements,
+  Network,
+} from "@x402/core/types";
 import { verifyAccessToken, type AuthInfo } from "../server/oauth";
 
 // USDC mint on Solana mainnet
@@ -200,7 +205,7 @@ app.all("/mcp/*", async (c) => {
     c.req.header("X-PAYMENT") || c.req.header("Payment-Signature");
 
   // Get facilitator info for fee payer
-  let facilitatorInfo: { feePayer: string; network: string };
+  let facilitatorInfo: { feePayer: string; network: Network };
   try {
     facilitatorInfo = await getFacilitatorInfo();
   } catch {
@@ -288,14 +293,14 @@ app.get("/tunnel/connect", async (c) => {
 const FACILITATOR_URL = "https://facilitator.cascade.fyi";
 
 // Cached facilitator info
-let cachedFacilitatorInfo: { feePayer: string; network: string } | null = null;
+let cachedFacilitatorInfo: { feePayer: string; network: Network } | null = null;
 
 /**
  * Get facilitator capabilities (cached)
  */
 async function getFacilitatorInfo(): Promise<{
   feePayer: string;
-  network: string;
+  network: Network;
 }> {
   if (cachedFacilitatorInfo) {
     return cachedFacilitatorInfo;
@@ -304,7 +309,7 @@ async function getFacilitatorInfo(): Promise<{
   const response = await fetch(`${FACILITATOR_URL}/supported`);
   const data = (await response.json()) as {
     kinds: Array<{
-      network: string;
+      network: Network;
       extra?: { feePayer?: string };
     }>;
   };
@@ -320,38 +325,6 @@ async function getFacilitatorInfo(): Promise<{
   };
 
   return cachedFacilitatorInfo;
-}
-
-/**
- * x402 v2 Payment Payload (in X-PAYMENT header)
- *
- * Contains:
- * - x402Version: Protocol version (2)
- * - accepted: The accepted payment scheme/network
- * - payload: Scheme-specific data (for SVM: transaction bytes)
- */
-interface PaymentPayload {
-  x402Version: 2;
-  accepted: {
-    scheme: string;
-    network: string;
-  };
-  payload: {
-    transaction: string; // base64 encoded transaction
-  };
-}
-
-interface PaymentRequirements {
-  scheme: string;
-  network: string;
-  amount: string;
-  asset: string;
-  payTo: string;
-  maxTimeoutSeconds: number;
-  extra: {
-    feePayer?: string;
-    [key: string]: unknown;
-  };
 }
 
 /**

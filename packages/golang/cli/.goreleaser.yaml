@@ -78,7 +78,7 @@ brews:
     directory: Formula
     homepage: "https://cascade.fyi"
     description: "Cascade CLI - Connect your local MCP server to Cascade Market"
-    license: "MIT"
+    license: "Apache-2.0"
     install: |
       bin.install "cascade"
     test: |
