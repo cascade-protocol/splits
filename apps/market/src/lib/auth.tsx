@@ -1,11 +1,10 @@
 /**
  * Auth Context
  *
- * Provides SIWS (Sign In With Solana) authentication using the Solana Kit pattern.
- * Uses native signIn feature when available, falls back to CAIP-122 signMessage.
+ * Provides SIWS (Sign In With Solana) authentication using wallet-standard.
+ * Uses native signIn feature when available, falls back to signMessage.
  *
- * @see https://github.com/anza-xyz/kit
- * @see https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-122.md
+ * @see https://github.com/anza-xyz/wallet-standard
  */
 
 import {
@@ -23,19 +22,32 @@ import type {
   SolanaSignInInput,
   SolanaSignInFeature,
 } from "@solana/wallet-standard-features";
+import {
+  createSignInMessageText,
+  type SolanaSignInInputWithRequiredFields,
+} from "@solana/wallet-standard-util";
+import { getAddressEncoder } from "@solana/kit";
+
+/** Shape of verify request body (arrays because JSON doesn't support Uint8Array) */
+interface VerifyRequestOutput {
+  account: {
+    address: string;
+    publicKey: number[];
+  };
+  signedMessage: number[];
+  signature: number[];
+}
 
 // API helpers for auth endpoints
-async function fetchNonce(): Promise<{ nonce: string }> {
+async function fetchNonce(): Promise<SolanaSignInInput> {
   const res = await fetch("/api/auth/nonce");
   if (!res.ok) throw new Error("Failed to get nonce");
   return res.json();
 }
 
 async function fetchVerify(data: {
-  signedMessage: string;
-  signature: string;
-  address: string;
   nonce: string;
+  output: VerifyRequestOutput;
 }): Promise<{ address: string }> {
   const res = await fetch("/api/auth/verify", {
     method: "POST",
@@ -78,37 +90,6 @@ interface AuthContextValue extends AuthState {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-/**
- * Construct CAIP-122 compliant SIWS message (fallback for wallets without native signIn)
- * @see https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-122.md
- */
-function constructSIWSMessage(input: SolanaSignInInput): string {
-  const lines = [
-    `${input.domain} wants you to sign in with your Solana account:`,
-    input.address,
-    "",
-  ];
-
-  if (input.statement) {
-    lines.push(input.statement, "");
-  }
-
-  lines.push(`URI: ${input.uri}`);
-  lines.push(`Version: ${input.version}`);
-  lines.push(`Chain ID: ${input.chainId}`);
-  lines.push(`Nonce: ${input.nonce}`);
-  lines.push(`Issued At: ${input.issuedAt}`);
-
-  if (input.resources?.length) {
-    lines.push("Resources:");
-    for (const r of input.resources) {
-      lines.push(`- ${r}`);
-    }
-  }
-
-  return lines.join("\n");
-}
 
 /**
  * AuthProvider component
@@ -179,44 +160,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, isLoading: true, error: null }));
 
     try {
-      // 1. Get nonce from server
-      const { nonce } = await fetchNonce();
+      // 1. Get full SIWS input from server (includes nonce, domain, etc.)
+      const input = await fetchNonce();
 
-      // 2. Prepare SIWS input
-      const input: SolanaSignInInput = {
-        domain: window.location.host,
+      // 2. Add address to input (required for message construction)
+      const inputWithAddress: SolanaSignInInput = {
+        ...input,
         address: walletSession.account.address,
-        statement: "Sign in to Cascade Market",
-        uri: window.location.origin,
-        version: "1",
-        chainId: "solana:mainnet",
-        nonce,
-        issuedAt: new Date().toISOString(),
-        resources: ["https://market.cascade.fyi"],
       };
 
-      let messageBytes: Uint8Array;
+      let signedMessage: Uint8Array;
       let signature: Uint8Array;
+      let publicKey: Uint8Array;
       let signedAddress: string;
 
       // 3. Try native SIWS first, fall back to signMessage
       if (supportsNativeSignIn && connectedWallet) {
-        // Native SIWS - wallet shows nice UI
-        // Use getWalletFeature to properly access the feature implementation
+        // Native SIWS - wallet shows nice UI and handles message construction
         const feature = getWalletFeature(
           connectedWallet,
           SolanaSignIn,
         ) as SolanaSignInFeature[typeof SolanaSignIn];
 
-        const [result] = await feature.signIn(input);
-        messageBytes = result.signedMessage;
+        const [result] = await feature.signIn(inputWithAddress);
+        signedMessage = result.signedMessage;
         signature = result.signature;
+        publicKey = result.account.publicKey as Uint8Array;
         signedAddress = result.account.address;
       } else if (walletSession.signMessage) {
-        // Fallback: construct CAIP-122 message and use signMessage
-        const message = constructSIWSMessage(input);
-        messageBytes = new TextEncoder().encode(message);
-        signature = await walletSession.signMessage(messageBytes);
+        // Fallback: use library for CAIP-122 message construction
+        const message = createSignInMessageText(
+          inputWithAddress as SolanaSignInInputWithRequiredFields,
+        );
+        signedMessage = new TextEncoder().encode(message);
+        signature = await walletSession.signMessage(signedMessage);
+        // Convert address to public key bytes for verification (base58 → 32 bytes)
+        publicKey = new Uint8Array(
+          getAddressEncoder().encode(walletSession.account.address),
+        );
         signedAddress = walletSession.account.address;
       } else {
         setState((s) => ({
@@ -227,17 +208,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // 4. Verify signature with server (server sets HTTP-only cookie)
-      const { address } = await fetchVerify({
-        signedMessage: btoa(String.fromCharCode(...messageBytes)),
-        signature: btoa(String.fromCharCode(...signature)),
-        address: signedAddress,
-        nonce,
+      // 4. Send structured output to server for verification
+      if (!input.nonce) {
+        throw new Error("Server returned invalid SIWS input (missing nonce)");
+      }
+      const { address: verifiedAddress } = await fetchVerify({
+        nonce: input.nonce,
+        output: {
+          account: {
+            address: signedAddress,
+            publicKey: Array.from(publicKey),
+          },
+          signedMessage: Array.from(signedMessage),
+          signature: Array.from(signature),
+        },
       });
 
       setState({
         isAuthenticated: true,
-        address,
+        address: verifiedAddress,
         isLoading: false,
         error: null,
       });
