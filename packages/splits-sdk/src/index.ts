@@ -89,6 +89,7 @@ export {
   getSplitConfigFromVault,
   getProtocolConfig,
   getVaultBalance,
+  getSplitsByAuthority,
   // Split detection (cached internally)
   isCascadeSplit,
   // PDA derivation
@@ -111,6 +112,7 @@ export {
   type MissingAta,
   // Types
   type SplitConfig,
+  type SplitWithBalance,
   type SplitRecipient,
   type ProtocolConfig,
   type UnclaimedAmount,
@@ -163,6 +165,11 @@ export {
   type CloseBlockedReason,
   type CloseOptions,
 } from "./closeSplit.js";
+
+export {
+  executeAndSendSplit,
+  type ExecuteAndSendResult,
+} from "./executeAndSend.js";
 
 // Client types (for wallet adapter implementations)
 export type {

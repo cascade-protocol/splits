@@ -1,0 +1,914 @@
+# ADR-0004: Cascade Market Architecture
+
+**Date:** 2025-12-11
+**Status:** Accepted
+**Goal:** Build "ngrok for paid MCPs" - MCP monetization platform that drives Cascade Splits adoption
+**Chain:** Solana (Base support deferred to ADR-0005)
+
+---
+
+## Problem
+
+MCP developers need a simple way to monetize their MCPs. Currently:
+- No turnkey solution for paid MCP endpoints
+- Developers must implement payment handling themselves
+- Revenue distribution requires custom infrastructure
+
+**Core Value Prop:** Developer runs one command, gets a paid MCP endpoint with automatic revenue distribution.
+
+---
+
+## Product Hierarchy
+
+```
+Cascade Ecosystem
+│
+├── Market (PRIMARY) ─────── Main consumer-facing product at market.cascade.fyi
+│   └── MCP devs monetizing + Clients paying via Tabs under the hood
+│
+├── Tabs (DEVELOPER TOOL) ── SDK/API for payment integration
+│   └── Devs building custom x402 integrations
+│
+└── Splits (DEVELOPER TOOL) ─ SDK/API for revenue splitting
+    └── Devs using splitting protocol directly
+```
+
+**Market abstracts away Tabs + Splits.** Users don't need to know they exist. Developers building custom solutions access them via `/tabs` and `/splits` routes.
+
+---
+
+## Architecture Decisions
+
+### Single App with Route-Based Separation
+
+One unified app at `market.cascade.fyi` with distinct route trees:
+
+```
+market.cascade.fyi/              → Landing (About) when disconnected; Dashboard when connected
+market.cascade.fyi/dashboard     → Redirects to / (dashboard shown via conditional rendering)
+market.cascade.fyi/services      → Redirects to / (services shown in dashboard)
+market.cascade.fyi/services/new  → Create service wizard
+market.cascade.fyi/services/$id  → Service detail page
+market.cascade.fyi/explore       → Browse MCPs (SSR for SEO)
+market.cascade.fyi/pay           → Client onboarding (Tabs info + links)
+market.cascade.fyi/tabs          → Tabs developer console (embedded)
+market.cascade.fyi/splits        → Splits developer console (embedded)
+```
+
+**Rationale:** Single deployment, shared wallet state, one codebase. Conditional rendering at `/` avoids separate dashboard route complexity while maintaining clean URLs.
+
+### Tech Stack
+
+| Choice | Decision | Rationale |
+|--------|----------|-----------|
+| **Framework** | TanStack Start | Server functions, type-safe RPC, file-based routing, TanStack Query integration |
+| **Bundler** | Vite + Cloudflare plugin | Runs in actual Workers runtime locally |
+| **Deployment** | Cloudflare Workers | Modern full-stack approach, D1/KV bindings |
+| **Styling** | Tailwind CSS v4 | Primary styling, utility-first |
+| **UI Components** | shadcn/ui | Built on Tailwind + Radix UI primitives |
+| **Approach** | Mobile-first | Header with responsive sheet menu |
+| **Starting point** | Fresh `apps/market` | Clean slate, no legacy patterns |
+
+### SSR Strategy
+
+Minimal SSR - only for public/SEO pages:
+
+| Route | SSR | Why |
+|-------|-----|-----|
+| `/` (landing) | ✅ | SEO, social previews |
+| `/explore` | ✅ | Discoverability |
+| `/dashboard/*` | ❌ | Authenticated, wallet |
+| `/services/*` | ❌ | Authenticated |
+| `/pay` | ❌ | Wallet-heavy |
+| `/tabs/*` | ❌ | Authenticated |
+| `/splits/*` | ❌ | Authenticated |
+
+Per-route SSR control:
+
+```tsx
+// routes/dashboard.tsx - client-only
+import { createFileRoute } from '@tanstack/react-router'
+
+export const Route = createFileRoute('/dashboard')({
+  ssr: false, // No SSR - runs entirely on client
+  component: Dashboard,
+})
+
+// routes/explore.tsx - server-rendered for SEO
+export const Route = createFileRoute('/explore')({
+  ssr: true, // Default, but explicit for clarity
+  loader: () => fetchPublicMCPs(),
+  component: Explore,
+})
+```
+
+> **Note:** The domain is `market.cascade.fyi` to avoid conflicts with the existing dashboard app at `cascade.fyi`. This can be migrated to `cascade.fyi` later when the legacy dashboard is retired.
+
+### Wallet Integration
+
+Wallet adapters require browser APIs. Use `ClientOnly` from `@tanstack/react-router`:
+
+```tsx
+// routes/__root.tsx
+import { ClientOnly, Outlet, createRootRoute, HeadContent, Scripts } from '@tanstack/react-router'
+import { WalletProvider } from '~/components/wallet-provider'
+
+export const Route = createRootRoute({
+  shellComponent: RootShell,
+  component: RootComponent,
+})
+
+function RootShell({ children }: { children: React.ReactNode }) {
+  return (
+    <html>
+      <head><HeadContent /></head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  )
+}
+
+function RootComponent() {
+  return (
+    <ClientOnly fallback={<div>Loading...</div>}>
+      {() => (
+        <WalletProvider>
+          <Outlet />
+        </WalletProvider>
+      )}
+    </ClientOnly>
+  )
+}
+```
+
+Vite config (no polyfills needed with `@solana/kit`):
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite'
+import { cloudflare } from '@cloudflare/vite-plugin'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import viteReact from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [
+    cloudflare({ viteEnvironment: { name: 'ssr' } }),
+    tanstackStart(),
+    viteReact(),
+  ],
+})
+```
+
+> **Note:** Using `@solana/client` and `@solana/react-hooks` from Solana Kit (web3.js v2) - fully browser-native, no Node.js polyfills required.
+
+### Authentication (SIWS)
+
+Sign-In With Solana (SIWS) provides wallet-based authentication following the CAIP-122 standard.
+
+**Why SIWS:**
+- Proves wallet ownership without sharing private keys
+- Standard message format recognizable by users
+- Enables OAuth flows for MCP clients (Claude Code, etc.)
+
+**Implementation Approach:**
+
+Uses the native Wallet Standard `solana:signIn` feature (`@solana/wallet-standard-features`) with fallback to `signMessage` for older wallets. No custom SIWS package needed.
+
+```typescript
+// Client-side: Check for native signIn feature
+const signInFeature = wallet.features?.["solana:signIn"];
+
+if (signInFeature) {
+  // Native SIWS - wallet handles message construction
+  const [result] = await signInFeature.signIn(input);
+} else if (wallet.signMessage) {
+  // Fallback: construct CAIP-122 message manually
+  const message = constructSIWSMessage(input);
+  const signature = await wallet.signMessage(new TextEncoder().encode(message));
+}
+
+// Server-side: Verify using @solana/kit
+import { getPublicKeyFromAddress } from "@solana/addresses";
+import { verifySignature } from "@solana/keys";
+```
+
+**Auth Flow (Dashboard):**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. User connects Solana wallet                                         │
+│  2. Frontend requests nonce from server                                 │
+│  3. Server generates nonce, stores in KV (5min TTL)                     │
+│  4. Frontend uses wallet.signIn() or constructs SIWS message:           │
+│                                                                         │
+│     market.cascade.fyi wants you to sign in with your Solana account:   │
+│     DYw4...abc                                                          │
+│                                                                         │
+│     Sign in to Cascade Market                                           │
+│                                                                         │
+│     URI: https://market.cascade.fyi                                     │
+│     Nonce: abc123...                                                    │
+│     Issued At: 2025-12-11T12:00:00Z                                     │
+│                                                                         │
+│  5. User signs message with wallet                                      │
+│  6. Frontend sends signature to server                                  │
+│  7. Server verifies signature (Ed25519) + validates nonce               │
+│  8. Server issues JWT (30-day, httpOnly cookie)                         │
+│  9. User is authenticated                                               │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**JWT Design:**
+
+```typescript
+// 30-day stateless JWT
+{
+  sub: "DYw4...abc",     // Solana public key
+  iat: 1702300800,       // Issued at
+  exp: 1704892800,       // 30 days later
+}
+
+// Stored in httpOnly cookie (prevents XSS)
+Set-Cookie: session=<jwt>; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000
+```
+
+### OAuth for MCP Clients
+
+MCP clients (Claude Code, etc.) authenticate via OAuth2 to use Tabs for payments.
+
+**Important:** MCP OAuth and x402 payments are **separate concerns**:
+- **MCP OAuth**: Authenticates MCP clients (who are you?)
+- **x402 Payments**: Handles payment for resources (PAYMENT-REQUIRED/PAYMENT-SIGNATURE headers)
+
+They work together: OAuth authenticates the client, then x402 handles payment if required.
+
+**Why OAuth:**
+- MCP SDK has built-in OAuth2 support with PKCE
+- Enables long-running sessions for AI agents
+- User authorizes once, agent pays automatically via Tabs
+
+**OAuth Discovery Flow:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. MCP client connects to https://example.mcps.cascade.fyi             │
+│  2. Gateway returns 401 + WWW-Authenticate header                       │
+│  3. MCP client fetches /.well-known/oauth-protected-resource (RFC 9728) │
+│     → { authorization_servers: ["https://market.cascade.fyi"], ... }    │
+│  4. MCP client fetches /.well-known/oauth-authorization-server (RFC 8414)│
+│     → { authorization_endpoint, token_endpoint, ... }                   │
+│  5. MCP client opens browser → /oauth/authorize                         │
+│                                                                         │
+│     ┌─────────────────────────────────────────────────────────────┐     │
+│     │  Authorize Claude Code                                      │     │
+│     │                                                             │     │
+│     │  This application wants to:                                 │     │
+│     │  ✓ Use your Tabs balance for payments                       │     │
+│     │                                                             │     │
+│     │  Current balance: $142.50 USDC                              │     │
+│     │                                                             │     │
+│     │  [Deny]  [Authorize]                                        │     │
+│     └─────────────────────────────────────────────────────────────┘     │
+│                                                                         │
+│  6. User signs SIWS (if not logged in) + approves                       │
+│  7. Server generates auth code, redirects to localhost callback         │
+│  8. MCP client exchanges code for tokens (PKCE verification)            │
+│  9. MCP client stores tokens locally                                    │
+│ 10. All MCP requests include Bearer token                               │
+│ 11. If payment required → 402 + PAYMENT-REQUIRED (x402 takes over)      │
+│ 12. Pay via Tabs → PAYMENT-SIGNATURE header                             │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Token Design:**
+
+| Token | Lifetime | Storage | Purpose |
+|-------|----------|---------|---------|
+| Access Token | 1 hour | Memory | Bearer auth for MCP requests |
+| Refresh Token | 30 days | D1 (hashed) | Obtain new access tokens |
+
+**OAuth Endpoints:**
+
+```
+/.well-known/oauth-protected-resource    → RFC 9728 resource metadata
+/.well-known/oauth-authorization-server  → RFC 8414 OAuth metadata
+/oauth/authorize                         → Consent screen (SIWS if needed)
+/oauth/token                             → Token exchange (PKCE)
+```
+
+**Gateway 401 Response (Critical for OAuth Discovery):**
+
+The MCP SDK discovers OAuth via the `WWW-Authenticate` header. Gateway must return:
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer resource_metadata="https://market.cascade.fyi/.well-known/oauth-protected-resource"
+```
+
+For invalid tokens:
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer error="invalid_token", resource_metadata="https://market.cascade.fyi/.well-known/oauth-protected-resource"
+```
+
+**Token Verification (AuthInfo for MCP SDK):**
+
+```typescript
+interface AuthInfo {
+  token: string;
+  clientId: string;
+  scopes: string[];        // e.g., ["tabs:spend", "services:read"]
+  expiresAt?: number;      // seconds since epoch
+  resource?: URL;
+  extra?: {
+    walletAddress: string; // Solana address from SIWS
+  };
+}
+```
+
+### Why Not Refactor Existing Apps?
+
+- `apps/dashboard` and `apps/tabs` have their own patterns and quirks
+- Refactoring = fighting existing decisions
+- Fresh start = faster, cleaner, fewer bugs
+
+---
+
+## Overview
+
+```
+Developer Experience:
+
+$ cascade --token csc_xxx localhost:3000
+
+✓ Authenticated: twitter-research
+✓ Split: 7xK9...3mP → your-wallet.sol
+✓ Price: $0.001/call
+✓ Live at: https://twitter-research.mcps.cascade.fyi
+
+Dashboard: https://market.cascade.fyi/dashboard
+```
+
+**What happens behind the scenes:**
+1. CLI establishes tunnel to Cascade edge
+2. Platform already created Cascade Split (dev = 99%, protocol = 1%) during registration
+3. Public URL assigned, MCP discoverable
+4. Incoming requests: no payment → 402, payment → verify → forward
+5. Settlements go to split vault (USDC)
+6. Platform batches `execute_split()` periodically
+7. Dev sees analytics in dashboard
+
+---
+
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           CLIENT FLOW                                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  1. Client has Tabs account (Squads smart account + spending limit)     │
+│  2. Client uses tabsFetch() to call paid MCP                            │
+│                                                                         │
+│     tabsFetch("https://twitter.mcps.cascade.fyi/mcp", {                 │
+│       tabsApiKey: "tabs_..."                                            │
+│     })                                                                  │
+│                                                                         │
+│  3. On 402 (payTo = split_vault):                                       │
+│     └── tabsFetch calls tabs.cascade.fyi/api/settle                     │
+│     └── Tabs builds useSpendingLimit tx (smart_account → split_vault)   │
+│     └── Returns signed tx                                               │
+│                                                                         │
+│  4. tabsFetch retries with PAYMENT-SIGNATURE header                     │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         MCP GATEWAY                                     │
+│                    *.mcps.cascade.fyi                                   │
+│         (Part of Market App deployment - Hono + Durable Objects)        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  x402HTTPResourceServer (from @x402/hono)                               │
+│  ├── Dynamic payTo: lookup split_vault by subdomain                     │
+│  ├── Dynamic price: lookup price from service registry                  │
+│  ├── Bazaar extension: advertise MCP for discovery                      │
+│  └── onAfterSettle hook: record payment for split execution             │
+│                                                                         │
+│  HTTPFacilitatorClient → facilitator.cascade.fyi                        │
+│  └── Verifies and settles x402 payment transactions (Solana)            │
+│                                                                         │
+│  TunnelRelay (Durable Object with WebSocket Hibernation)                │
+│  └── Forward verified requests to developer's MCP                       │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ Payment lands in split vault
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        CASCADE SPLITS                                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Split Vault (USDC ATA owned by SplitConfig PDA)                        │
+│  ├── Recipients: [ {dev_address, 99%} ]                                 │
+│  └── Protocol fee: 1% (Cascade)                                         │
+│                                                                         │
+│  Platform batches execute_split() periodically                          │
+│  └── Distributes vault balance to configured recipients                 │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Tabs vs Gateway (Different x402 Roles)
+
+| | Tabs (`tabs.cascade.fyi`) | Gateway (`*.mcps.cascade.fyi`) |
+|---|---|---|
+| **x402 Role** | Client facilitator | Resource server |
+| **What it does** | Builds spending limit tx for payers | Routes payments to split vaults |
+| **Who calls it** | tabsFetch() in client apps | MCP clients making requests |
+| **Position in flow** | Before payment sent | After payment received |
+
+Tabs remains separate - it's general-purpose x402 client infrastructure, not specific to Cascade Market.
+
+---
+
+## Existing Infrastructure
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| **Cascade Splits** | ✅ Deployed | `SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB` |
+| **Cascade Tabs** | ✅ Deployed | `tabs.cascade.fyi` |
+| **tabs-sdk** | ✅ Published | `@cascade-fyi/tabs-sdk` |
+| **splits-sdk** | ✅ Published | `@cascade-fyi/splits-sdk` |
+
+---
+
+## Components to Build
+
+| Component | Description | Tech |
+|-----------|-------------|------|
+| **Market App** | Dashboard + Gateway (single deployment) | TanStack Start + Hono + Durable Objects |
+| **cascade CLI** | Tunnel client, connects to gateway | Go (urfave/cli, goreleaser) |
+
+> **Note:** Market App and Gateway are a single Cloudflare Workers deployment.
+> TanStack Start handles `market.cascade.fyi` (dashboard, server functions).
+> Hono handles `*.mcps.cascade.fyi` (x402 payments, tunnels).
+> Routing by hostname in custom server entry. Can extract Gateway later if needed.
+
+---
+
+## Directory Structure
+
+```
+cascade-splits/
+├── apps/
+│   └── market/                        # Single deployment: market.cascade.fyi + *.mcps.cascade.fyi
+│       ├── src/
+│       │   ├── routes/                # TanStack Start file-based routes
+│       │   │   ├── __root.tsx         # Root layout with providers
+│       │   │   ├── index.tsx          # Landing page
+│       │   │   ├── dashboard.tsx      # Services overview
+│       │   │   ├── services/
+│       │   │   │   ├── index.tsx      # Services list
+│       │   │   │   ├── new.tsx        # Create service wizard
+│       │   │   │   └── $id.tsx        # Service detail
+│       │   │   ├── explore.tsx        # Browse MCPs
+│       │   │   ├── pay.tsx            # Client onboarding (embedded Tabs)
+│       │   │   ├── .well-known/
+│       │   │   │   ├── oauth-protected-resource.ts   # RFC 9728 metadata
+│       │   │   │   └── oauth-authorization-server.ts # RFC 8414 metadata
+│       │   │   ├── oauth/
+│       │   │   │   ├── authorize.tsx  # OAuth consent screen (SIWS)
+│       │   │   │   └── token.ts       # Token endpoint (PKCE)
+│       │   │   ├── tabs/              # Tabs developer console
+│       │   │   └── splits/            # Splits developer console
+│       │   │
+│       │   ├── components/
+│       │   │   ├── Header.tsx         # Responsive header with nav
+│       │   │   ├── Dashboard.tsx      # Services overview
+│       │   │   ├── About.tsx          # Landing page content
+│       │   │   └── ui/                # shadcn/ui components
+│       │   │
+│       │   ├── server/                # Server functions (D1 CRUD)
+│       │   │   ├── services.ts        # createService, getServices, etc.
+│       │   │   ├── tokens.ts          # Token generation/validation
+│       │   │   ├── auth.ts            # SIWS nonce, verify, JWT
+│       │   │   └── oauth.ts           # OAuth authorize, token endpoints
+│       │   │
+│       │   ├── gateway/               # Hono app for *.mcps.cascade.fyi
+│       │   │   ├── index.ts           # x402HTTPResourceServer + routing
+│       │   │   └── tunnel.ts          # TunnelRelay Durable Object
+│       │   │
+│       │   ├── server.ts              # Custom server entry (hostname routing)
+│       │   ├── router.tsx             # TanStack Router config
+│       │   └── styles.css
+│       │
+│       ├── public/
+│       ├── package.json
+│       ├── vite.config.ts
+│       └── wrangler.jsonc
+│
+├── packages/
+│   ├── golang/
+│   │   └── cli/                       # Cascade CLI (Go)
+│   │       ├── main.go                # Entry point (urfave/cli/v3)
+│   │       ├── internal/
+│   │       │   ├── config/            # Token parsing
+│   │       │   │   └── config.go
+│   │       │   └── tunnel/            # WebSocket tunnel client
+│   │       │       └── client.go
+│   │       ├── go.mod
+│   │       └── .goreleaser.yaml       # Cross-platform release config
+│   ├── tabs-sdk/                      # Existing
+│   └── splits-sdk/                    # Existing
+│
+└── programs/
+    └── cascade-splits/                # Solana program
+```
+
+---
+
+## Server Entry Point
+
+Custom server entry routes requests by hostname:
+
+```typescript
+// apps/market/src/server.ts
+import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
+import { gatewayApp } from './gateway'
+
+export default createServerEntry({
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    // Gateway: *.mcps.cascade.fyi → Hono (x402, tunnels)
+    if (url.hostname.endsWith('.mcps.cascade.fyi')) {
+      return gatewayApp.fetch(request, env);
+    }
+
+    // Market: market.cascade.fyi → TanStack Start (dashboard, server functions)
+    return handler.fetch(request, { context: { env } });
+  },
+})
+```
+
+**Why this pattern:**
+- Single deployment, single wrangler config
+- Gateway can be extracted to separate app later (just move `src/gateway/`)
+- Both access same D1 database (appropriate for single-team MVP)
+- Durable Objects defined in wrangler.jsonc, work with either entry point
+
+---
+
+## UI Structure
+
+### Header Navigation
+
+The app uses a responsive Header component instead of sidebar for simpler navigation:
+
+```tsx
+// Header with navigation links
+const navItems = [
+  { title: "Dashboard", to: "/" },
+  { title: "About", to: "/about" },
+];
+
+// Additional routes accessible via direct links:
+// /tabs - Tabs developer console
+// /splits - Splits developer console
+// /explore - Browse MCPs
+// /pay - Client onboarding
+```
+
+### Responsive Behavior
+
+- **Desktop**: Horizontal navigation bar with links + wallet button
+- **Mobile**: Sheet-based slide-out menu (hamburger trigger)
+- **Wallet**: Connection button in header, user menu when connected
+
+---
+
+## Developer Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. Developer visits market.cascade.fyi                                 │
+│     └── Sees landing page with value prop                               │
+│     └── Connects Solana wallet                                          │
+│                                                                         │
+│  2. Navigates to Dashboard → "Create Service"                           │
+│     └── Name: "twitter-research"                                        │
+│     └── Price: $0.001/call                                              │
+│     └── (Receiving address = wallet by default)                         │
+│                                                                         │
+│  3. Dashboard creates Cascade Split                                     │
+│     └── createSplitConfig({                                             │
+│           authority: platform_authority,  // For execute_split          │
+│           mint: USDC,                                                   │
+│           recipients: [{ address: dev_wallet, percentage_bps: 9900 }],  │
+│           unique_id: derived_from_service_id                            │
+│         })                                                              │
+│     └── Dev signs tx, pays ~$2 rent (refundable)                        │
+│                                                                         │
+│  4. Success modal shows:                                                │
+│     └── API token: csc_xxx                                              │
+│     └── CLI command: cascade --token csc_xxx localhost:3000             │
+│     └── Public URL: https://twitter-research.mcps.cascade.fyi           │
+│                                                                         │
+│  5. Developer runs CLI locally:                                         │
+│                                                                         │
+│     $ cascade --token csc_xxx localhost:3000                            │
+│                                                                         │
+│     ✓ Authenticated: twitter-research                                   │
+│     ✓ Live at: https://twitter-research.mcps.cascade.fyi                │
+│                                                                         │
+│  6. Dashboard shows:                                                    │
+│     └── Status: 🟢 Online                                               │
+│     └── Stats: calls, revenue, pending distribution                     │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Client Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. Client discovers MCP on market.cascade.fyi/explore                  │
+│                                                                         │
+│  2. Clicks "Use this MCP" → redirected to /pay if no Tabs account       │
+│                                                                         │
+│  3. /pay page (embedded Tabs onboarding):                               │
+│     └── Create Squads smart account                                     │
+│     └── Deposit USDC                                                    │
+│     └── Set daily spending limit                                        │
+│     └── Get API key: tabs_xxx                                           │
+│                                                                         │
+│  4. Client uses tabsFetch() in their code:                              │
+│                                                                         │
+│     import { tabsFetch } from "@cascade-fyi/tabs-sdk";                  │
+│                                                                         │
+│     const response = await tabsFetch(                                   │
+│       "https://twitter-research.mcps.cascade.fyi/mcp",                  │
+│       { tabsApiKey: "tabs_xxx" }                                        │
+│     );                                                                  │
+│                                                                         │
+│  5. tabsFetch handles x402 automatically                                │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## API Token Design
+
+```typescript
+interface ServiceToken {
+  serviceId: string;        // Unique service identifier
+  splitConfig: string;      // SplitConfig PDA address
+  splitVault: string;       // Vault ATA address (payTo)
+  price: string;            // Price per call in USDC base units
+  createdAt: number;        // Timestamp
+  signature: string;        // Platform signature for verification
+}
+
+// Encoded as: csc_<base64(JSON.stringify(payload))>
+// CLI sends token to Gateway for tunnel authentication
+// Gateway verifies token (checks signature field to ensure platform issued it)
+```
+
+---
+
+## x402 Integration
+
+The MCP Gateway uses `x402HTTPResourceServer` from `@x402/hono` with dynamic routing:
+
+```typescript
+// apps/market/src/gateway/index.ts
+import { Hono } from "hono";
+import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
+import { HTTPFacilitatorClient } from "@x402/http";
+import { enableBazaar } from "@x402/extensions/bazaar";
+
+const app = new Hono<{ Bindings: Env }>();
+
+// Service registry lookup (from D1)
+async function getServiceBySubdomain(subdomain: string, db: D1Database) {
+  return db.prepare(
+    "SELECT split_vault, price, name FROM services WHERE name = ?"
+  ).bind(subdomain).first();
+}
+
+// Configure x402 resource server
+const x402Server = new x402ResourceServer({
+  facilitatorClient: new HTTPFacilitatorClient("https://facilitator.cascade.fyi"),
+
+  // Dynamic payTo: route payments to split vault by subdomain
+  payTo: async (context) => {
+    const subdomain = context.adapter.getHeader("host")?.split(".")[0];
+    const service = await getServiceBySubdomain(subdomain!, context.env.DB);
+    return service?.split_vault;
+  },
+
+  // Dynamic price: lookup from service registry
+  price: async (context) => {
+    const subdomain = context.adapter.getHeader("host")?.split(".")[0];
+    const service = await getServiceBySubdomain(subdomain!, context.env.DB);
+    return service?.price ?? "1000"; // Default $0.001
+  },
+
+  hooks: {
+    // Record payment for split execution
+    onAfterSettle: async (context, payment) => {
+      const subdomain = context.adapter.getHeader("host")?.split(".")[0];
+      await context.env.DB.prepare(
+        "UPDATE services SET pending_balance = pending_balance + ?, total_calls = total_calls + 1 WHERE name = ?"
+      ).bind(payment.amount, subdomain).run();
+    },
+  },
+});
+
+// Enable MCP discovery via Bazaar extension
+enableBazaar(x402Server, {
+  async getResources(context) {
+    const services = await context.env.DB
+      .prepare("SELECT name, price FROM services WHERE status = 'online'")
+      .all();
+    return services.results.map((s) => ({
+      name: s.name,
+      price: s.price,
+      endpoint: `https://${s.name}.mcps.cascade.fyi/mcp`,
+    }));
+  },
+});
+
+// Apply payment middleware to MCP routes
+app.use("/mcp/*", paymentMiddleware(x402Server));
+
+// Forward verified requests to developer's MCP via tunnel
+app.all("/mcp/*", async (c) => {
+  const subdomain = c.req.header("host")?.split(".")[0];
+  const tunnelId = c.env.TUNNEL_RELAY.idFromName(subdomain!);
+  const tunnel = c.env.TUNNEL_RELAY.get(tunnelId);
+  return tunnel.fetch(c.req.raw);
+});
+
+export default app;
+```
+
+### Key x402 Patterns Used
+
+| Pattern | Usage |
+|---------|-------|
+| **Dynamic payTo** | Route payments to per-service split vaults |
+| **Dynamic price** | Per-service pricing from D1 |
+| **HTTPFacilitatorClient** | Delegate verify/settle to facilitator.cascade.fyi (x402 payment verification) |
+| **Bazaar extension** | Advertise MCPs for client/agent discovery |
+| **onAfterSettle hook** | Update cached stats in D1 for dashboard |
+
+---
+
+## Database Schema (D1)
+
+```sql
+-- Services (one per MCP registration)
+CREATE TABLE services (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,          -- Subdomain: "twitter-research"
+  owner_address TEXT NOT NULL,        -- Developer's Solana wallet
+
+  -- Cascade Split
+  split_config TEXT NOT NULL,         -- SplitConfig PDA
+  split_vault TEXT NOT NULL,          -- Vault ATA (payTo address)
+
+  -- Pricing
+  price TEXT NOT NULL,                -- USDC base units per call
+
+  -- State
+  status TEXT DEFAULT 'offline',      -- online/offline
+  tunnel_id TEXT,                     -- Active tunnel connection
+
+  -- Stats (denormalized for fast reads)
+  total_calls INTEGER DEFAULT 0,
+  total_revenue TEXT DEFAULT '0',
+  pending_balance TEXT DEFAULT '0',
+
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT NOW(),
+  last_connected_at TIMESTAMP,
+  last_executed_at TIMESTAMP          -- Last execute_split
+);
+
+-- Index for split executor
+CREATE INDEX idx_services_pending ON services(pending_balance, last_executed_at)
+  WHERE pending_balance > '0';
+
+-- OAuth refresh tokens (for MCP client auth)
+CREATE TABLE refresh_tokens (
+  id TEXT PRIMARY KEY,
+  user_address TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  revoked_at TIMESTAMP
+);
+
+CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_address);
+
+-- OAuth authorization codes (short-lived, 10min)
+CREATE TABLE auth_codes (
+  code TEXT PRIMARY KEY,
+  user_address TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  redirect_uri TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  code_challenge TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  used_at TIMESTAMP
+);
+
+-- Note: Payment history queried from on-chain indexer (Helius/Solscan), not duplicated here
+-- Note: Nonces stored in KV (5min TTL), not D1
+```
+
+---
+
+## Implementation Order
+
+1. **Market App Scaffold** - TanStack Start + Vite + Cloudflare + shadcn sidebar
+2. **Landing + Dashboard UI** - Basic routes and navigation
+3. **Authentication** - SIWS auth flow (native signIn), JWT sessions, protected routes
+4. **Service Creation Flow** - Server functions → Split creation → Token generation
+5. **Gateway Integration** - Add gateway/ with x402HTTPResourceServer + TunnelRelay DO
+6. **OAuth for MCP Clients** - OAuth server, consent screen, token management
+7. **CLI** - Go tunnel client (packages/golang/cli)
+8. **Client Onboarding** - Embedded Tabs flow at /pay
+9. **Explore Page** - MCP discovery (backed by Bazaar extension)
+
+---
+
+## Key Decisions
+
+1. **Solana only** - Simplifies everything, uses existing Tabs + Splits infrastructure
+
+2. **Single app with route separation** - Simpler than multiple apps, can split later
+
+3. **TanStack Start** - Server functions for type-safe D1 CRUD, collocated server/client code, built-in TanStack Query integration
+
+4. **Header-based navigation** - Simpler than sidebar, responsive sheet menu for mobile
+
+5. **Mobile-first** - Header with sheet component handles responsive behavior
+
+6. **Fresh app from scratch** - Cleaner than refactoring existing dashboard/tabs apps
+
+7. **Developer pays rent** - ~$2 registration (refundable), natural skin in game
+
+8. **Separate facilitator service** - `facilitator.cascade.fyi` handles Gateway payment verification/settlement. `tabs.cascade.fyi` handles client-side settlement via tabsFetch (smart wallet transactions)
+
+9. **Batched execute_split (deferred)** - Platform bears gas cost (covered by 1%), implement later
+
+10. **Streamable HTTP only** - No stdio MCP support, modern transport only
+
+11. **Single deployment for Market + Gateway** - TanStack Start handles market.cascade.fyi, Hono handles *.mcps.cascade.fyi, hostname routing in server.ts. Can extract Gateway later if needed.
+
+12. **x402HTTPResourceServer with dynamic payTo** - Route payments to per-service split vaults using subdomain lookup
+
+13. **Tabs stays separate** - Different x402 role (client facilitator vs resource server), remains general-purpose infrastructure
+
+14. **Shared D1 access** - Both dashboard and gateway read/write same D1 database directly. Appropriate for single-team MVP. Add API layer later if organizational boundaries require it.
+
+15. **Go for CLI** - Single binary distribution, cross-platform (macOS/Linux/Windows), fast startup. Uses urfave/cli/v3 for CLI framework and goreleaser for releases.
+
+16. **Component strategy** - Fresh shadcn install in market app with same config as dashboard (new-york style, slate base, OKLCH colors). Copy `index.css` color tokens from dashboard for visual consistency. Consolidate to shared `packages/ui` later when both apps stabilize.
+
+17. **Minimal SSR** - Only landing (`/`) and explore (`/explore`) pages use SSR for SEO. All authenticated/wallet routes use `ssr: false` to avoid hydration complexity.
+
+18. **SIWS via Wallet Standard** - Uses native `solana:signIn` feature from Wallet Standard (CAIP-122). No custom package needed - server-side verification only using `@solana/kit`.
+
+19. **30-day stateless JWT** - Simple auth without refresh complexity for dashboard. httpOnly cookie prevents XSS. Re-sign on expiry.
+
+20. **OAuth2 for MCP clients** - Full OAuth2 with PKCE for Claude Code and other MCP clients. Access token (1hr) + refresh token (30d) pattern.
+
+21. **KV for nonces** - Short-lived (5min) nonces in Cloudflare KV, not D1. Faster reads, automatic TTL cleanup.
+
+22. **Architecture ready for multi-chain** - Data model and auth patterns support adding Base later. No UI changes for MVP - Solana only. See ADR-0005 for Base implementation.
+
+---
+
+## Future Considerations (Deferred)
+
+- **Split Executor** - Batch `execute_split()` service (CF Queue + Worker) for automatic revenue distribution
+- **Shared UI package** - Extract common components to `packages/ui` once market app stabilizes
+- ERC-8004 integration for on-chain discovery/reputation
+- **Multi-chain support (Base EVM)** - See ADR-0005 for implementation details
+- Custom split configurations (revenue sharing with API providers)
+- Subscription/tiered pricing models
+- Advanced Bazaar features (capability descriptions, categories, ratings)

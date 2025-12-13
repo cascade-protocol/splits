@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cascade-facilitator",
+  "account_id": "3db7dd8ff22ae68593205855d8bc0b25",
+  "main": "./src/index.ts",
+  "compatibility_date": "2025-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+
+  // Custom domain for facilitator
+  "routes": [
+    { "pattern": "facilitator.cascade.fyi", "custom_domain": true }
+  ]
+}

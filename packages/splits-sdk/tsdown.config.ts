@@ -6,6 +6,7 @@ export default defineConfig({
     "core/index": "src/core/index.ts",
     "web3-compat/index": "src/web3-compat/index.ts",
     "generated/index": "src/generated/index.ts",
+    "adapters/framework-kit": "src/adapters/framework-kit.ts",
   },
   format: ["esm", "cjs"],
   dts: true,
