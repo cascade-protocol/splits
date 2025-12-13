@@ -21,8 +21,10 @@ import { Route as ServicesNewRouteImport } from './routes/services/new'
 import { Route as ServicesIdRouteImport } from './routes/services/$id'
 import { Route as OauthTokenRouteImport } from './routes/oauth/token'
 import { Route as OauthAuthorizeRouteImport } from './routes/oauth/authorize'
+import { Route as ApiSettleRouteImport } from './routes/api/settle'
 import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known/oauth-protected-resource'
 import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './routes/[.]well-known/oauth-authorization-server'
+import { Route as ApiEchoResourceRouteImport } from './routes/api/echo/resource'
 import { Route as ApiAuthVerifyRouteImport } from './routes/api/auth/verify'
 import { Route as ApiAuthSignoutRouteImport } from './routes/api/auth/signout'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
@@ -88,6 +90,11 @@ const OauthAuthorizeRoute = OauthAuthorizeRouteImport.update({
   path: '/oauth/authorize',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSettleRoute = ApiSettleRouteImport.update({
+  id: '/api/settle',
+  path: '/api/settle',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DotwellKnownOauthProtectedResourceRoute =
   DotwellKnownOauthProtectedResourceRouteImport.update({
     id: '/.well-known/oauth-protected-resource',
@@ -100,6 +107,11 @@ const DotwellKnownOauthAuthorizationServerRoute =
     path: '/.well-known/oauth-authorization-server',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiEchoResourceRoute = ApiEchoResourceRouteImport.update({
+  id: '/api/echo/resource',
+  path: '/api/echo/resource',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthVerifyRoute = ApiAuthVerifyRouteImport.update({
   id: '/api/auth/verify',
   path: '/api/auth/verify',
@@ -131,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/tabs': typeof TabsRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/api/settle': typeof ApiSettleRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
   '/oauth/token': typeof OauthTokenRoute
   '/services/$id': typeof ServicesIdRoute
@@ -140,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/auth/signout': typeof ApiAuthSignoutRoute
   '/api/auth/verify': typeof ApiAuthVerifyRoute
+  '/api/echo/resource': typeof ApiEchoResourceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -151,6 +165,7 @@ export interface FileRoutesByTo {
   '/tabs': typeof TabsRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/api/settle': typeof ApiSettleRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
   '/oauth/token': typeof OauthTokenRoute
   '/services/$id': typeof ServicesIdRoute
@@ -160,6 +175,7 @@ export interface FileRoutesByTo {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/auth/signout': typeof ApiAuthSignoutRoute
   '/api/auth/verify': typeof ApiAuthVerifyRoute
+  '/api/echo/resource': typeof ApiEchoResourceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -172,6 +188,7 @@ export interface FileRoutesById {
   '/tabs': typeof TabsRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/api/settle': typeof ApiSettleRoute
   '/oauth/authorize': typeof OauthAuthorizeRoute
   '/oauth/token': typeof OauthTokenRoute
   '/services/$id': typeof ServicesIdRoute
@@ -181,6 +198,7 @@ export interface FileRoutesById {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/auth/signout': typeof ApiAuthSignoutRoute
   '/api/auth/verify': typeof ApiAuthVerifyRoute
+  '/api/echo/resource': typeof ApiEchoResourceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -194,6 +212,7 @@ export interface FileRouteTypes {
     | '/tabs'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
+    | '/api/settle'
     | '/oauth/authorize'
     | '/oauth/token'
     | '/services/$id'
@@ -203,6 +222,7 @@ export interface FileRouteTypes {
     | '/api/auth/session'
     | '/api/auth/signout'
     | '/api/auth/verify'
+    | '/api/echo/resource'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -214,6 +234,7 @@ export interface FileRouteTypes {
     | '/tabs'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
+    | '/api/settle'
     | '/oauth/authorize'
     | '/oauth/token'
     | '/services/$id'
@@ -223,6 +244,7 @@ export interface FileRouteTypes {
     | '/api/auth/session'
     | '/api/auth/signout'
     | '/api/auth/verify'
+    | '/api/echo/resource'
   id:
     | '__root__'
     | '/'
@@ -234,6 +256,7 @@ export interface FileRouteTypes {
     | '/tabs'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
+    | '/api/settle'
     | '/oauth/authorize'
     | '/oauth/token'
     | '/services/$id'
@@ -243,6 +266,7 @@ export interface FileRouteTypes {
     | '/api/auth/session'
     | '/api/auth/signout'
     | '/api/auth/verify'
+    | '/api/echo/resource'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -255,6 +279,7 @@ export interface RootRouteChildren {
   TabsRoute: typeof TabsRoute
   DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
   DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
+  ApiSettleRoute: typeof ApiSettleRoute
   OauthAuthorizeRoute: typeof OauthAuthorizeRoute
   OauthTokenRoute: typeof OauthTokenRoute
   ServicesIdRoute: typeof ServicesIdRoute
@@ -264,6 +289,7 @@ export interface RootRouteChildren {
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
   ApiAuthSignoutRoute: typeof ApiAuthSignoutRoute
   ApiAuthVerifyRoute: typeof ApiAuthVerifyRoute
+  ApiEchoResourceRoute: typeof ApiEchoResourceRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -352,6 +378,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OauthAuthorizeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/settle': {
+      id: '/api/settle'
+      path: '/api/settle'
+      fullPath: '/api/settle'
+      preLoaderRoute: typeof ApiSettleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.well-known/oauth-protected-resource': {
       id: '/.well-known/oauth-protected-resource'
       path: '/.well-known/oauth-protected-resource'
@@ -364,6 +397,13 @@ declare module '@tanstack/react-router' {
       path: '/.well-known/oauth-authorization-server'
       fullPath: '/.well-known/oauth-authorization-server'
       preLoaderRoute: typeof DotwellKnownOauthAuthorizationServerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/echo/resource': {
+      id: '/api/echo/resource'
+      path: '/api/echo/resource'
+      fullPath: '/api/echo/resource'
+      preLoaderRoute: typeof ApiEchoResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/verify': {
@@ -409,6 +449,7 @@ const rootRouteChildren: RootRouteChildren = {
     DotwellKnownOauthAuthorizationServerRoute,
   DotwellKnownOauthProtectedResourceRoute:
     DotwellKnownOauthProtectedResourceRoute,
+  ApiSettleRoute: ApiSettleRoute,
   OauthAuthorizeRoute: OauthAuthorizeRoute,
   OauthTokenRoute: OauthTokenRoute,
   ServicesIdRoute: ServicesIdRoute,
@@ -418,6 +459,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSessionRoute: ApiAuthSessionRoute,
   ApiAuthSignoutRoute: ApiAuthSignoutRoute,
   ApiAuthVerifyRoute: ApiAuthVerifyRoute,
+  ApiEchoResourceRoute: ApiEchoResourceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

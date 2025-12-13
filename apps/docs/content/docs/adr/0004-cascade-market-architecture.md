@@ -1,4 +1,11 @@
-# ADR-0004: Cascade Market Architecture
+---
+title: "Cascade Market Architecture"
+sidebar:
+  order: 4
+  badge:
+    text: Accepted
+    variant: success
+---
 
 **Date:** 2025-12-11
 **Status:** Accepted
@@ -645,7 +652,7 @@ const navItems = [
 
 ---
 
-## Client Flow
+## Client Flow (MCP Clients via OAuth)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐

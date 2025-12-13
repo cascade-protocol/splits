@@ -178,10 +178,9 @@ function ServiceRow({ service }: { service: ServiceDisplay }) {
   const hasBalance = service.vaultBalance > 0n;
 
   return (
-    <a
-      href={`https://solscan.io/account/${service.id}`}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Link
+      to="/services/$id"
+      params={{ id: service.id }}
       className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
     >
       <div className="flex items-center gap-4">
@@ -203,6 +202,6 @@ function ServiceRow({ service }: { service: ServiceDisplay }) {
         </div>
         <div className="text-sm text-muted-foreground">balance</div>
       </div>
-    </a>
+    </Link>
   );
 }

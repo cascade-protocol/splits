@@ -14,7 +14,6 @@ import { Separator } from "@/components/ui/separator";
 
 const navItems = [
   { title: "Dashboard", to: "/" },
-  { title: "Splits", to: "/splits" },
   { title: "Tabs", to: "/tabs" },
   { title: "About", to: "/about" },
 ];

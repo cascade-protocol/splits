@@ -21,17 +21,19 @@ MCP developers need a simple way to monetize their MCPs. Currently:
 ## Product Hierarchy
 
 ```
-Cascade Market
+Cascade Ecosystem
 │
-├── For MCP Developers ──── Monetize your MCP in one command
-│   └── CLI tunnel + dashboard at market.cascade.fyi
+├── Market (PRIMARY) ─────── Main consumer-facing product at market.cascade.fyi
+│   └── MCP devs monetizing + Clients paying via Tabs under the hood
 │
-└── For MCP Clients ─────── Pay for MCPs seamlessly
-    └── OAuth once, use MCPs - payment is invisible
-    └── Tabs account setup at /pay (Squads wallet + spending limit)
+├── Tabs (DEVELOPER TOOL) ── SDK/API for payment integration
+│   └── Devs building custom x402 integrations
+│
+└── Splits (DEVELOPER TOOL) ─ SDK/API for revenue splitting
+    └── Devs using splitting protocol directly
 ```
 
-**Market is the product.** Tabs and Splits are invisible infrastructure. Clients authenticate via OAuth, Gateway handles payments server-side - no 402s, no payment UX.
+**Market abstracts away Tabs + Splits.** Users don't need to know they exist. Developers building custom solutions access them via `/tabs` and `/splits` routes.
 
 ---
 
@@ -43,10 +45,14 @@ One unified app at `market.cascade.fyi` with distinct route trees:
 
 ```
 market.cascade.fyi/              → Landing (About) when disconnected; Dashboard when connected
+market.cascade.fyi/dashboard     → Redirects to / (dashboard shown via conditional rendering)
+market.cascade.fyi/services      → Redirects to / (services shown in dashboard)
 market.cascade.fyi/services/new  → Create service wizard
 market.cascade.fyi/services/$id  → Service detail page
 market.cascade.fyi/explore       → Browse MCPs (SSR for SEO)
-market.cascade.fyi/pay           → Tabs account (setup if none, manage if exists)
+market.cascade.fyi/pay           → Client onboarding (Tabs info + links)
+market.cascade.fyi/tabs          → Tabs developer console (embedded)
+market.cascade.fyi/splits        → Splits developer console (embedded)
 ```
 
 **Rationale:** Single deployment, shared wallet state, one codebase. Conditional rendering at `/` avoids separate dashboard route complexity while maintaining clean URLs.
@@ -71,8 +77,11 @@ Minimal SSR - only for public/SEO pages:
 |-------|-----|-----|
 | `/` (landing) | ✅ | SEO, social previews |
 | `/explore` | ✅ | Discoverability |
+| `/dashboard/*` | ❌ | Authenticated, wallet |
 | `/services/*` | ❌ | Authenticated |
 | `/pay` | ❌ | Wallet-heavy |
+| `/tabs/*` | ❌ | Authenticated |
+| `/splits/*` | ❌ | Authenticated |
 
 Per-route SSR control:
 
@@ -227,31 +236,23 @@ Set-Cookie: session=<jwt>; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000
 
 ### OAuth for MCP Clients
 
-MCP clients (Claude Code, etc.) authenticate via OAuth2. Once authenticated, the **Gateway handles all payments internally** - clients never see 402s.
+MCP clients (Claude Code, etc.) authenticate via OAuth2 to use Tabs for payments.
 
-**Key insight:** OAuth authentication gives the Gateway everything it needs to pay on behalf of the user:
-- **OAuth token → wallet address** (from SIWS during authorization)
-- **Wallet address → Tabs smart account** (lookup in D1)
-- **Gateway has spending permission** (user authorized during Tabs setup at /pay)
+**Important:** MCP OAuth and x402 payments are **separate concerns**:
+- **MCP OAuth**: Authenticates MCP clients (who are you?)
+- **x402 Payments**: Handles payment for resources (PAYMENT-REQUIRED/PAYMENT-SIGNATURE headers)
+
+They work together: OAuth authenticates the client, then x402 handles payment if required.
 
 **Why OAuth:**
 - MCP SDK has built-in OAuth2 support with PKCE
 - Enables long-running sessions for AI agents
-- User authorizes once, agent uses MCP seamlessly - payment is invisible
+- User authorizes once, agent pays automatically via Tabs
 
-**OAuth Discovery + Authorization Flow:**
+**OAuth Discovery Flow:**
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  PREREQUISITE: User has set up Tabs account at market.cascade.fyi/pay   │
-│  └── Created Squads smart account                                       │
-│  └── Deposited USDC                                                     │
-│  └── Set daily spending limit (authorizes Gateway to spend)             │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│  ONE-TIME: MCP client (Claude Code) gets OAuth authorization            │
-│                                                                         │
 │  1. MCP client connects to https://example.mcps.cascade.fyi             │
 │  2. Gateway returns 401 + WWW-Authenticate header                       │
 │  3. MCP client fetches /.well-known/oauth-protected-resource (RFC 9728) │
@@ -275,21 +276,9 @@ MCP clients (Claude Code, etc.) authenticate via OAuth2. Once authenticated, the
 │  7. Server generates auth code, redirects to localhost callback         │
 │  8. MCP client exchanges code for tokens (PKCE verification)            │
 │  9. MCP client stores tokens locally                                    │
-│ 10. MCP client is now authorized - can make requests with Bearer token  │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│  EVERY REQUEST: Gateway handles payment internally                      │
-│                                                                         │
-│  1. MCP client sends request with Bearer token                          │
-│  2. Gateway validates token → extracts wallet address                   │
-│  3. Gateway looks up user's Tabs smart account (by wallet)              │
-│  4. Gateway builds spending limit tx (smart_account → split_vault)      │
-│  5. Gateway submits to facilitator, settles on Solana                   │
-│  6. On success → forwards request to developer's MCP via tunnel         │
-│  7. Response returned to client                                         │
-│                                                                         │
-│  Client never sees 402 - payment is invisible infrastructure            │
+│ 10. All MCP requests include Bearer token                               │
+│ 11. If payment required → 402 + PAYMENT-REQUIRED (x402 takes over)      │
+│ 12. Pay via Tabs → PAYMENT-SIGNATURE header                             │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -341,7 +330,7 @@ interface AuthInfo {
 
 ### Why Not Refactor Existing Apps?
 
-- Existing apps have their own patterns and quirks
+- `apps/dashboard` and `apps/tabs` have their own patterns and quirks
 - Refactoring = fighting existing decisions
 - Fresh start = faster, cleaner, fewer bugs
 
@@ -366,7 +355,7 @@ Dashboard: https://market.cascade.fyi/dashboard
 1. CLI establishes tunnel to Cascade edge
 2. Platform already created Cascade Split (dev = 99%, protocol = 1%) during registration
 3. Public URL assigned, MCP discoverable
-4. Incoming requests from OAuth'd clients: Gateway handles payment internally → forwards to MCP
+4. Incoming requests: no payment → 402, payment → verify → forward
 5. Settlements go to split vault (USDC)
 6. Platform batches `execute_split()` periodically
 7. Dev sees analytics in dashboard
@@ -377,17 +366,22 @@ Dashboard: https://market.cascade.fyi/dashboard
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                      MCP CLIENT (e.g., Claude Code)                     │
+│                           CLIENT FLOW                                    │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  1. Already authenticated via OAuth (has Bearer token)                  │
-│     └── Token contains wallet address from SIWS                         │
+│  1. Client has Tabs account (Squads smart account + spending limit)     │
+│  2. Client uses tabsFetch() to call paid MCP                            │
 │                                                                         │
-│  2. Makes normal MCP request:                                           │
-│     POST https://twitter-research.mcps.cascade.fyi/mcp                  │
-│     Authorization: Bearer <token>                                       │
+│     tabsFetch("https://twitter.mcps.cascade.fyi/mcp", {                 │
+│       tabsApiKey: "tabs_..."                                            │
+│     })                                                                  │
 │                                                                         │
-│  Client doesn't know about payments - just uses MCP normally            │
+│  3. On 402 (payTo = split_vault):                                       │
+│     └── tabsFetch calls tabs.cascade.fyi/api/settle                     │
+│     └── Tabs builds useSpendingLimit tx (smart_account → split_vault)   │
+│     └── Returns signed tx                                               │
+│                                                                         │
+│  4. tabsFetch retries with PAYMENT-SIGNATURE header                     │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -398,27 +392,17 @@ Dashboard: https://market.cascade.fyi/dashboard
 │         (Part of Market App deployment - Hono + Durable Objects)        │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  1. Validate Bearer token → extract wallet address                      │
+│  x402HTTPResourceServer (from @x402/hono)                               │
+│  ├── Dynamic payTo: lookup split_vault by subdomain                     │
+│  ├── Dynamic price: lookup price from service registry                  │
+│  ├── Bazaar extension: advertise MCP for discovery                      │
+│  └── onAfterSettle hook: record payment for split execution             │
 │                                                                         │
-│  2. Lookup service by subdomain (D1)                                    │
-│     └── Get split_vault (payTo) and price                               │
+│  HTTPFacilitatorClient → facilitator.cascade.fyi                        │
+│  └── Verifies and settles x402 payment transactions (Solana)            │
 │                                                                         │
-│  3. Lookup user's Tabs smart account (D1)                               │
-│     └── wallet address → Squads smart account address                   │
-│                                                                         │
-│  4. Build spending limit transaction                                    │
-│     └── useSpendingLimit: smart_account → split_vault                   │
-│                                                                         │
-│  5. Submit to facilitator.cascade.fyi for settlement                    │
-│     └── Facilitator verifies + submits tx to Solana                     │
-│                                                                         │
-│  6. On success → forward request to TunnelRelay DO                      │
-│     └── WebSocket relay to developer's local MCP                        │
-│                                                                         │
-│  7. Return MCP response to client                                       │
-│                                                                         │
-│  Bazaar extension: advertise MCP for discovery                          │
-│  onAfterSettle hook: record payment stats in D1                         │
+│  TunnelRelay (Durable Object with WebSocket Hibernation)                │
+│  └── Forward verified requests to developer's MCP                       │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -438,17 +422,16 @@ Dashboard: https://market.cascade.fyi/dashboard
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Gateway as Unified Payment Handler
+### Tabs vs Gateway (Different x402 Roles)
 
-The Gateway handles **both** x402 roles internally:
+| | Tabs (`tabs.cascade.fyi`) | Gateway (`*.mcps.cascade.fyi`) |
+|---|---|---|
+| **x402 Role** | Client facilitator | Resource server |
+| **What it does** | Builds spending limit tx for payers | Routes payments to split vaults |
+| **Who calls it** | tabsFetch() in client apps | MCP clients making requests |
+| **Position in flow** | Before payment sent | After payment received |
 
-| Function | What it does |
-|----------|--------------|
-| **Client facilitator** | Builds spending limit tx from user's Tabs smart account |
-| **Resource server** | Routes payments to per-service split vaults |
-| **Settlement** | Submits to facilitator.cascade.fyi for on-chain execution |
-
-**Why unified:** MCP clients shouldn't know about x402. OAuth gives Gateway the wallet address; Gateway does the rest server-side. Payment is invisible infrastructure.
+Tabs remains separate - it's general-purpose x402 client infrastructure, not specific to Cascade Market.
 
 ---
 
@@ -456,10 +439,10 @@ The Gateway handles **both** x402 roles internally:
 
 | Component | Status | Location |
 |-----------|--------|----------|
-| **Cascade Splits (Solana program)** | ✅ Deployed | `SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB` |
+| **Cascade Splits** | ✅ Deployed | `SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB` |
+| **Cascade Tabs** | ✅ Deployed | `tabs.cascade.fyi` |
+| **tabs-sdk** | ✅ Published | `@cascade-fyi/tabs-sdk` |
 | **splits-sdk** | ✅ Published | `@cascade-fyi/splits-sdk` |
-
-These are internal infrastructure - Market uses them under the hood. Users never interact with them directly.
 
 ---
 
@@ -497,9 +480,11 @@ cascade-splits/
 │       │   │   ├── .well-known/
 │       │   │   │   ├── oauth-protected-resource.ts   # RFC 9728 metadata
 │       │   │   │   └── oauth-authorization-server.ts # RFC 8414 metadata
-│       │   │   └── oauth/
-│       │   │       ├── authorize.tsx  # OAuth consent screen (SIWS)
-│       │   │       └── token.ts       # Token endpoint (PKCE)
+│       │   │   ├── oauth/
+│       │   │   │   ├── authorize.tsx  # OAuth consent screen (SIWS)
+│       │   │   │   └── token.ts       # Token endpoint (PKCE)
+│       │   │   ├── tabs/              # Tabs developer console
+│       │   │   └── splits/            # Splits developer console
 │       │   │
 │       │   ├── components/
 │       │   │   ├── Header.tsx         # Responsive header with nav
@@ -511,8 +496,7 @@ cascade-splits/
 │       │   │   ├── services.ts        # createService, getServices, etc.
 │       │   │   ├── tokens.ts          # Token generation/validation
 │       │   │   ├── auth.ts            # SIWS nonce, verify, JWT
-│       │   │   ├── oauth.ts           # OAuth authorize, token endpoints
-│       │   │   └── tabs.ts            # buildSpendingLimitTx, Tabs account management
+│       │   │   └── oauth.ts           # OAuth authorize, token endpoints
 │       │   │
 │       │   ├── gateway/               # Hono app for *.mcps.cascade.fyi
 │       │   │   ├── index.ts           # x402HTTPResourceServer + routing
@@ -586,12 +570,17 @@ export default createServerEntry({
 The app uses a responsive Header component instead of sidebar for simpler navigation:
 
 ```tsx
-// Header with navigation links (when connected)
+// Header with navigation links
 const navItems = [
   { title: "Dashboard", to: "/" },
-  { title: "Explore", to: "/explore" },
-  { title: "Pay", to: "/pay" },
+  { title: "About", to: "/about" },
 ];
+
+// Additional routes accessible via direct links:
+// /tabs - Tabs developer console
+// /splits - Splits developer console
+// /explore - Browse MCPs
+// /pay - Client onboarding
 ```
 
 ### Responsive Behavior
@@ -649,34 +638,26 @@ const navItems = [
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  ONE-TIME SETUP: Create Tabs Account                                    │
+│  1. Client discovers MCP on market.cascade.fyi/explore                  │
 │                                                                         │
-│  1. User visits market.cascade.fyi/pay                                  │
-│  2. Connects Solana wallet                                              │
-│  3. Creates Squads smart account                                        │
-│  4. Deposits USDC                                                       │
-│  5. Sets daily spending limit (authorizes Gateway as spender)           │
+│  2. Clicks "Use this MCP" → redirected to /pay if no Tabs account       │
 │                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│  ONE-TIME: Authorize MCP Client (e.g., Claude Code)                     │
+│  3. /pay page (embedded Tabs onboarding):                               │
+│     └── Create Squads smart account                                     │
+│     └── Deposit USDC                                                    │
+│     └── Set daily spending limit                                        │
+│     └── Get API key: tabs_xxx                                           │
 │                                                                         │
-│  1. User adds MCP server URL to Claude Code config                      │
-│  2. Claude Code connects → gets 401 → discovers OAuth                   │
-│  3. Browser opens → user signs in (SIWS) + approves                     │
-│  4. Claude Code receives tokens, stores locally                         │
+│  4. Client uses tabsFetch() in their code:                              │
 │                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│  EVERY REQUEST: Seamless paid MCP usage                                 │
+│     import { tabsFetch } from "@cascade-fyi/tabs-sdk";                  │
 │                                                                         │
-│  1. Claude Code makes MCP request with Bearer token                     │
-│  2. Gateway handles payment internally (user never sees 402)            │
-│  3. Request forwarded to MCP, response returned                         │
+│     const response = await tabsFetch(                                   │
+│       "https://twitter-research.mcps.cascade.fyi/mcp",                  │
+│       { tabsApiKey: "tabs_xxx" }                                        │
+│     );                                                                  │
 │                                                                         │
-│  User experience: MCP just works. Payment is invisible.                 │
+│  5. tabsFetch handles x402 automatically                                │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -702,93 +683,57 @@ interface ServiceToken {
 
 ---
 
-## Gateway Payment Flow
+## x402 Integration
 
-The Gateway handles payments internally for OAuth-authenticated MCP clients:
+The MCP Gateway uses `x402HTTPResourceServer` from `@x402/hono` with dynamic routing:
 
 ```typescript
 // apps/market/src/gateway/index.ts
 import { Hono } from "hono";
+import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
 import { HTTPFacilitatorClient } from "@x402/http";
 import { enableBazaar } from "@x402/extensions/bazaar";
-import { verifyAccessToken } from "../server/oauth";
-import { buildSpendingLimitTx } from "../server/tabs";
 
 const app = new Hono<{ Bindings: Env }>();
-const facilitator = new HTTPFacilitatorClient("https://facilitator.cascade.fyi");
 
-// Lookup helpers
+// Service registry lookup (from D1)
 async function getServiceBySubdomain(subdomain: string, db: D1Database) {
   return db.prepare(
     "SELECT split_vault, price, name FROM services WHERE name = ?"
   ).bind(subdomain).first();
 }
 
-async function getTabsAccount(walletAddress: string, db: D1Database) {
-  return db.prepare(
-    "SELECT smart_account, spending_limit FROM tabs_accounts WHERE wallet_address = ?"
-  ).bind(walletAddress).first();
-}
+// Configure x402 resource server
+const x402Server = new x402ResourceServer({
+  facilitatorClient: new HTTPFacilitatorClient("https://facilitator.cascade.fyi"),
 
-// MCP routes - Gateway handles payment internally
-app.all("/mcp/*", async (c) => {
-  const subdomain = c.req.header("host")?.split(".")[0];
+  // Dynamic payTo: route payments to split vault by subdomain
+  payTo: async (context) => {
+    const subdomain = context.adapter.getHeader("host")?.split(".")[0];
+    const service = await getServiceBySubdomain(subdomain!, context.env.DB);
+    return service?.split_vault;
+  },
 
-  // 1. Validate OAuth token → get wallet address
-  const authHeader = c.req.header("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response("Unauthorized", {
-      status: 401,
-      headers: {
-        "WWW-Authenticate": `Bearer resource_metadata="https://market.cascade.fyi/.well-known/oauth-protected-resource"`
-      }
-    });
-  }
+  // Dynamic price: lookup from service registry
+  price: async (context) => {
+    const subdomain = context.adapter.getHeader("host")?.split(".")[0];
+    const service = await getServiceBySubdomain(subdomain!, context.env.DB);
+    return service?.price ?? "1000"; // Default $0.001
+  },
 
-  const token = authHeader.slice(7);
-  const authInfo = await verifyAccessToken(token, c.env);
-  if (!authInfo) {
-    return new Response("Invalid token", { status: 401 });
-  }
-
-  // 2. Lookup service (payTo, price)
-  const service = await getServiceBySubdomain(subdomain!, c.env.DB);
-  if (!service) {
-    return new Response("Service not found", { status: 404 });
-  }
-
-  // 3. Lookup user's Tabs smart account
-  const tabsAccount = await getTabsAccount(authInfo.walletAddress, c.env.DB);
-  if (!tabsAccount) {
-    return new Response("No Tabs account - visit market.cascade.fyi/pay to set up", { status: 402 });
-  }
-
-  // 4. Build spending limit transaction
-  const paymentTx = await buildSpendingLimitTx({
-    smartAccount: tabsAccount.smart_account,
-    amount: service.price,
-    recipient: service.split_vault,  // payTo = split vault
-  });
-
-  // 5. Submit to facilitator for settlement
-  const settlement = await facilitator.settle(paymentTx);
-  if (!settlement.success) {
-    return new Response("Payment failed", { status: 402 });
-  }
-
-  // 6. Record payment stats
-  await c.env.DB.prepare(
-    "UPDATE services SET pending_balance = pending_balance + ?, total_calls = total_calls + 1 WHERE name = ?"
-  ).bind(service.price, subdomain).run();
-
-  // 7. Forward to developer's MCP via tunnel
-  const tunnelId = c.env.TUNNEL_RELAY.idFromName(subdomain!);
-  const tunnel = c.env.TUNNEL_RELAY.get(tunnelId);
-  return tunnel.fetch(c.req.raw);
+  hooks: {
+    // Record payment for split execution
+    onAfterSettle: async (context, payment) => {
+      const subdomain = context.adapter.getHeader("host")?.split(".")[0];
+      await context.env.DB.prepare(
+        "UPDATE services SET pending_balance = pending_balance + ?, total_calls = total_calls + 1 WHERE name = ?"
+      ).bind(payment.amount, subdomain).run();
+    },
+  },
 });
 
 // Enable MCP discovery via Bazaar extension
-enableBazaar(app, {
+enableBazaar(x402Server, {
   async getResources(context) {
     const services = await context.env.DB
       .prepare("SELECT name, price FROM services WHERE status = 'online'")
@@ -801,19 +746,29 @@ enableBazaar(app, {
   },
 });
 
+// Apply payment middleware to MCP routes
+app.use("/mcp/*", paymentMiddleware(x402Server));
+
+// Forward verified requests to developer's MCP via tunnel
+app.all("/mcp/*", async (c) => {
+  const subdomain = c.req.header("host")?.split(".")[0];
+  const tunnelId = c.env.TUNNEL_RELAY.idFromName(subdomain!);
+  const tunnel = c.env.TUNNEL_RELAY.get(tunnelId);
+  return tunnel.fetch(c.req.raw);
+});
+
 export default app;
 ```
 
-### Key Patterns
+### Key x402 Patterns Used
 
 | Pattern | Usage |
 |---------|-------|
-| **OAuth → wallet lookup** | Extract wallet from Bearer token, lookup Tabs smart account |
-| **Server-side payment** | Gateway builds spending limit tx, not client |
-| **HTTPFacilitatorClient** | Submit tx to facilitator.cascade.fyi for on-chain settlement |
-| **Dynamic payTo** | Route payments to per-service split vaults by subdomain |
+| **Dynamic payTo** | Route payments to per-service split vaults |
+| **Dynamic price** | Per-service pricing from D1 |
+| **HTTPFacilitatorClient** | Delegate verify/settle to facilitator.cascade.fyi (x402 payment verification) |
 | **Bazaar extension** | Advertise MCPs for client/agent discovery |
-| **No 402 to client** | Gateway handles payment before forwarding to MCP |
+| **onAfterSettle hook** | Update cached stats in D1 for dashboard |
 
 ---
 
@@ -852,15 +807,6 @@ CREATE TABLE services (
 CREATE INDEX idx_services_pending ON services(pending_balance, last_executed_at)
   WHERE pending_balance > '0';
 
--- Tabs accounts (user's Squads smart wallet for payments)
-CREATE TABLE tabs_accounts (
-  wallet_address TEXT PRIMARY KEY,    -- User's Solana wallet (from SIWS)
-  smart_account TEXT NOT NULL,        -- Squads smart account address
-  spending_limit TEXT NOT NULL,       -- Daily spending limit in USDC base units
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 -- OAuth refresh tokens (for MCP client auth)
 CREATE TABLE refresh_tokens (
   id TEXT PRIMARY KEY,
@@ -897,15 +843,15 @@ CREATE TABLE auth_codes (
 
 ## Implementation Order
 
-1. **Market App Scaffold** - TanStack Start + Vite + Cloudflare + shadcn
-2. **Landing + Dashboard UI** - Routes and navigation
-3. **Authentication** - SIWS auth flow, JWT sessions
-4. **Service Creation Flow** - Split creation → Token generation
-5. **Gateway Integration** - Payment handling + TunnelRelay DO
-6. **CLI** - Go tunnel client
-7. **OAuth for MCP Clients** - OAuth server, consent screen
-8. **Client Onboarding** - Tabs account setup at /pay
-9. **Explore Page** - MCP discovery
+1. **Market App Scaffold** - TanStack Start + Vite + Cloudflare + shadcn sidebar
+2. **Landing + Dashboard UI** - Basic routes and navigation
+3. **Authentication** - SIWS auth flow (native signIn), JWT sessions, protected routes
+4. **Service Creation Flow** - Server functions → Split creation → Token generation
+5. **Gateway Integration** - Add gateway/ with x402HTTPResourceServer + TunnelRelay DO
+6. **OAuth for MCP Clients** - OAuth server, consent screen, token management
+7. **CLI** - Go tunnel client (packages/golang/cli)
+8. **Client Onboarding** - Embedded Tabs flow at /pay
+9. **Explore Page** - MCP discovery (backed by Bazaar extension)
 
 ---
 
@@ -921,11 +867,11 @@ CREATE TABLE auth_codes (
 
 5. **Mobile-first** - Header with sheet component handles responsive behavior
 
-6. **Fresh app from scratch** - Cleaner than refactoring existing apps
+6. **Fresh app from scratch** - Cleaner than refactoring existing dashboard/tabs apps
 
 7. **Developer pays rent** - ~$2 registration (refundable), natural skin in game
 
-8. **Gateway handles payments internally** - For MCP clients, Gateway builds spending limit tx and settles via `facilitator.cascade.fyi`. No separate Tabs service - functionality embedded in Market at `/pay`.
+8. **Separate facilitator service** - `facilitator.cascade.fyi` handles Gateway payment verification/settlement. `tabs.cascade.fyi` handles client-side settlement via tabsFetch (smart wallet transactions)
 
 9. **Batched execute_split (deferred)** - Platform bears gas cost (covered by 1%), implement later
 
@@ -933,15 +879,15 @@ CREATE TABLE auth_codes (
 
 11. **Single deployment for Market + Gateway** - TanStack Start handles market.cascade.fyi, Hono handles *.mcps.cascade.fyi, hostname routing in server.ts. Can extract Gateway later if needed.
 
-12. **Dynamic payTo by subdomain** - Route payments to per-service split vaults using subdomain lookup
+12. **x402HTTPResourceServer with dynamic payTo** - Route payments to per-service split vaults using subdomain lookup
 
-13. **Payment is invisible** - MCP clients never see 402s. Gateway handles payments server-side after OAuth authentication.
+13. **Tabs stays separate** - Different x402 role (client facilitator vs resource server), remains general-purpose infrastructure
 
 14. **Shared D1 access** - Both dashboard and gateway read/write same D1 database directly. Appropriate for single-team MVP. Add API layer later if organizational boundaries require it.
 
 15. **Go for CLI** - Single binary distribution, cross-platform (macOS/Linux/Windows), fast startup. Uses urfave/cli/v3 for CLI framework and goreleaser for releases.
 
-16. **Component strategy** - Fresh shadcn install (new-york style, slate base, OKLCH colors).
+16. **Component strategy** - Fresh shadcn install in market app with same config as dashboard (new-york style, slate base, OKLCH colors). Copy `index.css` color tokens from dashboard for visual consistency. Consolidate to shared `packages/ui` later when both apps stabilize.
 
 17. **Minimal SSR** - Only landing (`/`) and explore (`/explore`) pages use SSR for SEO. All authenticated/wallet routes use `ssr: false` to avoid hydration complexity.
 
@@ -959,7 +905,10 @@ CREATE TABLE auth_codes (
 
 ## Future Considerations (Deferred)
 
-- **Split Executor** - Batch `execute_split()` service for automatic revenue distribution
+- **Split Executor** - Batch `execute_split()` service (CF Queue + Worker) for automatic revenue distribution
+- **Shared UI package** - Extract common components to `packages/ui` once market app stabilizes
+- ERC-8004 integration for on-chain discovery/reputation
 - **Multi-chain support (Base EVM)** - See ADR-0005 for implementation details
 - Custom split configurations (revenue sharing with API providers)
 - Subscription/tiered pricing models
+- Advanced Bazaar features (capability descriptions, categories, ratings)
