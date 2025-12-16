@@ -28,12 +28,12 @@
     }
   ],
 
-  // Durable Objects for tunnel relay
+  // Durable Objects for service bridge (per-service WebSocket relay)
   "durable_objects": {
     "bindings": [
       {
-        "name": "TUNNEL_RELAY",
-        "class_name": "TunnelRelay"
+        "name": "SERVICE_BRIDGE",
+        "class_name": "ServiceBridge"
       }
     ]
   },
@@ -47,7 +47,7 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["TunnelRelay"]
+      "new_sqlite_classes": ["ServiceBridge"]
     }
   ]
 }

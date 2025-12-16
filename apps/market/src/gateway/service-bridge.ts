@@ -1,5 +1,5 @@
 /**
- * TunnelRelay Durable Object
+ * ServiceBridge Durable Object
  *
  * Handles WebSocket connections from CLI clients and forwards
  * MCP requests to them. Uses WebSocket Hibernation for cost efficiency.
@@ -14,12 +14,11 @@ import type { ServiceConfig } from "./index";
 
 /**
  * Session state attached to WebSocket (survives hibernation)
- * Includes full service config from token
+ * Kept minimal to stay under 2KB attachment limit
  */
-interface TunnelSession {
+interface BridgeSession {
   servicePath: string; // @namespace/name
   config: ServiceConfig;
-  token: string;
   connectedAt: number;
 }
 
@@ -43,13 +42,13 @@ interface TunnelResponse {
 // Cloudflare env type
 interface Env {
   DB: D1Database;
-  TUNNEL_RELAY: DurableObjectNamespace;
+  SERVICE_BRIDGE: DurableObjectNamespace;
   TOKEN_SECRET?: string;
 }
 
-export class TunnelRelay extends DurableObject<Env> {
+export class ServiceBridge extends DurableObject<Env> {
   // Active WebSocket connections from CLI clients
-  sessions: Map<WebSocket, TunnelSession>;
+  sessions: Map<WebSocket, BridgeSession>;
 
   // Pending requests waiting for responses
   pendingRequests: Map<
@@ -70,7 +69,7 @@ export class TunnelRelay extends DurableObject<Env> {
     this.ctx.getWebSockets().forEach((ws) => {
       const attachment = ws.deserializeAttachment();
       if (attachment) {
-        this.sessions.set(ws, attachment as TunnelSession);
+        this.sessions.set(ws, attachment as BridgeSession);
       }
     });
 
@@ -173,10 +172,10 @@ export class TunnelRelay extends DurableObject<Env> {
     };
 
     // Store session state (survives hibernation)
-    const session: TunnelSession = {
+    // Note: token not stored - already validated, and keeping attachment small
+    const session: BridgeSession = {
       servicePath,
       config,
-      token,
       connectedAt: Date.now(),
     };
 
@@ -252,7 +251,12 @@ export class TunnelRelay extends DurableObject<Env> {
 
   async webSocketMessage(ws: WebSocket, message: ArrayBuffer | string) {
     try {
-      const data = JSON.parse(message as string) as TunnelResponse;
+      // Handle both string and ArrayBuffer messages
+      const messageStr =
+        typeof message === "string"
+          ? message
+          : new TextDecoder().decode(message);
+      const data = JSON.parse(messageStr) as TunnelResponse;
 
       if (data.type === "response") {
         const pending = this.pendingRequests.get(data.id);
@@ -280,16 +284,43 @@ export class TunnelRelay extends DurableObject<Env> {
     }
   }
 
-  async webSocketClose(ws: WebSocket, code: number, reason: string) {
-    console.log(`WebSocket closed: code=${code}, reason=${reason}`);
+  async webSocketClose(
+    ws: WebSocket,
+    code: number,
+    reason: string,
+    wasClean: boolean,
+  ) {
+    const session = this.sessions.get(ws);
+    console.log(
+      `WebSocket closed: ${session?.servicePath ?? "unknown"}, code=${code}, reason=${reason}, wasClean=${wasClean}`,
+    );
     this.sessions.delete(ws);
 
-    // Reject all pending requests for this connection
-    // In a real implementation, we'd track which requests belong to which connection
+    // If no more connections, reject all pending requests
+    if (this.sessions.size === 0) {
+      for (const pending of this.pendingRequests.values()) {
+        clearTimeout(pending.timeout);
+        pending.reject(new Error("Tunnel disconnected"));
+      }
+      this.pendingRequests.clear();
+    }
   }
 
   async webSocketError(ws: WebSocket, error: unknown) {
-    console.error("WebSocket error:", error);
+    const session = this.sessions.get(ws);
+    console.error(
+      `WebSocket error for ${session?.servicePath ?? "unknown"}:`,
+      error,
+    );
     this.sessions.delete(ws);
+
+    // If no more connections, reject all pending requests
+    if (this.sessions.size === 0) {
+      for (const pending of this.pendingRequests.values()) {
+        clearTimeout(pending.timeout);
+        pending.reject(new Error("Tunnel error"));
+      }
+      this.pendingRequests.clear();
+    }
   }
 }

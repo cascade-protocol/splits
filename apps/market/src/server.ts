@@ -11,12 +11,12 @@ import handler from "@tanstack/react-start/server-entry";
 import { gatewayApp } from "./gateway";
 
 // Export Durable Object class for wrangler
-export { TunnelRelay } from "./gateway/tunnel";
+export { ServiceBridge } from "./gateway/service-bridge";
 
 // Cloudflare env type
 interface Env {
   DB: D1Database;
-  TUNNEL_RELAY: DurableObjectNamespace;
+  SERVICE_BRIDGE: DurableObjectNamespace;
   JWT_SECRET: string;
   EXECUTOR_KEY: string;
   HELIUS_RPC_URL: string;

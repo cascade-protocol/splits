@@ -249,7 +249,7 @@ Cascade Market
 │  Bindings                                                                   │
 │  ├── D1: OAuth only (auth_codes, refresh_tokens)                            │
 │  ├── KV: rate limiting, SIWS nonces                                         │
-│  └── Durable Objects: TunnelRelay (per-service, keyed by @namespace/name)   │
+│  └── Durable Objects: ServiceBridge (per-service, keyed by @namespace/name) │
 └─────────────────────────────────────────────────────────────────────────────┘
                 │                                        │
                 │ HTTP (verify/settle)                   │ WebSocket tunnel
@@ -321,7 +321,7 @@ No D1 storage — Split exists on-chain, token is self-contained.
 
 Developer connects CLI:
 
-  CLI                       TunnelRelay (DO)
+  CLI                       ServiceBridge (DO)
    │                            │
    │  1. WebSocket connect      │
    │  + X-SERVICE-TOKEN header  │
@@ -661,7 +661,7 @@ interface ServiceToken {
 
 **Token lifecycle:**
 - **Generation:** Created on service registration, 30-day TTL by default
-- **Validation:** TunnelRelay DO checks `expiresAt > Date.now()` on WebSocket connect
+- **Validation:** ServiceBridge DO checks `expiresAt > Date.now()` on WebSocket connect
 - **Renewal:** Supplier requests new token via `/services` dashboard (re-authenticates with wallet)
 - **Revocation (future):** Store revoked token hashes in KV if needed
 
@@ -839,7 +839,7 @@ apps/market/
 │   ├── gateway/
 │   │   ├── index.ts               # Hono app for /mcps/*
 │   │   ├── x402.ts                # Payment handling
-│   │   └── tunnel.ts              # TunnelRelay DO
+│   │   └── service-bridge.ts      # ServiceBridge DO
 │   │
 │   ├── server/
 │   │   ├── tokens.ts              # Service token gen/verify
