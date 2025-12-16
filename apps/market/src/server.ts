@@ -1,65 +1,72 @@
 /**
- * Cascade Market - Custom Server Entry
+ * Cascade Market - OAuth Provider Entry Point
  *
- * Routes requests by path (per ADR-0004 §4.1):
- * - /mcps/* → Hono Gateway (x402 payments, tunnels)
- * - /sign → Hono Gateway (Tabs co-signing)
- * - /* → TanStack Start (dashboard, server functions)
+ * Uses @cloudflare/workers-oauth-provider to wrap the Worker (per ADR-0004 §4.5):
+ * - /mcps/*, /sign → apiHandler (protected, requires Bearer token)
+ * - /* → defaultHandler (TanStack Start + OAuth consent)
  */
 
+import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
 import handler from "@tanstack/react-start/server-entry";
 import { gatewayApp } from "./gateway";
+import { consentApp } from "./gateway/consent";
 
 // Export Durable Object class for wrangler
 export { TunnelRelay } from "./gateway/tunnel";
 
-// Cloudflare env type
-interface Env {
-  DB: D1Database;
-  TUNNEL_RELAY: DurableObjectNamespace;
-  JWT_SECRET: string;
-  EXECUTOR_KEY: string;
-  HELIUS_RPC_URL: string;
+/**
+ * Auth props set during completeAuthorization, available as ctx.props
+ */
+export interface AuthProps {
+  walletAddress: string;
 }
 
 /**
- * RFC 8414 OAuth Authorization Server Metadata
- * https://datatracker.ietf.org/doc/html/rfc8414
- *
- * Enables MCP clients to discover OAuth endpoints automatically.
+ * API Handler for protected routes (/mcps/*, /sign)
+ * OAuthProvider validates Bearer token before calling this handler.
+ * Props are available on ctx.props after validation.
  */
-const OAUTH_METADATA = {
-  issuer: "https://market.cascade.fyi",
-  authorization_endpoint: "https://market.cascade.fyi/oauth/authorize",
-  token_endpoint: "https://market.cascade.fyi/oauth/token",
-  scopes_supported: ["tabs:spend", "mcps:access"],
-  response_types_supported: ["code"],
-  grant_types_supported: ["authorization_code", "refresh_token"],
-  code_challenge_methods_supported: ["S256"],
-  token_endpoint_auth_methods_supported: ["none"],
-} as const;
-
-export default {
+const apiHandler = {
   async fetch(
     request: Request,
-    env: Env,
-    ctx: ExecutionContext,
-  ): Promise<Response> {
+    env: unknown,
+    ctx: ExecutionContext & { props?: AuthProps },
+  ) {
+    // Pass props through env for Hono handlers
+    const envWithAuth = { ...(env as object), AUTH_PROPS: ctx.props };
+    return gatewayApp.fetch(request, envWithAuth, ctx);
+  },
+};
+
+/**
+ * Default Handler for non-API routes
+ */
+const defaultHandler = {
+  async fetch(request: Request, env: unknown, ctx: ExecutionContext) {
     const url = new URL(request.url);
 
-    // RFC 8414: OAuth metadata discovery
-    if (url.pathname === "/.well-known/oauth-authorization-server") {
-      return new Response(JSON.stringify(OAUTH_METADATA), {
-        headers: { "Content-Type": "application/json" },
-      });
+    // OAuth consent flow
+    if (url.pathname === "/oauth/authorize") {
+      // @ts-expect-error - env is unknown from OAuthProvider, consentApp expects AppEnv
+      return consentApp.fetch(request, env, ctx);
     }
 
-    // Gateway: /mcps/* and /sign → Hono (x402, tunnels, signing)
-    if (url.pathname.startsWith("/mcps/") || url.pathname === "/sign") {
-      return gatewayApp.fetch(request, env, ctx);
-    }
-
-    // Market: everything else → TanStack Start
+    // Everything else → TanStack Start
     return handler.fetch(request);
   },
 };
+
+export default new OAuthProvider({
+  apiRoute: ["/mcps/", "/sign"],
+  // @ts-expect-error - OAuthProvider injects props at runtime, types don't reflect this
+  apiHandler,
+  defaultHandler,
+
+  authorizeEndpoint: "/oauth/authorize",
+  tokenEndpoint: "/oauth/token",
+  clientRegistrationEndpoint: "/oauth/register",
+
+  scopesSupported: ["tabs:spend", "mcps:access"],
+  accessTokenTTL: 3600,
+  refreshTokenTTL: 30 * 24 * 60 * 60,
+});

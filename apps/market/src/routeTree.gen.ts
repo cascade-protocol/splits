@@ -19,8 +19,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ServicesIndexRouteImport } from './routes/services/index'
 import { Route as ServicesNewRouteImport } from './routes/services/new'
 import { Route as ServicesIdRouteImport } from './routes/services/$id'
-import { Route as OauthTokenRouteImport } from './routes/oauth/token'
-import { Route as OauthAuthorizeRouteImport } from './routes/oauth/authorize'
 import { Route as ApiSettleRouteImport } from './routes/api/settle'
 import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known/oauth-protected-resource'
 import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './routes/[.]well-known/oauth-authorization-server'
@@ -80,16 +78,6 @@ const ServicesIdRoute = ServicesIdRouteImport.update({
   path: '/services/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OauthTokenRoute = OauthTokenRouteImport.update({
-  id: '/oauth/token',
-  path: '/oauth/token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OauthAuthorizeRoute = OauthAuthorizeRouteImport.update({
-  id: '/oauth/authorize',
-  path: '/oauth/authorize',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiSettleRoute = ApiSettleRouteImport.update({
   id: '/api/settle',
   path: '/api/settle',
@@ -144,8 +132,6 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/api/settle': typeof ApiSettleRoute
-  '/oauth/authorize': typeof OauthAuthorizeRoute
-  '/oauth/token': typeof OauthTokenRoute
   '/services/$id': typeof ServicesIdRoute
   '/services/new': typeof ServicesNewRoute
   '/services': typeof ServicesIndexRoute
@@ -166,8 +152,6 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/api/settle': typeof ApiSettleRoute
-  '/oauth/authorize': typeof OauthAuthorizeRoute
-  '/oauth/token': typeof OauthTokenRoute
   '/services/$id': typeof ServicesIdRoute
   '/services/new': typeof ServicesNewRoute
   '/services': typeof ServicesIndexRoute
@@ -189,8 +173,6 @@ export interface FileRoutesById {
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/api/settle': typeof ApiSettleRoute
-  '/oauth/authorize': typeof OauthAuthorizeRoute
-  '/oauth/token': typeof OauthTokenRoute
   '/services/$id': typeof ServicesIdRoute
   '/services/new': typeof ServicesNewRoute
   '/services/': typeof ServicesIndexRoute
@@ -213,8 +195,6 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/api/settle'
-    | '/oauth/authorize'
-    | '/oauth/token'
     | '/services/$id'
     | '/services/new'
     | '/services'
@@ -235,8 +215,6 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/api/settle'
-    | '/oauth/authorize'
-    | '/oauth/token'
     | '/services/$id'
     | '/services/new'
     | '/services'
@@ -257,8 +235,6 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/api/settle'
-    | '/oauth/authorize'
-    | '/oauth/token'
     | '/services/$id'
     | '/services/new'
     | '/services/'
@@ -280,8 +256,6 @@ export interface RootRouteChildren {
   DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
   DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
   ApiSettleRoute: typeof ApiSettleRoute
-  OauthAuthorizeRoute: typeof OauthAuthorizeRoute
-  OauthTokenRoute: typeof OauthTokenRoute
   ServicesIdRoute: typeof ServicesIdRoute
   ServicesNewRoute: typeof ServicesNewRoute
   ServicesIndexRoute: typeof ServicesIndexRoute
@@ -364,20 +338,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/oauth/token': {
-      id: '/oauth/token'
-      path: '/oauth/token'
-      fullPath: '/oauth/token'
-      preLoaderRoute: typeof OauthTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/oauth/authorize': {
-      id: '/oauth/authorize'
-      path: '/oauth/authorize'
-      fullPath: '/oauth/authorize'
-      preLoaderRoute: typeof OauthAuthorizeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/settle': {
       id: '/api/settle'
       path: '/api/settle'
@@ -450,8 +410,6 @@ const rootRouteChildren: RootRouteChildren = {
   DotwellKnownOauthProtectedResourceRoute:
     DotwellKnownOauthProtectedResourceRoute,
   ApiSettleRoute: ApiSettleRoute,
-  OauthAuthorizeRoute: OauthAuthorizeRoute,
-  OauthTokenRoute: OauthTokenRoute,
   ServicesIdRoute: ServicesIdRoute,
   ServicesNewRoute: ServicesNewRoute,
   ServicesIndexRoute: ServicesIndexRoute,

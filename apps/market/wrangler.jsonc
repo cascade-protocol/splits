@@ -10,21 +10,19 @@
   },
   "upload_source_maps": true,
 
-  // D1 Database for OAuth only (service data is on-chain + tokens per ADR-0004 §4.7)
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "cascade-market",
-      "database_id": "a3f60128-7ef5-4855-9a56-1ce457f9d758"
-    }
-  ],
-
-  // KV namespace for auth nonces
+  // KV namespaces (per ADR-0004 §5.3)
+  // - KV: rate limiting, SIWS nonces
+  // - OAUTH_KV: OAuth tokens (workers-oauth-provider, AES-GCM encrypted)
   "kv_namespaces": [
     {
       "binding": "KV",
       "id": "adfccc6e137546f8b3f4ce37a60dcede",
       "preview_id": "2bf87e8bc7bb4447b26cee074604d59b"
+    },
+    {
+      "binding": "OAUTH_KV",
+      "id": "a97c11e3b6864475b259e96e310fe375",
+      "preview_id": "8f0333083b8a4dfebb47ec8c256730f4"
     }
   ],
 

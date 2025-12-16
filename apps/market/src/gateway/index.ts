@@ -21,8 +21,19 @@ import {
 } from "@x402/core/server";
 import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
 import { getBase58Encoder } from "@solana/kit";
-import { verifyAccessToken, type AuthInfo } from "../server/oauth";
+import type { AuthProps } from "../server";
 import { signHandler } from "./sign";
+
+/**
+ * Gateway bindings - extends global Env with:
+ * - AUTH_PROPS: injected by apiHandler after OAuth validation
+ * - Secrets (EXECUTOR_KEY, HELIUS_RPC_URL): defined in Cloudflare dashboard
+ */
+interface Bindings extends Env {
+  AUTH_PROPS?: AuthProps;
+  EXECUTOR_KEY: string;
+  HELIUS_RPC_URL: string;
+}
 
 /**
  * JSON-RPC 2.0 request (per MCP transport spec)
@@ -59,9 +70,6 @@ interface JSONRPCResponse {
 // USDC mint on Solana mainnet
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
-// Base URL for OAuth metadata
-const BASE_URL = "https://market.cascade.fyi";
-
 // Rate limit config: requests per window
 const RATE_LIMIT = {
   mcp: { limit: 60, windowSec: 60 }, // 60 req/min per IP for MCP
@@ -70,17 +78,7 @@ const RATE_LIMIT = {
 // Cascade facilitator URL (x402 v2)
 const FACILITATOR_URL = "https://facilitator.cascade.fyi";
 
-type Bindings = {
-  DB: D1Database; // Only for OAuth
-  KV: KVNamespace;
-  TUNNEL_RELAY: DurableObjectNamespace;
-  JWT_SECRET: string;
-  EXECUTOR_KEY: string;
-  HELIUS_RPC_URL: string;
-};
-
 type Variables = {
-  authInfo?: AuthInfo;
   servicePath?: string;
   serviceConfig?: ServiceConfig;
 };
@@ -112,8 +110,11 @@ app.use("/*", async (c, next) => {
 
   const errors: string[] = [];
 
-  if (!c.env.JWT_SECRET || c.env.JWT_SECRET.length < 32) {
-    errors.push("JWT_SECRET must be at least 32 characters");
+  // AUTH_PROPS is required (injected by GatewayHandler after OAuthProvider validation)
+  if (!c.env.AUTH_PROPS?.walletAddress) {
+    errors.push(
+      "AUTH_PROPS.walletAddress missing - OAuthProvider should have validated token",
+    );
   }
 
   if (!c.env.EXECUTOR_KEY) {
@@ -377,72 +378,8 @@ app.all("/mcps/:namespace/:name/*", async (c) => {
   c.set("servicePath", servicePath);
   c.set("serviceConfig", serviceConfig);
 
-  // OAuth Authentication
-  const authHeader = c.req.header("Authorization");
-
-  if (!authHeader) {
-    return c.json(
-      { error: "unauthorized", error_description: "Authentication required" },
-      {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": `Bearer resource_metadata="${BASE_URL}/.well-known/oauth-protected-resource"`,
-        },
-      },
-    );
-  }
-
-  if (!authHeader.startsWith("Bearer ")) {
-    return c.json(
-      {
-        error: "invalid_request",
-        error_description: "Only Bearer authentication supported",
-      },
-      {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": `Bearer resource_metadata="${BASE_URL}/.well-known/oauth-protected-resource"`,
-        },
-      },
-    );
-  }
-
-  const token = authHeader.slice(7);
-
-  try {
-    const authInfo = await verifyAccessToken(c.env.JWT_SECRET, token);
-    c.set("authInfo", authInfo);
-
-    // Enforce tabs:spend scope
-    if (!authInfo.scopes.includes("tabs:spend")) {
-      return c.json(
-        {
-          error: "insufficient_scope",
-          error_description: "This resource requires the 'tabs:spend' scope",
-          scope: "tabs:spend",
-        },
-        {
-          status: 403,
-          headers: {
-            "WWW-Authenticate": `Bearer error="insufficient_scope", scope="tabs:spend", resource_metadata="${BASE_URL}/.well-known/oauth-protected-resource"`,
-          },
-        },
-      );
-    }
-  } catch {
-    return c.json(
-      {
-        error: "invalid_token",
-        error_description: "Invalid or expired access token",
-      },
-      {
-        status: 401,
-        headers: {
-          "WWW-Authenticate": `Bearer error="invalid_token", resource_metadata="${BASE_URL}/.well-known/oauth-protected-resource"`,
-        },
-      },
-    );
-  }
+  // Note: OAuth authentication is handled by OAuthProvider before reaching gateway
+  // c.env.AUTH_PROPS.walletAddress contains the authenticated wallet address
 
   // x402 payment processing with MCP transport support
   // Per mcp.md spec: payment in params._meta["x402/payment"]

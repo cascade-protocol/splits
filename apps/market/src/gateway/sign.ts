@@ -31,15 +31,17 @@ import {
   USE_SPENDING_LIMIT_DISCRIMINATOR,
   SQUADS_SMART_ACCOUNT_PROGRAM_PROGRAM_ADDRESS,
 } from "@cascade-fyi/tabs-sdk";
-import { verifyAccessToken, type AuthInfo } from "../server/oauth";
+import type { AuthProps } from "../server";
 
-// Bindings type
-interface Bindings {
-  JWT_SECRET: string;
+/**
+ * Sign endpoint bindings - extends global Env with:
+ * - AUTH_PROPS: injected by apiHandler after OAuth validation
+ * - Secrets: defined in Cloudflare dashboard
+ */
+interface Bindings extends Env {
+  AUTH_PROPS?: AuthProps;
   EXECUTOR_KEY: string;
   HELIUS_RPC_URL: string;
-  KV: KVNamespace;
-  AUDIT: AnalyticsEngineDataset;
 }
 
 // Rate limit config for /sign endpoint
@@ -230,48 +232,29 @@ async function validateSpendingLimitTx(
 /**
  * POST /sign handler
  *
- * 1. Verify Bearer token (user must be authenticated)
- * 2. Decode unsigned transaction
- * 3. Validate it's from the authenticated wallet
- * 4. Validate spending limit transaction (P1)
+ * Note: Bearer token is already validated by OAuthProvider before reaching gateway.
+ * c.env.AUTH_PROPS.walletAddress contains the authenticated wallet address.
+ *
+ * 1. Check rate limit
+ * 2. Parse request body
+ * 3. Validate wallet matches authenticated user
+ * 4. Validate spending limit transaction
  * 5. Sign with executor key
  * 6. Return signed transaction
  */
 export async function signHandler(
   c: Context<{ Bindings: Bindings }>,
 ): Promise<Response> {
-  // 1. Verify Bearer token
-  const authHeader = c.req.header("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  // Get authenticated wallet address from OAuthProvider
+  const walletAddress = c.env.AUTH_PROPS?.walletAddress;
+  if (!walletAddress) {
     return c.json<SignErrorResponse>(
-      { error: "unauthorized", message: "Bearer token required" },
+      { error: "unauthorized", message: "Authentication required" },
       401,
     );
   }
 
-  let authInfo: AuthInfo;
-  try {
-    authInfo = await verifyAccessToken(c.env.JWT_SECRET, authHeader.slice(7));
-  } catch {
-    return c.json<SignErrorResponse>(
-      { error: "invalid_token", message: "Invalid or expired access token" },
-      401,
-    );
-  }
-
-  // Check tabs:spend scope
-  if (!authInfo.scopes.includes("tabs:spend")) {
-    return c.json<SignErrorResponse>(
-      {
-        error: "insufficient_scope",
-        message: "This endpoint requires the 'tabs:spend' scope",
-      },
-      403,
-    );
-  }
-
-  // 2. Check rate limit (per wallet)
-  const walletAddress = authInfo.extra?.walletAddress as string;
+  // 1. Check rate limit (per wallet)
   const rateLimitKey = `sign:${walletAddress}`;
   const allowed = await checkRateLimit(
     c.env.KV,
@@ -293,7 +276,7 @@ export async function signHandler(
     );
   }
 
-  // 3. Parse request body
+  // 2. Parse request body
   let body: SignRequest;
   try {
     body = await c.req.json<SignRequest>();
@@ -315,7 +298,7 @@ export async function signHandler(
     );
   }
 
-  // 4. Validate wallet matches authenticated user
+  // 3. Validate wallet matches authenticated user
   if (body.wallet !== walletAddress) {
     return c.json<SignErrorResponse>(
       {
@@ -326,7 +309,7 @@ export async function signHandler(
     );
   }
 
-  // 5. Get executor key and sign
+  // 4. Get executor key and sign
   const executorKey = c.env.EXECUTOR_KEY;
   if (!executorKey) {
     console.error("EXECUTOR_KEY not configured");
@@ -337,17 +320,17 @@ export async function signHandler(
   }
 
   try {
-    // 6. Decode executor keypair from base58 env var
+    // 5. Decode executor keypair from base58 env var
     const executorBytes = base58Decode(executorKey);
     const executorSigner = await createKeyPairSignerFromBytes(executorBytes);
 
-    // 7. Decode transaction from base64
+    // 6. Decode transaction from base64
     const base64Encoder = getBase64Encoder();
     const transactionBytes = base64Encoder.encode(body.unsignedTx);
     const transactionDecoder = getTransactionDecoder();
     const transaction = transactionDecoder.decode(transactionBytes);
 
-    // 8. Validate transaction before signing (security critical)
+    // 7. Validate transaction before signing (security critical)
     const rpc = createSolanaRpc(c.env.HELIUS_RPC_URL);
     const validation = await validateSpendingLimitTx(
       rpc,
@@ -366,7 +349,7 @@ export async function signHandler(
       );
     }
 
-    // 9. Sign the transaction message
+    // 8. Sign the transaction message
     const signableMessage = {
       content: transaction.messageBytes,
       signatures: transaction.signatures,
@@ -376,7 +359,7 @@ export async function signHandler(
       signableMessage as never,
     ]);
 
-    // 10. Merge signatures
+    // 9. Merge signatures
     const signedTx = {
       ...transaction,
       signatures: {
@@ -385,10 +368,10 @@ export async function signHandler(
       },
     };
 
-    // 11. Encode and return
+    // 10. Encode and return
     const signedBase64 = getBase64EncodedWireTransaction(signedTx);
 
-    // 12. Audit log (W8: executor action forensics)
+    // 11. Audit log (W8: executor action forensics)
     // Non-blocking - writeDataPoint returns immediately
     c.env.AUDIT.writeDataPoint({
       blobs: [walletAddress, body.splitVault], // wallet, destination vault

@@ -247,7 +247,7 @@ Cascade Market
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Bindings                                                                   │
-│  ├── D1: OAuth only (auth_codes, refresh_tokens)                            │
+│  ├── KV (OAUTH_KV): OAuth tokens (workers-oauth-provider, AES-GCM encrypted)│
 │  ├── KV: rate limiting, SIWS nonces                                         │
 │  └── Durable Objects: TunnelRelay (per-service, keyed by @namespace/name)   │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -600,9 +600,32 @@ return mcpResponse;
 | Web browsing (/, /explore) | None | Public data, zero friction |
 | Web /pay, /services | Wallet connected | Need wallet for Tabs/Split queries |
 | **CLI authentication** | **OAuth + SIWS → stored locally** | Proves wallet ownership for Tabs |
-| CLI → Gateway requests | Bearer token in payment | Identifies wallet for Tabs lookup |
+| CLI → Gateway requests | Bearer token | Identifies wallet for Tabs lookup |
 
 **Decision:** CLI authenticates once via OAuth, stores credentials locally. Gateway uses bearer token to identify which Tabs account to charge.
+
+**Implementation:** Uses `@cloudflare/workers-oauth-provider` which wraps the Worker entry point:
+
+```typescript
+import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
+
+export default new OAuthProvider({
+  apiRoute: ["/mcps/", "/sign"],      // Protected routes → apiHandler
+  apiHandler: GatewayHandler,          // Receives ctx.props after token validation
+  defaultHandler: marketHandler,       // TanStack Start + consent page
+  authorizeEndpoint: "/oauth/authorize",
+  tokenEndpoint: "/oauth/token",
+  scopesSupported: ["tabs:spend", "mcps:access"],
+});
+```
+
+**Token flow:**
+1. CLI initiates OAuth with PKCE
+2. Browser opens `/oauth/authorize` (HTML consent page with wallet connection)
+3. User connects wallet via SIWS, approves scopes
+4. `completeAuthorization()` generates auth code
+5. CLI exchanges code for opaque tokens (stored in KV, AES-GCM encrypted)
+6. Bearer token on requests → OAuthProvider validates → `ctx.props.walletAddress` available
 
 ### 4.6 Tabs Data Storage
 
@@ -686,18 +709,32 @@ interface ServiceToken {
 
 ### 4.9 OAuth Tokens
 
-| Token | Lifetime | Storage | Purpose |
-|-------|----------|---------|---------|
-| Access Token | 1 hour | CLI local file | Bearer auth for requests |
-| Refresh Token | 30 days | D1 (hashed) | Obtain new access tokens |
+Uses `@cloudflare/workers-oauth-provider` for token management:
 
-Access token payload:
+| Token | Lifetime | Storage | Format |
+|-------|----------|---------|--------|
+| Access Token | 1 hour | KV (OAUTH_KV) | Opaque string |
+| Refresh Token | 30 days | KV (OAUTH_KV) | Opaque string |
+
+**Key differences from custom JWT implementation:**
+- Tokens are **opaque** (not JWTs) — no claims to decode client-side
+- Token data stored in KV with **AES-GCM encryption** (per-token wrapped keys)
+- User data passed via `props` during authorization, available as `ctx.props` in handlers
+- Library handles PKCE validation, refresh rotation, and token revocation
+
+**Props set during authorization:**
 ```typescript
-{
-  sub: "DYw8...abc",           // Wallet address (from SIWS)
-  scope: "tabs:spend",         // Authorized scopes
-  exp: 1702304400,             // Expiry
-}
+await env.OAUTH_PROVIDER.completeAuthorization({
+  userId: walletAddress,
+  props: { walletAddress },  // Available as ctx.props in apiHandler
+  scope: ["tabs:spend"],
+});
+```
+
+**Accessing user data in Gateway:**
+```typescript
+// In apiHandler (GatewayHandler class)
+const walletAddress = this.ctx.props.walletAddress;
 ```
 
 ### 4.10 Custom SVM Verification (Critical Dependency)
@@ -844,12 +881,10 @@ apps/market/
 │   │   ├── index.tsx              # Landing
 │   │   ├── explore.tsx            # Browse MCPs (SSR)
 │   │   ├── pay.tsx                # Tabs management
-│   │   ├── services/
-│   │   │   ├── index.tsx          # Supplier dashboard
-│   │   │   └── new.tsx            # Create service
-│   │   └── oauth/
-│   │       ├── authorize.tsx      # CLI auth flow
-│   │       └── token.ts           # Token exchange
+│   │   └── services/
+│   │       ├── index.tsx          # Supplier dashboard
+│   │       └── new.tsx            # Create service
+│   │   # Note: /oauth/authorize is HTML (in server.ts), /oauth/token handled by library
 │   │
 │   ├── components/
 │   │   ├── ui/                    # shadcn/ui
@@ -857,18 +892,19 @@ apps/market/
 │   │
 │   ├── gateway/
 │   │   ├── index.ts               # Hono app for /mcps/*
+│   │   ├── auth.ts                # getAuthProps() helper for ctx.props
+│   │   ├── sign.ts                # POST /sign handler
 │   │   ├── x402.ts                # Payment handling
 │   │   └── tunnel.ts              # TunnelRelay DO
 │   │
 │   ├── server/
 │   │   ├── tokens.ts              # Service token gen/verify
-│   │   ├── oauth.ts               # OAuth logic
 │   │   └── splits.ts              # On-chain queries
+│   │   # Note: oauth.ts removed - handled by workers-oauth-provider
 │   │
-│   └── server.ts                  # Request routing
+│   └── server.ts                  # OAuthProvider wrapper entry point
 │
-├── schema.sql
-└── wrangler.jsonc
+└── wrangler.jsonc                 # No D1, uses OAUTH_KV
 
 packages/cli/
 ├── package.json
@@ -906,57 +942,93 @@ apps/facilitator/
 └── wrangler.jsonc                 # → facilitator.cascade.fyi
 ```
 
-### 5.3 Database Schema (D1 — OAuth Only)
+### 5.3 Storage Architecture
 
-```sql
--- OAuth authorization codes (10-minute TTL)
-CREATE TABLE auth_codes (
-  code TEXT PRIMARY KEY,
-  user_address TEXT NOT NULL,
-  redirect_uri TEXT NOT NULL,
-  scope TEXT NOT NULL,
-  code_challenge TEXT NOT NULL,
-  created_at TEXT DEFAULT (datetime('now')),
-  expires_at TEXT NOT NULL,
-  used_at TEXT
-);
+**No D1 database.** All storage uses KV or on-chain data:
 
--- OAuth refresh tokens (30-day TTL)
-CREATE TABLE refresh_tokens (
-  id TEXT PRIMARY KEY,
-  user_address TEXT NOT NULL,
-  token_hash TEXT NOT NULL,
-  scope TEXT NOT NULL,
-  created_at TEXT DEFAULT (datetime('now')),
-  expires_at TEXT NOT NULL,
-  revoked_at TEXT
-);
+| Data | Storage | Details |
+|------|---------|---------|
+| OAuth tokens | KV (OAUTH_KV) | Managed by `workers-oauth-provider`, AES-GCM encrypted |
+| Rate limits | KV | Sliding window counters with TTL |
+| SIWS nonces | KV | Short-lived (5 min TTL) |
+| Service config | On-chain | SplitConfig PDA + service token |
+| Tabs accounts | On-chain | Squads v4 Settings + SpendingLimit |
 
-CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
+**KV key patterns:**
+```
+oauth:access:<token_id>     → encrypted props + metadata
+oauth:refresh:<token_id>    → encrypted props + metadata
+ratelimit:sign:<wallet>:<window> → request count
+siws:nonce:<nonce>          → wallet address (pending verification)
 ```
 
 ### 5.4 Gateway Implementation
 
+**Entry point with OAuthProvider:**
+
+```typescript
+// server.ts - OAuthProvider wraps the Worker
+import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
+import { WorkerEntrypoint } from "cloudflare:workers";
+
+// Protected routes handler - receives validated ctx.props
+class GatewayHandler extends WorkerEntrypoint<Env> {
+  async fetch(request: Request) {
+    // Pass wallet address to Hono via header (ctx.props set by OAuthProvider)
+    const headers = new Headers(request.headers);
+    headers.set("X-Auth-Props", JSON.stringify(this.ctx.props));
+    return gatewayApp.fetch(new Request(request, { headers }), this.env, this.ctx);
+  }
+}
+
+export default new OAuthProvider({
+  apiRoute: ["/mcps/", "/sign"],
+  apiHandler: GatewayHandler,
+  defaultHandler: marketHandler,  // TanStack + consent page
+  authorizeEndpoint: "/oauth/authorize",
+  tokenEndpoint: "/oauth/token",
+  scopesSupported: ["tabs:spend", "mcps:access"],
+  refreshTokenTTL: 30 * 24 * 60 * 60,
+});
+```
+
+**Consent page (HTML, no React):**
+
+The `/oauth/authorize` endpoint serves a minimal HTML page:
+- If no session: shows "Connect Wallet" button with inline JS for wallet-standard
+- If session exists: shows consent form with scopes and Approve/Deny buttons
+- On approve: calls `OAUTH_PROVIDER.completeAuthorization()` and redirects
+
+This separation keeps the security-critical consent page minimal while wallet connection (which requires JavaScript) is handled inline with a small script.
+
+**Gateway auth helper:**
+
+```typescript
+// gateway/auth.ts
+export function getAuthProps(c: Context): { walletAddress: string } {
+  const props = c.req.header("X-Auth-Props");
+  if (!props) throw new Error("Missing auth props");
+  return JSON.parse(props);
+}
+```
+
+**Sign endpoint (simplified):**
+
 ```typescript
 // gateway/sign.ts - Tabs signing endpoint
-export async function handleSign(c: Context) {
-  const authHeader = c.req.header('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-
-  const { wallet } = await verifyAccessToken(authHeader.slice(7));
+export async function signHandler(c: Context) {
+  // OAuthProvider already validated Bearer token
+  const { walletAddress } = getAuthProps(c);
   const { unsignedTx } = await c.req.json();
 
   // Validate tx is a valid spending limit use from this wallet
-  const validation = validateSpendingLimitTx(unsignedTx, { userWallet: wallet });
+  const validation = validateSpendingLimitTx(unsignedTx, { userWallet: walletAddress });
   if (!validation.valid) {
     return c.json({ error: validation.reason }, 400);
   }
 
   // Sign with executor key
   const transaction = signWithExecutorKey(unsignedTx);
-
   return c.json({ transaction });
 }
 ```
