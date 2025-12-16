@@ -125,6 +125,7 @@ export const Route = createFileRoute("/oauth/token")({
 
           return json({
             access_token: tokens.accessToken,
+            refresh_token: tokens.refreshToken, // Rotated refresh token
             token_type: "Bearer",
             expires_in: tokens.expiresIn,
             scope: tokens.scope,

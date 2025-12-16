@@ -1,7 +1,7 @@
 /**
  * Service Token Generation and Verification
  *
- * Tokens encode service metadata for CLI authentication.
+ * Per ADR-0004 §4.8: Tokens encode service metadata for CLI authentication.
  * Format: csc_<base64url(JSON)>
  *
  * Note: Pure functions accept secrets as parameters.
@@ -11,22 +11,38 @@
 
 import { z } from "zod";
 
-// Token payload structure
+// 30 days in milliseconds
+const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Service Token payload structure (per ADR-0004 §4.8)
+ */
 export interface ServiceToken {
-  serviceId: string;
-  splitConfig: string; // PDA address
+  namespace: string; // e.g., "cascade"
+  name: string; // e.g., "twitter"
+  splitConfig: string; // SplitConfig PDA
   splitVault: string; // Vault ATA (payTo)
-  price: string; // USDC base units
-  createdAt: number;
+  price: number; // USDC base units per call
+  createdAt: number; // Unix timestamp (ms)
+  expiresAt: number; // Unix timestamp (ms) - default: createdAt + 30 days
   signature: string; // HMAC signature
 }
 
 // Validation schemas
-// Note: serviceId is now derived from splitConfig (chain is source of truth)
 export const createTokenSchema = z.object({
+  namespace: z
+    .string()
+    .min(1)
+    .max(32)
+    .regex(/^[a-z0-9-]+$/),
+  name: z
+    .string()
+    .min(1)
+    .max(32)
+    .regex(/^[a-z0-9-]+$/),
   splitConfig: z.string().min(32).max(44), // base58 Solana address
   splitVault: z.string().min(32).max(44),
-  price: z.string().regex(/^\d+$/),
+  price: z.number().int().positive(),
 });
 
 export const verifyTokenSchema = z.object({
@@ -35,17 +51,20 @@ export const verifyTokenSchema = z.object({
 
 /**
  * Create HMAC signature for token payload
+ * Signs all fields except signature itself
  */
 async function createSignature(
   tokenSecret: string,
   payload: Omit<ServiceToken, "signature">,
 ): Promise<string> {
   const data = JSON.stringify({
-    serviceId: payload.serviceId,
+    namespace: payload.namespace,
+    name: payload.name,
     splitConfig: payload.splitConfig,
     splitVault: payload.splitVault,
     price: payload.price,
     createdAt: payload.createdAt,
+    expiresAt: payload.expiresAt,
   });
 
   const encoder = new TextEncoder();
@@ -68,20 +87,42 @@ async function createSignature(
 }
 
 /**
- * Verify HMAC signature
+ * Constant-time string comparison to prevent timing attacks.
+ *
+ * The === operator short-circuits on first byte mismatch, leaking info
+ * about valid prefixes. This function compares all bytes regardless of
+ * early mismatches, making response time constant for any input.
+ */
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
+/**
+ * Verify HMAC signature using timing-safe comparison
  */
 async function verifySignature(
   tokenSecret: string,
   payload: ServiceToken,
 ): Promise<boolean> {
   const expectedSignature = await createSignature(tokenSecret, {
-    serviceId: payload.serviceId,
+    namespace: payload.namespace,
+    name: payload.name,
     splitConfig: payload.splitConfig,
     splitVault: payload.splitVault,
     price: payload.price,
     createdAt: payload.createdAt,
+    expiresAt: payload.expiresAt,
   });
-  return payload.signature === expectedSignature;
+
+  return constantTimeEqual(payload.signature, expectedSignature);
 }
 
 /**
@@ -115,11 +156,13 @@ export function decodeServiceToken(token: string): ServiceToken | null {
 
     // Validate required fields
     if (
-      !payload.serviceId ||
+      !payload.namespace ||
+      !payload.name ||
       !payload.splitConfig ||
       !payload.splitVault ||
-      !payload.price ||
+      typeof payload.price !== "number" ||
       !payload.createdAt ||
+      !payload.expiresAt ||
       !payload.signature
     ) {
       return null;
@@ -146,24 +189,37 @@ export async function verifyServiceToken(
 }
 
 /**
+ * Check if a token is expired
+ */
+export function isTokenExpired(payload: ServiceToken): boolean {
+  return payload.expiresAt < Date.now();
+}
+
+/**
  * Generate a signed service token
  * Used by server functions that have access to TOKEN_SECRET
  */
 export async function generateServiceToken(
   tokenSecret: string,
   data: {
-    serviceId: string;
+    namespace: string;
+    name: string;
     splitConfig: string;
     splitVault: string;
-    price: string;
+    price: number;
   },
-): Promise<{ token: string; expiresAt: null }> {
+): Promise<{ token: string; expiresAt: number }> {
+  const now = Date.now();
+  const expiresAt = now + TOKEN_TTL_MS;
+
   const payload: Omit<ServiceToken, "signature"> = {
-    serviceId: data.serviceId,
+    namespace: data.namespace,
+    name: data.name,
     splitConfig: data.splitConfig,
     splitVault: data.splitVault,
     price: data.price,
-    createdAt: Date.now(),
+    createdAt: now,
+    expiresAt,
   };
 
   const signature = await createSignature(tokenSecret, payload);
@@ -171,7 +227,7 @@ export async function generateServiceToken(
 
   return {
     token: encodeServiceToken(token),
-    expiresAt: null, // Tokens don't expire for MVP
+    expiresAt,
   };
 }
 
@@ -196,14 +252,20 @@ export async function verifyTokenPayload(
     return { valid: false, error: "Invalid signature" };
   }
 
+  if (isTokenExpired(payload)) {
+    return { valid: false, error: "Token expired" };
+  }
+
   return {
     valid: true,
     payload: {
-      serviceId: payload.serviceId,
+      namespace: payload.namespace,
+      name: payload.name,
       splitConfig: payload.splitConfig,
       splitVault: payload.splitVault,
       price: payload.price,
       createdAt: payload.createdAt,
+      expiresAt: payload.expiresAt,
     },
   };
 }

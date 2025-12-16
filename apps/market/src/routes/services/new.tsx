@@ -33,7 +33,7 @@ interface CloudflareEnv {
 
 /**
  * Server function to create a service token
- * Following Cloudflare docs pattern: env accessed inside createServerFn handler
+ * Per ADR-0004 §4.8: Token contains namespace, name, split config, etc.
  */
 const createServiceTokenFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createTokenSchema.parse(data))
@@ -42,23 +42,18 @@ const createServiceTokenFn = createServerFn({ method: "POST" })
       data,
     }: {
       data: {
+        namespace: string;
+        name: string;
         splitConfig: string;
         splitVault: string;
-        price: string;
+        price: number;
       };
     }) => {
       const { TOKEN_SECRET } = env as CloudflareEnv;
-      // Development fallback - DO NOT USE IN PRODUCTION
-      const tokenSecret =
-        TOKEN_SECRET || "cascade-market-dev-secret-change-in-production";
       if (!TOKEN_SECRET) {
-        console.warn("TOKEN_SECRET not set, using development fallback");
+        throw new Error("TOKEN_SECRET environment variable must be configured");
       }
-      // Use splitConfig address as serviceId (chain is source of truth)
-      return generateServiceToken(tokenSecret, {
-        serviceId: data.splitConfig,
-        ...data,
-      });
+      return generateServiceToken(TOKEN_SECRET, data);
     },
   );
 
@@ -79,11 +74,15 @@ function NewService() {
   >;
 
   const [step, setStep] = useState<Step>("details");
+  const [namespace, setNamespace] = useState("");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("1000"); // Default: 0.001 USDC (1000 base units)
   const [token, setToken] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Derived service path
+  const servicePath = namespace && name ? `@${namespace}/${name}` : "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +96,8 @@ function NewService() {
     setStep("creating");
 
     try {
-      const uniqueId = labelToSeed(name);
+      // Use service path as Split label: @namespace/name
+      const uniqueId = labelToSeed(servicePath);
       const signer = signerFromFrameworkKit(wallet);
 
       // Idempotent split creation - handles all edge cases
@@ -120,12 +120,14 @@ function NewService() {
       // result.status is 'created' or 'no_change'
       const { splitConfig, vault } = result;
 
-      // Generate token (chain is source of truth, no D1 needed)
+      // Generate token (per ADR-0004, no D1 - token is self-contained)
       const { token: generatedToken } = await createServiceTokenFn({
         data: {
+          namespace,
+          name,
           splitConfig,
           splitVault: vault,
-          price,
+          price: Number.parseInt(price, 10),
         },
       });
 
@@ -138,7 +140,7 @@ function NewService() {
     }
   };
 
-  const cliCommand = `cascade --token ${token} localhost:3000`;
+  const cliCommand = `cascade serve --token ${token} localhost:3000`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(cliCommand);
@@ -156,8 +158,8 @@ function NewService() {
             </div>
             <CardTitle>Service Created!</CardTitle>
             <CardDescription>
-              Your service <strong>{name}</strong> is ready. Run the CLI command
-              below to connect your MCP.
+              Your service <strong>{servicePath}</strong> is ready. Run the CLI
+              command below to connect your MCP.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -178,7 +180,7 @@ function NewService() {
               <p>
                 Public URL:{" "}
                 <code className="text-foreground">
-                  https://{name}.mcps.cascade.fyi
+                  https://market.cascade.fyi/mcps/{namespace}/{name}
                 </code>
               </p>
               <p>
@@ -220,6 +222,36 @@ function NewService() {
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Namespace */}
+            <div className="space-y-2">
+              <Label htmlFor="namespace">Namespace</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  @
+                </span>
+                <Input
+                  id="namespace"
+                  type="text"
+                  value={namespace}
+                  onChange={(e) =>
+                    setNamespace(
+                      e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                    )
+                  }
+                  placeholder="yourname"
+                  required
+                  pattern="[a-z0-9\-]+"
+                  minLength={1}
+                  maxLength={32}
+                  className="pl-7"
+                  disabled={step === "creating"}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Your org/username (like npm or GitHub)
+              </p>
+            </div>
+
             {/* Service Name */}
             <div className="space-y-2">
               <Label htmlFor="name">Service Name</Label>
@@ -232,15 +264,16 @@ function NewService() {
                     e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
                   )
                 }
-                placeholder="twitter-research"
+                placeholder="twitter"
                 required
                 pattern="[a-z0-9\-]+"
-                minLength={3}
+                minLength={1}
                 maxLength={32}
                 disabled={step === "creating"}
               />
               <p className="text-sm text-muted-foreground">
-                Your endpoint: {name || "name"}.mcps.cascade.fyi
+                Endpoint: market.cascade.fyi/mcps/{namespace || "namespace"}/
+                {name || "name"}
               </p>
             </div>
 
@@ -295,7 +328,9 @@ function NewService() {
             <Button
               type="submit"
               className="w-full"
-              disabled={step === "creating" || !name || !connected}
+              disabled={
+                step === "creating" || !namespace || !name || !connected
+              }
             >
               {step === "creating" ? (
                 <>

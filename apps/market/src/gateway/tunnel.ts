@@ -3,13 +3,22 @@
  *
  * Handles WebSocket connections from CLI clients and forwards
  * MCP requests to them. Uses WebSocket Hibernation for cost efficiency.
+ *
+ * Per ADR-0004 §4.7: Service config is stored here from the service token
+ * when CLI connects, not in D1.
  */
 
 import { DurableObject } from "cloudflare:workers";
 import { verifyServiceToken, decodeServiceToken } from "../server/tokens";
+import type { ServiceConfig } from "./index";
 
+/**
+ * Session state attached to WebSocket (survives hibernation)
+ * Includes full service config from token
+ */
 interface TunnelSession {
-  serviceId: string;
+  servicePath: string; // @namespace/name
+  config: ServiceConfig;
   token: string;
   connectedAt: number;
 }
@@ -74,6 +83,12 @@ export class TunnelRelay extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
+    // Config endpoint - returns service config to Gateway
+    // Used by Gateway to check if service is online and get pricing
+    if (url.pathname === "/config") {
+      return this.handleConfigRequest();
+    }
+
     // CLI connects via WebSocket at /tunnel/connect
     if (url.pathname === "/tunnel/connect") {
       return this.handleTunnelConnect(request);
@@ -81,6 +96,25 @@ export class TunnelRelay extends DurableObject<Env> {
 
     // MCP request - forward to active tunnel
     return this.forwardToTunnel(request);
+  }
+
+  /**
+   * Returns service config if CLI is connected, 503 if offline
+   */
+  private handleConfigRequest(): Response {
+    const activeSession = Array.from(this.sessions.values())[0];
+
+    if (!activeSession) {
+      return new Response(JSON.stringify({ error: "Service offline" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify(activeSession.config), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   private async handleTunnelConnect(request: Request): Promise<Response> {
@@ -107,12 +141,18 @@ export class TunnelRelay extends DurableObject<Env> {
     }
 
     // Verify HMAC signature
-    // Development fallback - DO NOT USE IN PRODUCTION
-    const tokenSecret =
-      this.env.TOKEN_SECRET || "cascade-market-dev-secret-change-in-production";
-    const isValid = await verifyServiceToken(tokenSecret, token);
+    if (!this.env.TOKEN_SECRET) {
+      console.error("TOKEN_SECRET environment variable not configured");
+      return new Response("Server configuration error", { status: 500 });
+    }
+    const isValid = await verifyServiceToken(this.env.TOKEN_SECRET, token);
     if (!isValid) {
       return new Response("Invalid token signature", { status: 401 });
+    }
+
+    // Check token expiration (per ADR-0004 §4.8)
+    if (tokenPayload.expiresAt && tokenPayload.expiresAt < Date.now()) {
+      return new Response("Token expired", { status: 401 });
     }
 
     // Create WebSocket pair
@@ -122,9 +162,20 @@ export class TunnelRelay extends DurableObject<Env> {
     // Accept with hibernation support
     this.ctx.acceptWebSocket(server);
 
-    // Store session state with actual service info (survives hibernation)
+    // Build service path and config from token
+    const servicePath = `@${tokenPayload.namespace}/${tokenPayload.name}`;
+    const config: ServiceConfig = {
+      namespace: tokenPayload.namespace,
+      name: tokenPayload.name,
+      splitConfig: tokenPayload.splitConfig,
+      splitVault: tokenPayload.splitVault,
+      price: String(tokenPayload.price),
+    };
+
+    // Store session state (survives hibernation)
     const session: TunnelSession = {
-      serviceId: tokenPayload.serviceId,
+      servicePath,
+      config,
       token,
       connectedAt: Date.now(),
     };
@@ -132,7 +183,9 @@ export class TunnelRelay extends DurableObject<Env> {
     server.serializeAttachment(session);
     this.sessions.set(server, session);
 
-    console.log(`Tunnel connected: ${this.sessions.size} active sessions`);
+    console.log(
+      `Tunnel connected: ${servicePath}, ${this.sessions.size} active sessions`,
+    );
 
     return new Response(null, { status: 101, webSocket: client });
   }

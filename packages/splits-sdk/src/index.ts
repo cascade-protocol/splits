@@ -47,6 +47,9 @@ export {
   SYSTEM_PROGRAM_ADDRESS,
 } from "./constants.js";
 
+// Account discriminators (for getProgramAccounts filtering)
+export { SPLIT_CONFIG_DISCRIMINATOR } from "./generated/accounts/splitConfig.js";
+
 // =============================================================================
 // Types and Conversion Helpers
 // =============================================================================

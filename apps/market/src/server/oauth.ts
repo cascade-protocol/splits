@@ -92,9 +92,15 @@ export async function exchangeCodeForTokens(
   expiresIn: number;
   scope: string;
 } | null> {
-  // 1. Lookup auth code
+  // 1. Atomically mark code as used and return data (prevents race conditions)
+  // Uses UPDATE...RETURNING to claim the code in a single atomic operation
   const authCode = await db
-    .prepare("SELECT * FROM auth_codes WHERE code = ? AND used_at IS NULL")
+    .prepare(
+      `UPDATE auth_codes
+       SET used_at = datetime('now')
+       WHERE code = ? AND used_at IS NULL
+       RETURNING code, user_address, client_id, redirect_uri, scope, code_challenge, expires_at`,
+    )
     .bind(params.code)
     .first<{
       code: string;
@@ -107,7 +113,7 @@ export async function exchangeCodeForTokens(
     }>();
 
   if (!authCode) {
-    return null;
+    return null; // Code doesn't exist or already used
   }
 
   // 2. Check expiration
@@ -132,13 +138,7 @@ export async function exchangeCodeForTokens(
     return null;
   }
 
-  // 5. Mark code as used
-  await db
-    .prepare("UPDATE auth_codes SET used_at = datetime('now') WHERE code = ?")
-    .bind(params.code)
-    .run();
-
-  // 6. Issue access token (1 hour)
+  // 5. Issue access token (1 hour)
   const secret = new TextEncoder().encode(jwtSecret);
   const accessToken = await new SignJWT({
     sub: authCode.user_address,
@@ -151,7 +151,7 @@ export async function exchangeCodeForTokens(
     .setExpirationTime("1h")
     .sign(secret);
 
-  // 7. Issue refresh token (30 days)
+  // 6. Issue refresh token (30 days)
   const refreshToken = nanoid(64);
   const refreshTokenHash = await hashToken(refreshToken);
   const refreshExpiresAt = new Date(
@@ -184,6 +184,11 @@ export async function exchangeCodeForTokens(
 
 /**
  * Refresh access token using refresh token
+ *
+ * Implements refresh token rotation for security:
+ * - Issues new access token
+ * - Rotates refresh token (revokes old, issues new)
+ * - Returns new refresh token in response
  */
 export async function refreshAccessToken(
   db: D1Database,
@@ -194,6 +199,7 @@ export async function refreshAccessToken(
   },
 ): Promise<{
   accessToken: string;
+  refreshToken: string; // New rotated refresh token
   expiresIn: number;
   scope: string;
 } | null> {
@@ -236,8 +242,40 @@ export async function refreshAccessToken(
     .setExpirationTime("1h")
     .sign(secret);
 
+  // 5. Refresh token rotation: revoke old, issue new
+  // This prevents token replay attacks
+  await db
+    .prepare(
+      `UPDATE refresh_tokens SET revoked_at = datetime('now') WHERE id = ?`,
+    )
+    .bind(storedToken.id)
+    .run();
+
+  const newRefreshToken = nanoid(64);
+  const newRefreshTokenHash = await hashToken(newRefreshToken);
+  const refreshExpiresAt = new Date(
+    Date.now() + 30 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const newRefreshTokenId = nanoid(16);
+
+  await db
+    .prepare(
+      `INSERT INTO refresh_tokens (id, user_address, token_hash, client_id, scope, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      newRefreshTokenId,
+      storedToken.user_address,
+      newRefreshTokenHash,
+      params.clientId,
+      storedToken.scope,
+      refreshExpiresAt,
+    )
+    .run();
+
   return {
     accessToken,
+    refreshToken: newRefreshToken,
     expiresIn: 3600,
     scope: storedToken.scope,
   };

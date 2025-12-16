@@ -1,8 +1,11 @@
 /**
  * Cascade Market Gateway
  *
- * Hono app for *.mcps.cascade.fyi
- * Handles OAuth authentication and x402 payments, forwards to tunnels
+ * Hono app for path-based MCP routing (per ADR-0004 §4.1)
+ * Routes: /mcps/@namespace/name/* for MCP calls
+ *         /sign for Tabs transaction signing
+ *
+ * Service data from TunnelRelay DO (not D1) - per ADR-0004 §4.7
  */
 
 import { Hono } from "hono";
@@ -17,7 +20,41 @@ import {
   type HTTPProcessResult,
 } from "@x402/core/server";
 import { bazaarResourceServerExtension } from "@x402/extensions/bazaar";
+import { getBase58Encoder } from "@solana/kit";
 import { verifyAccessToken, type AuthInfo } from "../server/oauth";
+import { signHandler } from "./sign";
+
+/**
+ * JSON-RPC 2.0 request (per MCP transport spec)
+ * Uses _meta for x402 payment extension
+ */
+interface JSONRPCRequest {
+  jsonrpc: "2.0";
+  method: string;
+  params?: {
+    _meta?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+  id?: string | number | null;
+}
+
+/**
+ * JSON-RPC 2.0 response (per MCP transport spec)
+ * result._meta used for x402 settlement receipt
+ */
+interface JSONRPCResponse {
+  jsonrpc: "2.0";
+  result?: {
+    _meta?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
+  error?: {
+    code: number;
+    message: string;
+    data?: unknown;
+  };
+  id: string | number | null;
+}
 
 // USDC mint on Solana mainnet
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
@@ -34,25 +71,30 @@ const RATE_LIMIT = {
 const FACILITATOR_URL = "https://facilitator.cascade.fyi";
 
 type Bindings = {
-  DB: D1Database;
+  DB: D1Database; // Only for OAuth
   KV: KVNamespace;
   TUNNEL_RELAY: DurableObjectNamespace;
   JWT_SECRET: string;
+  EXECUTOR_KEY: string;
+  HELIUS_RPC_URL: string;
 };
 
 type Variables = {
   authInfo?: AuthInfo;
-  subdomain?: string;
-  service?: ServiceRecord;
+  servicePath?: string;
+  serviceConfig?: ServiceConfig;
 };
 
-interface ServiceRecord {
-  id: string;
+/**
+ * Service config from TunnelRelay DO (attached from service token)
+ * Per ADR-0004 §4.7: "Service price: Token → TunnelRelay DO (while CLI connected)"
+ */
+export interface ServiceConfig {
+  namespace: string;
   name: string;
-  split_config: string; // SplitConfig PDA (used as payTo)
-  split_vault: string; // Vault ATA (where funds land)
-  price: string;
-  status: string;
+  splitConfig: string; // SplitConfig PDA (payTo)
+  splitVault: string; // Vault ATA
+  price: string; // USDC base units
 }
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -60,63 +102,86 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 // CORS for all routes
 app.use("/*", cors());
 
+// Secret validation middleware - fail fast if misconfigured
+// Health check is exempt so monitoring can detect configuration issues
+app.use("/*", async (c, next) => {
+  // Skip validation for health check
+  if (c.req.path === "/health") {
+    return next();
+  }
+
+  const errors: string[] = [];
+
+  if (!c.env.JWT_SECRET || c.env.JWT_SECRET.length < 32) {
+    errors.push("JWT_SECRET must be at least 32 characters");
+  }
+
+  if (!c.env.EXECUTOR_KEY) {
+    errors.push("EXECUTOR_KEY must be configured");
+  } else {
+    // Validate EXECUTOR_KEY is valid base58
+    try {
+      const encoder = getBase58Encoder();
+      encoder.encode(c.env.EXECUTOR_KEY);
+    } catch {
+      errors.push("EXECUTOR_KEY must be valid base58");
+    }
+  }
+
+  if (!c.env.HELIUS_RPC_URL) {
+    errors.push("HELIUS_RPC_URL must be configured");
+  }
+
+  if (errors.length > 0) {
+    console.error("Gateway configuration errors:", errors);
+    return c.json(
+      { error: "server_configuration_error", message: "Server misconfigured" },
+      500,
+    );
+  }
+
+  return next();
+});
+
 // Health check
 app.get("/health", (c) => c.json({ ok: true, timestamp: Date.now() }));
 
-/**
- * Discovery endpoint - lists available MCP services
- * Returns service URLs and metadata for direct browsing (not via facilitator)
- */
-app.get("/discovery/resources", async (c) => {
-  const limit = Math.min(
-    Number.parseInt(c.req.query("limit") || "50", 10),
-    100,
-  );
-  const offset = Number.parseInt(c.req.query("offset") || "0", 10);
-
-  const services = await c.env.DB.prepare(
-    `SELECT name, price, split_config, status
-     FROM services
-     WHERE status = 'online'
-     ORDER BY total_calls DESC
-     LIMIT ? OFFSET ?`,
-  )
-    .bind(limit, offset)
-    .all<{
-      name: string;
-      price: string;
-      split_config: string;
-      status: string;
-    }>();
-
-  const total = await c.env.DB.prepare(
-    "SELECT COUNT(*) as count FROM services WHERE status = 'online'",
-  ).first<{ count: number }>();
-
-  return c.json({
-    resources: services.results.map((s) => ({
-      url: `https://${s.name}.mcps.cascade.fyi/mcp`,
-      type: "mcp",
-      metadata: {
-        name: s.name,
-        price: s.price,
-        payTo: s.split_config,
-        network: "solana:mainnet",
-        asset: USDC_MINT,
-      },
-    })),
-    total: total?.count ?? 0,
-    limit,
-    offset,
-  });
-});
+// Tabs signing endpoint (per ADR-0004 §5.4)
+app.post("/sign", signHandler);
 
 /**
  * Hono HTTP Adapter for x402HTTPResourceServer
- * Implements the HTTPAdapter interface for Hono context
+ *
+ * Supports MCP x402 transport: payment embedded in JSON-RPC body
+ * at params._meta["x402/payment"] per mcp.md spec.
  */
 class HonoHTTPAdapter implements HTTPAdapter {
+  private bodyCache: unknown | undefined;
+  private bodyParsed = false;
+
   constructor(private req: Request) {}
+
+  /**
+   * Parse request body as JSON (must call before x402 processing)
+   * Body streams can only be read once, so we cache the result.
+   */
+  async parseBody(): Promise<void> {
+    if (this.bodyParsed) return;
+    try {
+      const cloned = this.req.clone();
+      this.bodyCache = await cloned.json();
+    } catch {
+      this.bodyCache = undefined;
+    }
+    this.bodyParsed = true;
+  }
+
+  /**
+   * Get parsed body for MCP transport payment extraction
+   */
+  getBody(): unknown {
+    return this.bodyCache;
+  }
 
   getHeader(name: string): string | undefined {
     return this.req.headers.get(name) ?? undefined;
@@ -180,41 +245,34 @@ async function getX402Server(): Promise<{
     return { httpServer, network: serverNetwork };
   }
 
-  // Create facilitator client
   const facilitator = new HTTPFacilitatorClient({ url: FACILITATOR_URL });
-
-  // Create resource server with Bazaar extension for discovery
   const resourceServer = new x402ResourceServer(facilitator);
   resourceServer.registerExtension(bazaarResourceServerExtension);
 
-  // Create HTTP server with dynamic route
-  // Note: payTo and price are resolved dynamically per-request via context
+  // Dynamic route for path-based MCP endpoints
   httpServer = new x402HTTPResourceServer(resourceServer, {
-    "POST /mcp/*": {
+    "POST /mcps/:namespace/:name/*": {
       accepts: {
         scheme: "exact",
-        // Dynamic payTo - resolved from service.split_config
         payTo: (ctx: HTTPRequestContext) => {
-          const service = (
-            ctx as HTTPRequestContext & { service?: ServiceRecord }
-          ).service;
-          if (!service) throw new Error("Service not found in context");
-          return service.split_config;
+          const config = (
+            ctx as HTTPRequestContext & { serviceConfig?: ServiceConfig }
+          ).serviceConfig;
+          if (!config) throw new Error("Service not found in context");
+          return config.splitConfig;
         },
-        // Dynamic price - resolved from service.price
         price: (ctx: HTTPRequestContext) => {
-          const service = (
-            ctx as HTTPRequestContext & { service?: ServiceRecord }
-          ).service;
-          if (!service) throw new Error("Service not found in context");
-          return { asset: USDC_MINT, amount: service.price };
+          const config = (
+            ctx as HTTPRequestContext & { serviceConfig?: ServiceConfig }
+          ).serviceConfig;
+          if (!config) throw new Error("Service not found in context");
+          return { asset: USDC_MINT, amount: config.price };
         },
         network: "solana:mainnet" as Network,
         maxTimeoutSeconds: 60,
       },
       description: "MCP service endpoint",
       mimeType: "application/json",
-      // Bazaar discovery extension - declares MCP JSON-RPC interface
       extensions: {
         bazaar: {
           info: {
@@ -239,10 +297,8 @@ async function getX402Server(): Promise<{
     },
   });
 
-  // Initialize (fetches facilitator support info)
   await httpServer.initialize();
 
-  // Cache the network from facilitator
   const supported = await facilitator.getSupported();
   serverNetwork = supported.kinds[0]?.network ?? ("solana:mainnet" as Network);
 
@@ -251,7 +307,6 @@ async function getX402Server(): Promise<{
 
 /**
  * Check rate limit using KV with sliding window
- * Returns true if request is allowed, false if rate limited
  */
 async function checkRateLimit(
   kv: KVNamespace,
@@ -267,35 +322,25 @@ async function checkRateLimit(
     return false;
   }
 
-  // Increment counter with TTL of 2x window (cleanup buffer)
   await kv.put(windowKey, String(current + 1), {
     expirationTtl: windowSec * 2,
   });
   return true;
 }
 
-// Service lookup by subdomain
-async function getServiceBySubdomain(subdomain: string, db: D1Database) {
-  return db
-    .prepare(
-      "SELECT id, name, split_config, split_vault, price, status FROM services WHERE name = ?",
-    )
-    .bind(subdomain)
-    .first<ServiceRecord>();
-}
+/**
+ * MCP endpoint with path-based routing
+ * Route: /mcps/:namespace/:name/*
+ * Example: /mcps/cascade/twitter/mcp
+ */
+app.all("/mcps/:namespace/:name/*", async (c) => {
+  const namespace = c.req.param("namespace");
+  const name = c.req.param("name");
+  const servicePath = `@${namespace}/${name}`;
 
-// x402 payment-required endpoint for MCP calls
-app.all("/mcp/*", async (c) => {
-  const host = c.req.header("host");
-  if (!host) {
-    return c.json({ error: "Missing host header" }, 400);
-  }
-
-  const subdomain = host.split(".")[0];
-
-  // Rate limiting by client IP
+  // Rate limiting by client IP + service
   const clientIP = c.req.header("CF-Connecting-IP") || "unknown";
-  const rateLimitKey = `mcp:${subdomain}:${clientIP}`;
+  const rateLimitKey = `mcp:${servicePath}:${clientIP}`;
   const { limit, windowSec } = RATE_LIMIT.mcp;
 
   const allowed = await checkRateLimit(
@@ -309,33 +354,33 @@ app.all("/mcp/*", async (c) => {
       { error: "rate_limit_exceeded", retry_after: windowSec },
       {
         status: 429,
-        headers: {
-          "Retry-After": String(windowSec),
-        },
+        headers: { "Retry-After": String(windowSec) },
       },
     );
   }
 
-  const service = await getServiceBySubdomain(subdomain, c.env.DB);
+  // Get service config from TunnelRelay DO
+  // DO stores config when supplier CLI connects with service token
+  const tunnelId = c.env.TUNNEL_RELAY.idFromName(servicePath);
+  const tunnel = c.env.TUNNEL_RELAY.get(tunnelId);
 
-  if (!service) {
-    return c.json({ error: "Service not found" }, 404);
+  // Check if service is online (CLI connected)
+  const configResponse = await tunnel.fetch(
+    new Request("http://internal/config"),
+  );
+
+  if (!configResponse.ok) {
+    return c.json({ error: "Service offline", service: servicePath }, 503);
   }
 
-  if (service.status !== "online") {
-    return c.json({ error: "Service offline" }, 503);
-  }
+  const serviceConfig = (await configResponse.json()) as ServiceConfig;
+  c.set("servicePath", servicePath);
+  c.set("serviceConfig", serviceConfig);
 
-  // Store for later use
-  c.set("subdomain", subdomain);
-  c.set("service", service);
-
-  // OAuth Authentication (MCP SDK discovers via WWW-Authenticate header)
+  // OAuth Authentication
   const authHeader = c.req.header("Authorization");
 
   if (!authHeader) {
-    // No auth → 401 with WWW-Authenticate pointing to OAuth metadata
-    // This is how MCP SDK discovers OAuth endpoints (RFC 9728)
     return c.json(
       { error: "unauthorized", error_description: "Authentication required" },
       {
@@ -347,48 +392,7 @@ app.all("/mcp/*", async (c) => {
     );
   }
 
-  // Verify Bearer token
-  if (authHeader.startsWith("Bearer ")) {
-    const token = authHeader.slice(7);
-
-    try {
-      const authInfo = await verifyAccessToken(c.env.JWT_SECRET, token);
-      // Store auth info for payment handling (wallet address used by Tabs)
-      c.set("authInfo", authInfo);
-
-      // Enforce required scope for MCP endpoints
-      // All MCP calls require tabs:spend (they involve payments)
-      const requiredScope = "tabs:spend";
-      if (!authInfo.scopes.includes(requiredScope)) {
-        return c.json(
-          {
-            error: "insufficient_scope",
-            error_description: `This resource requires the '${requiredScope}' scope`,
-            scope: requiredScope,
-          },
-          {
-            status: 403,
-            headers: {
-              "WWW-Authenticate": `Bearer error="insufficient_scope", scope="${requiredScope}", resource_metadata="${BASE_URL}/.well-known/oauth-protected-resource"`,
-            },
-          },
-        );
-      }
-    } catch {
-      return c.json(
-        {
-          error: "invalid_token",
-          error_description: "Invalid or expired access token",
-        },
-        {
-          status: 401,
-          headers: {
-            "WWW-Authenticate": `Bearer error="invalid_token", resource_metadata="${BASE_URL}/.well-known/oauth-protected-resource"`,
-          },
-        },
-      );
-    }
-  } else {
+  if (!authHeader.startsWith("Bearer ")) {
     return c.json(
       {
         error: "invalid_request",
@@ -403,90 +407,150 @@ app.all("/mcp/*", async (c) => {
     );
   }
 
-  // Initialize x402 server (cached)
+  const token = authHeader.slice(7);
+
+  try {
+    const authInfo = await verifyAccessToken(c.env.JWT_SECRET, token);
+    c.set("authInfo", authInfo);
+
+    // Enforce tabs:spend scope
+    if (!authInfo.scopes.includes("tabs:spend")) {
+      return c.json(
+        {
+          error: "insufficient_scope",
+          error_description: "This resource requires the 'tabs:spend' scope",
+          scope: "tabs:spend",
+        },
+        {
+          status: 403,
+          headers: {
+            "WWW-Authenticate": `Bearer error="insufficient_scope", scope="tabs:spend", resource_metadata="${BASE_URL}/.well-known/oauth-protected-resource"`,
+          },
+        },
+      );
+    }
+  } catch {
+    return c.json(
+      {
+        error: "invalid_token",
+        error_description: "Invalid or expired access token",
+      },
+      {
+        status: 401,
+        headers: {
+          "WWW-Authenticate": `Bearer error="invalid_token", resource_metadata="${BASE_URL}/.well-known/oauth-protected-resource"`,
+        },
+      },
+    );
+  }
+
+  // x402 payment processing with MCP transport support
+  // Per mcp.md spec: payment in params._meta["x402/payment"]
   const { httpServer: x402Server } = await getX402Server();
 
-  // Create HTTP context for x402
-  const adapter = new HonoHTTPAdapter(c.req.raw);
-  const paymentHeader =
-    c.req.header("X-PAYMENT") || c.req.header("Payment-Signature");
+  // Clone request for x402 processing (tunnel will read original)
+  // Cast to standard Request (Cloudflare extends it with Cf properties)
+  const clonedReq = c.req.raw.clone() as unknown as Request;
+  const adapter = new HonoHTTPAdapter(clonedReq);
+  await adapter.parseBody();
 
-  // Extend context with service for dynamic payTo/price resolution
-  const httpContext: HTTPRequestContext & { service: ServiceRecord } = {
+  // MCP transport: extract payment from JSON-RPC body
+  const body = adapter.getBody() as JSONRPCRequest | undefined;
+  const mcpPayment = body?.params?._meta?.["x402/payment"];
+  const paymentHeader = mcpPayment
+    ? JSON.stringify(mcpPayment)
+    : c.req.header("X-PAYMENT") || c.req.header("Payment-Signature");
+
+  const httpContext: HTTPRequestContext & { serviceConfig: ServiceConfig } = {
     adapter,
     path: adapter.getPath(),
     method: adapter.getMethod(),
     paymentHeader,
-    service,
+    serviceConfig,
   };
 
-  // Process payment request
   const result: HTTPProcessResult =
     await x402Server.processHTTPRequest(httpContext);
 
   switch (result.type) {
     case "no-payment-required":
-      // Should not happen for our routes, but forward anyway
       break;
 
-    case "payment-error":
-      // Return 402 with payment requirements or error
-      return new Response(
-        result.response.isHtml
-          ? (result.response.body as string)
-          : JSON.stringify(result.response.body),
-        {
-          status: result.response.status,
-          headers: result.response.headers,
+    case "payment-error": {
+      // MCP transport: 402 as JSON-RPC error (HTTP 200 per spec)
+      const jsonRpcError = {
+        jsonrpc: "2.0",
+        id: body?.id ?? null,
+        error: {
+          code: 402,
+          message: "Payment required",
+          data: result.response.body,
         },
-      );
+      };
+      return c.json(jsonRpcError, { status: 200 });
+    }
 
     case "payment-verified": {
-      // Forward to tunnel
-      const tunnelId = c.env.TUNNEL_RELAY.idFromName(subdomain);
-      const tunnel = c.env.TUNNEL_RELAY.get(tunnelId);
-      const tunnelResponse = await tunnel.fetch(c.req.raw);
-
-      // Settle payment after successful tunnel response
-      if (tunnelResponse.ok) {
-        const settleResult = await x402Server.processSettlement(
-          result.paymentPayload,
-          result.paymentRequirements,
-        );
-
-        if (settleResult.success) {
-          // Record payment for later split execution
-          await c.env.DB.prepare(
-            `UPDATE services
-             SET pending_balance = pending_balance + ?,
-                 total_calls = total_calls + 1,
-                 total_revenue = total_revenue + ?,
-                 last_payment_tx = ?,
-                 last_payment_at = datetime('now')
-             WHERE name = ?`,
-          )
-            .bind(
-              service.price,
-              service.price,
-              settleResult.transaction ?? null,
-              subdomain,
-            )
-            .run();
-
-          // Add settlement headers to response
-          const responseHeaders = new Headers(tunnelResponse.headers);
-          for (const [key, value] of Object.entries(settleResult.headers)) {
-            responseHeaders.set(key, value);
+      // Strip payment metadata before forwarding to supplier
+      // Clone body to avoid mutating original, typed as mutable JSONRPCRequest
+      const forwardBody: JSONRPCRequest | undefined = body
+        ? JSON.parse(JSON.stringify(body))
+        : undefined;
+      if (forwardBody?.params?._meta) {
+        // x402/payment is an extension field on _meta (passthrough schema)
+        const meta = forwardBody.params._meta as Record<string, unknown>;
+        if (meta["x402/payment"]) {
+          delete meta["x402/payment"];
+          // Clean up empty _meta
+          if (Object.keys(meta).length === 0) {
+            delete forwardBody.params._meta;
           }
-
-          return new Response(tunnelResponse.body, {
-            status: tunnelResponse.status,
-            headers: responseHeaders,
-          });
         }
-        // Settlement failed but tunnel succeeded - return tunnel response
-        // (payment may have been partially processed)
-        console.error("Settlement failed:", settleResult.errorReason);
+      }
+
+      // Forward to tunnel with cleaned body
+      const forwardReq = new Request(c.req.raw.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: forwardBody ? JSON.stringify(forwardBody) : undefined,
+      });
+      const tunnelResponse = await tunnel.fetch(forwardReq);
+
+      // Only settle if JSON-RPC succeeded (P1-6: validate before settlement)
+      if (tunnelResponse.ok) {
+        // JSON-RPC response can be success (with result) or error
+        const responseBody = (await tunnelResponse
+          .clone()
+          .json()) as JSONRPCResponse;
+
+        // Only settle if no JSON-RPC error
+        if (!responseBody.error && responseBody.result !== undefined) {
+          const settleResult = await x402Server.processSettlement(
+            result.paymentPayload,
+            result.paymentRequirements,
+          );
+
+          if (settleResult.success) {
+            // MCP transport: embed settlement in response _meta
+            // result._meta uses passthrough schema, allowing extension fields
+            const resultMeta = (responseBody.result._meta ?? {}) as Record<
+              string,
+              unknown
+            >;
+            resultMeta["x402/payment-response"] = {
+              success: true,
+              transaction: settleResult.headers["X-Payment-Transaction"],
+              network: settleResult.headers["X-Payment-Network"],
+            };
+            responseBody.result._meta = resultMeta;
+
+            return c.json(responseBody);
+          }
+          console.error("Settlement failed:", settleResult.errorReason);
+        }
+
+        // Return original response if settlement skipped or failed
+        return c.json(responseBody);
       }
 
       return tunnelResponse;
@@ -494,20 +558,19 @@ app.all("/mcp/*", async (c) => {
   }
 
   // Fallback: forward to tunnel without payment
-  const tunnelId = c.env.TUNNEL_RELAY.idFromName(subdomain);
-  const tunnel = c.env.TUNNEL_RELAY.get(tunnelId);
   return tunnel.fetch(c.req.raw);
 });
 
-// Tunnel connection endpoint (for CLI)
-app.get("/tunnel/connect", async (c) => {
-  const host = c.req.header("host");
-  if (!host) {
-    return c.json({ error: "Missing host header" }, 400);
-  }
+/**
+ * Tunnel connection endpoint for supplier CLI
+ * Route: /mcps/:namespace/:name/tunnel/connect
+ */
+app.get("/mcps/:namespace/:name/tunnel/connect", async (c) => {
+  const namespace = c.req.param("namespace");
+  const name = c.req.param("name");
+  const servicePath = `@${namespace}/${name}`;
 
-  const subdomain = host.split(".")[0];
-  const tunnelId = c.env.TUNNEL_RELAY.idFromName(subdomain);
+  const tunnelId = c.env.TUNNEL_RELAY.idFromName(servicePath);
   const tunnel = c.env.TUNNEL_RELAY.get(tunnelId);
   return tunnel.fetch(c.req.raw);
 });
