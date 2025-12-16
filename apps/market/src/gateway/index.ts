@@ -5,7 +5,7 @@
  * Routes: /mcps/@namespace/name/* for MCP calls
  *         /sign for Tabs transaction signing
  *
- * Service data from ServiceBridge DO (not D1) - per ADR-0004 §4.7
+ * Service data from TunnelRelay DO (not D1) - per ADR-0004 §4.7
  */
 
 import { Hono } from "hono";
@@ -73,7 +73,7 @@ const FACILITATOR_URL = "https://facilitator.cascade.fyi";
 type Bindings = {
   DB: D1Database; // Only for OAuth
   KV: KVNamespace;
-  SERVICE_BRIDGE: DurableObjectNamespace;
+  TUNNEL_RELAY: DurableObjectNamespace;
   JWT_SECRET: string;
   EXECUTOR_KEY: string;
   HELIUS_RPC_URL: string;
@@ -86,8 +86,8 @@ type Variables = {
 };
 
 /**
- * Service config from ServiceBridge DO (attached from service token)
- * Per ADR-0004 §4.7: "Service price: Token → ServiceBridge DO (while CLI connected)"
+ * Service config from TunnelRelay DO (attached from service token)
+ * Per ADR-0004 §4.7: "Service price: Token → TunnelRelay DO (while CLI connected)"
  */
 export interface ServiceConfig {
   namespace: string;
@@ -359,13 +359,13 @@ app.all("/mcps/:namespace/:name/*", async (c) => {
     );
   }
 
-  // Get service config from ServiceBridge DO
+  // Get service config from TunnelRelay DO
   // DO stores config when supplier CLI connects with service token
-  const bridgeId = c.env.SERVICE_BRIDGE.idFromName(servicePath);
-  const bridge = c.env.SERVICE_BRIDGE.get(bridgeId);
+  const relayId = c.env.TUNNEL_RELAY.idFromName(servicePath);
+  const relay = c.env.TUNNEL_RELAY.get(relayId);
 
   // Check if service is online (CLI connected)
-  const configResponse = await bridge.fetch(
+  const configResponse = await relay.fetch(
     new Request("http://internal/config"),
   );
 
@@ -514,12 +514,12 @@ app.all("/mcps/:namespace/:name/*", async (c) => {
         headers: { "Content-Type": "application/json" },
         body: forwardBody ? JSON.stringify(forwardBody) : undefined,
       });
-      const bridgeResponse = await bridge.fetch(forwardReq);
+      const relayResponse = await relay.fetch(forwardReq);
 
       // Only settle if JSON-RPC succeeded (P1-6: validate before settlement)
-      if (bridgeResponse.ok) {
+      if (relayResponse.ok) {
         // JSON-RPC response can be success (with result) or error
-        const responseBody = (await bridgeResponse
+        const responseBody = (await relayResponse
           .clone()
           .json()) as JSONRPCResponse;
 
@@ -553,12 +553,12 @@ app.all("/mcps/:namespace/:name/*", async (c) => {
         return c.json(responseBody);
       }
 
-      return bridgeResponse;
+      return relayResponse;
     }
   }
 
-  // Fallback: forward to bridge without payment
-  return bridge.fetch(c.req.raw);
+  // Fallback: forward to relay without payment
+  return relay.fetch(c.req.raw);
 });
 
 /**
@@ -570,9 +570,9 @@ app.get("/mcps/:namespace/:name/tunnel/connect", async (c) => {
   const name = c.req.param("name");
   const servicePath = `@${namespace}/${name}`;
 
-  const bridgeId = c.env.SERVICE_BRIDGE.idFromName(servicePath);
-  const bridge = c.env.SERVICE_BRIDGE.get(bridgeId);
-  return bridge.fetch(c.req.raw);
+  const relayId = c.env.TUNNEL_RELAY.idFromName(servicePath);
+  const relay = c.env.TUNNEL_RELAY.get(relayId);
+  return relay.fetch(c.req.raw);
 });
 
 export { app as gatewayApp };

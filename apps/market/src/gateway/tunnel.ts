@@ -1,7 +1,7 @@
 /**
- * ServiceBridge Durable Object
+ * TunnelRelay Durable Object
  *
- * Handles WebSocket connections from CLI clients and forwards
+ * Handles WebSocket connections from supplier CLIs and forwards
  * MCP requests to them. Uses WebSocket Hibernation for cost efficiency.
  *
  * Per ADR-0004 §4.7: Service config is stored here from the service token
@@ -16,7 +16,7 @@ import type { ServiceConfig } from "./index";
  * Session state attached to WebSocket (survives hibernation)
  * Kept minimal to stay under 2KB attachment limit
  */
-interface BridgeSession {
+interface TunnelSession {
   servicePath: string; // @namespace/name
   config: ServiceConfig;
   connectedAt: number;
@@ -42,13 +42,13 @@ interface TunnelResponse {
 // Cloudflare env type
 interface Env {
   DB: D1Database;
-  SERVICE_BRIDGE: DurableObjectNamespace;
+  TUNNEL_RELAY: DurableObjectNamespace;
   TOKEN_SECRET?: string;
 }
 
-export class ServiceBridge extends DurableObject<Env> {
-  // Active WebSocket connections from CLI clients
-  sessions: Map<WebSocket, BridgeSession>;
+export class TunnelRelay extends DurableObject<Env> {
+  // Active WebSocket connections from supplier CLIs
+  sessions: Map<WebSocket, TunnelSession>;
 
   // Pending requests waiting for responses
   pendingRequests: Map<
@@ -69,7 +69,7 @@ export class ServiceBridge extends DurableObject<Env> {
     this.ctx.getWebSockets().forEach((ws) => {
       const attachment = ws.deserializeAttachment();
       if (attachment) {
-        this.sessions.set(ws, attachment as BridgeSession);
+        this.sessions.set(ws, attachment as TunnelSession);
       }
     });
 
@@ -173,7 +173,7 @@ export class ServiceBridge extends DurableObject<Env> {
 
     // Store session state (survives hibernation)
     // Note: token not stored - already validated, and keeping attachment small
-    const session: BridgeSession = {
+    const session: TunnelSession = {
       servicePath,
       config,
       connectedAt: Date.now(),
