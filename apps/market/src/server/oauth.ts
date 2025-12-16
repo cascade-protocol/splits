@@ -16,6 +16,39 @@ import { nanoid } from "nanoid";
 // JWT issuer for token validation
 const JWT_ISSUER = "https://market.cascade.fyi";
 
+/**
+ * Client ID validation
+ *
+ * Valid format: lowercase alphanumeric + hyphens, 3-64 chars
+ * Must start and end with alphanumeric (no leading/trailing hyphens)
+ *
+ * Examples: "cascade-cli", "claude-code", "my-mcp-client"
+ */
+const CLIENT_ID_REGEX = /^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/;
+
+function validateClientId(clientId: string): {
+  valid: boolean;
+  error?: string;
+} {
+  if (!clientId) {
+    return { valid: false, error: "client_id is required" };
+  }
+  if (clientId.length < 3) {
+    return { valid: false, error: "client_id must be at least 3 characters" };
+  }
+  if (clientId.length > 64) {
+    return { valid: false, error: "client_id must be at most 64 characters" };
+  }
+  if (!CLIENT_ID_REGEX.test(clientId)) {
+    return {
+      valid: false,
+      error:
+        "client_id must be lowercase alphanumeric with hyphens, starting and ending with alphanumeric",
+    };
+  }
+  return { valid: true };
+}
+
 /** Hash a token using SHA-256 for secure storage */
 async function hashToken(token: string): Promise<string> {
   const data = new TextEncoder().encode(token);
@@ -51,6 +84,12 @@ export async function createAuthCode(
     codeChallenge: string;
   },
 ): Promise<string> {
+  // Validate client_id format
+  const clientIdValidation = validateClientId(params.clientId);
+  if (!clientIdValidation.valid) {
+    throw new Error(clientIdValidation.error);
+  }
+
   const code = nanoid(32);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 

@@ -36,11 +36,17 @@ export interface DiscoveredService {
   authority: string;
 }
 
+// Marketplace services use labels starting with "@" (e.g., @cascade/twitter)
+// Labels are encoded as: "CSPL:" + label + padding (see splits-sdk labelToSeed)
+// So marketplace uniqueIds start with "CSPL:@" (6 bytes)
+const MARKETPLACE_PREFIX = "CSPL:@";
+const MARKETPLACE_PREFIX_BYTES = new TextEncoder().encode(MARKETPLACE_PREFIX);
+
 /**
  * Query all marketplace services from on-chain SplitConfig PDAs.
  *
  * Services are identified by labels starting with `@` (e.g., @cascade/twitter).
- * Uses getProgramAccounts to fetch all splits, then filters by label prefix.
+ * Uses memcmp filter on uniqueId prefix to efficiently query only marketplace splits.
  *
  * @param rpcUrl - Solana RPC endpoint URL
  * @param namespaceFilter - Optional namespace to filter (without @)
@@ -57,7 +63,13 @@ export async function discoverServices(
     SPLIT_CONFIG_DISCRIMINATOR,
   ) as Base58EncodedBytes;
 
-  // Fetch all SplitConfig accounts
+  // Build marketplace prefix filter (uniqueId starts with "CSPL:@" for marketplace services)
+  // uniqueId is at offset 105 in SplitConfig layout
+  const marketplacePrefixBase58 = base58Decoder.decode(
+    MARKETPLACE_PREFIX_BYTES,
+  ) as Base58EncodedBytes;
+
+  // Fetch marketplace SplitConfig accounts (filtered server-side)
   const accounts = await rpc
     .getProgramAccounts(PROGRAM_ID, {
       encoding: "base64",
@@ -66,6 +78,13 @@ export async function discoverServices(
           memcmp: {
             offset: 0n,
             bytes: discriminatorBase58,
+            encoding: "base58",
+          },
+        },
+        {
+          memcmp: {
+            offset: 105n, // uniqueId offset in SplitConfig
+            bytes: marketplacePrefixBase58,
             encoding: "base58",
           },
         },

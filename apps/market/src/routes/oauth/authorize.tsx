@@ -7,7 +7,9 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { getCookie } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
+import { jwtVerify } from "jose";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -25,12 +27,13 @@ import { createAuthCode } from "@/server/oauth";
 
 /**
  * Server function to create an auth code
- * Following Cloudflare docs pattern: env accessed inside createServerFn handler
+ *
+ * Security: User address is derived from verified session cookie, NOT from client input.
+ * This prevents attackers from claiming arbitrary wallet addresses.
  */
 const createAuthCodeFn = createServerFn({ method: "POST" })
   .inputValidator(
     (data: {
-      userAddress: string;
       clientId: string;
       redirectUri: string;
       scope: string;
@@ -42,15 +45,39 @@ const createAuthCodeFn = createServerFn({ method: "POST" })
       data,
     }: {
       data: {
-        userAddress: string;
         clientId: string;
         redirectUri: string;
         scope: string;
         codeChallenge: string;
       };
     }) => {
+      // 1. Get session cookie (server-side only)
+      const sessionToken = getCookie("session");
+      if (!sessionToken) {
+        throw new Error("Not authenticated - please sign in first");
+      }
+
+      // 2. Verify JWT and extract wallet address
+      const secret = new TextEncoder().encode(env.JWT_SECRET);
+      let payload: { sub?: string };
+      try {
+        const result = await jwtVerify(sessionToken, secret);
+        payload = result.payload as { sub?: string };
+      } catch (error: unknown) {
+        // JWT verification failed (expired, invalid signature, etc.)
+        throw new Error(
+          `Session expired - please sign in again${error instanceof Error ? `: ${error.message}` : ""}`,
+        );
+      }
+
+      const userAddress = payload.sub;
+      if (!userAddress) {
+        throw new Error("Invalid session - missing wallet address");
+      }
+
+      // 3. Create auth code with verified address from session
       return createAuthCode(env.DB, {
-        userAddress: data.userAddress,
+        userAddress,
         clientId: data.clientId,
         redirectUri: data.redirectUri,
         scope: data.scope,
@@ -148,9 +175,9 @@ function AuthorizePage() {
 
     try {
       // Create authorization code
+      // Note: userAddress is derived from session cookie server-side for security
       const code = await createAuthCodeFn({
         data: {
-          userAddress: address,
           clientId: searchParams.client_id,
           redirectUri: searchParams.redirect_uri,
           scope: searchParams.scope,

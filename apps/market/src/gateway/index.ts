@@ -525,12 +525,27 @@ app.all("/mcps/:namespace/:name/*", async (c) => {
 
         // Only settle if no JSON-RPC error
         if (!responseBody.error && responseBody.result !== undefined) {
-          const settleResult = await x402Server.processSettlement(
-            result.paymentPayload,
-            result.paymentRequirements,
-          );
+          // Retry settlement up to 3 times with exponential backoff
+          // Handles transient failures: network blips, facilitator timeouts, RPC hiccups
+          let settleResult: Awaited<
+            ReturnType<typeof x402Server.processSettlement>
+          > | null = null;
 
-          if (settleResult.success) {
+          for (let attempt = 0; attempt < 3; attempt++) {
+            settleResult = await x402Server.processSettlement(
+              result.paymentPayload,
+              result.paymentRequirements,
+            );
+
+            if (settleResult.success) break;
+
+            // Backoff: 100ms, 300ms, 900ms
+            if (attempt < 2) {
+              await new Promise((r) => setTimeout(r, 100 * 3 ** attempt));
+            }
+          }
+
+          if (settleResult?.success) {
             // MCP transport: embed settlement in response _meta
             // result._meta uses passthrough schema, allowing extension fields
             const resultMeta = (responseBody.result._meta ?? {}) as Record<
@@ -546,7 +561,11 @@ app.all("/mcps/:namespace/:name/*", async (c) => {
 
             return c.json(responseBody);
           }
-          console.error("Settlement failed:", settleResult.errorReason);
+
+          console.error(
+            "Settlement failed after 3 attempts:",
+            settleResult?.errorReason,
+          );
         }
 
         // Return original response if settlement skipped or failed

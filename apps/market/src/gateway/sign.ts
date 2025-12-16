@@ -38,6 +38,33 @@ interface Bindings {
   JWT_SECRET: string;
   EXECUTOR_KEY: string;
   HELIUS_RPC_URL: string;
+  KV: KVNamespace;
+}
+
+// Rate limit config for /sign endpoint
+const SIGN_RATE_LIMIT = { limit: 30, windowSec: 60 }; // 30 req/min per wallet
+
+/**
+ * Check rate limit using KV with sliding window
+ */
+async function checkRateLimit(
+  kv: KVNamespace,
+  key: string,
+  limit: number,
+  windowSec: number,
+): Promise<boolean> {
+  const now = Math.floor(Date.now() / 1000);
+  const windowKey = `ratelimit:${key}:${Math.floor(now / windowSec)}`;
+
+  const current = Number.parseInt((await kv.get(windowKey)) || "0", 10);
+  if (current >= limit) {
+    return false;
+  }
+
+  await kv.put(windowKey, String(current + 1), {
+    expirationTtl: windowSec * 2,
+  });
+  return true;
 }
 
 // Request/Response types per ADR-0004 §5.4
@@ -93,7 +120,16 @@ async function validateSpendingLimitTx(
     const decompiled = decompileTransactionMessage(compiledWithLifetime);
     const instructions = decompiled.instructions ?? [];
 
-    // 2. Find useSpendingLimit instruction
+    // 2. Verify exactly one instruction (prevent injection attacks)
+    // Attacker could add malicious instructions alongside valid useSpendingLimit
+    if (instructions.length !== 1) {
+      return {
+        valid: false,
+        reason: `Expected exactly 1 instruction, found ${instructions.length}`,
+      };
+    }
+
+    // 3. Verify the single instruction is useSpendingLimit
     const useSpendingLimitIx = instructions.find((ix) => {
       if (
         ix.programAddress.toString() !==
@@ -110,12 +146,12 @@ async function validateSpendingLimitTx(
       return { valid: false, reason: "No spending limit instruction found" };
     }
 
-    // 3. Parse instruction (as never follows codebase pattern for Codama types)
+    // 4. Parse instruction (as never follows codebase pattern for Codama types)
     const parsed = parseUseSpendingLimitInstruction(
       useSpendingLimitIx as never,
     );
 
-    // 4. Verify destination token account matches service vault
+    // 5. Verify destination token account matches service vault
     const destinationTokenAccount = parsed.accounts.destinationTokenAccount;
     if (!destinationTokenAccount) {
       return { valid: false, reason: "Missing destination token account" };
@@ -127,7 +163,7 @@ async function validateSpendingLimitTx(
       };
     }
 
-    // 5. Verify amount matches expected price
+    // 6. Verify amount matches expected price
     if (parsed.data.amount !== expectedAmount) {
       return {
         valid: false,
@@ -135,7 +171,7 @@ async function validateSpendingLimitTx(
       };
     }
 
-    // 6. Verify spending limit PDA is valid
+    // 7. Verify spending limit PDA is valid
     const settingsAddress = parsed.accounts.settings.address;
     const signerAddress = parsed.accounts.signer.address;
     const derivedSpendingLimitPda = await deriveSpendingLimit(
@@ -147,7 +183,7 @@ async function validateSpendingLimitTx(
       return { valid: false, reason: "Invalid spending limit PDA" };
     }
 
-    // 7. Fetch spending limit and check remaining balance + expiration
+    // 8. Fetch spending limit and check remaining balance + expiration
     const spendingLimit = await fetchMaybeSpendingLimit(
       rpc,
       derivedSpendingLimitPda,
@@ -164,7 +200,7 @@ async function validateSpendingLimitTx(
       };
     }
 
-    // 8. Check expiration (0n means no expiration)
+    // 9. Check expiration (0n means no expiration)
     const now = BigInt(Math.floor(Date.now() / 1000));
     if (
       spendingLimit.data.expiration !== 0n &&
@@ -173,7 +209,7 @@ async function validateSpendingLimitTx(
       return { valid: false, reason: "Spending limit expired" };
     }
 
-    // 9. Check destinations whitelist (if restricted)
+    // 10. Check destinations whitelist (if restricted)
     if (spendingLimit.data.destinations.length > 0) {
       const dest = parsed.accounts.destination.address;
       if (!spendingLimit.data.destinations.some((d) => d === dest)) {
@@ -233,7 +269,30 @@ export async function signHandler(
     );
   }
 
-  // 2. Parse request body
+  // 2. Check rate limit (per wallet)
+  const walletAddress = authInfo.extra?.walletAddress as string;
+  const rateLimitKey = `sign:${walletAddress}`;
+  const allowed = await checkRateLimit(
+    c.env.KV,
+    rateLimitKey,
+    SIGN_RATE_LIMIT.limit,
+    SIGN_RATE_LIMIT.windowSec,
+  );
+
+  if (!allowed) {
+    return c.json<SignErrorResponse>(
+      {
+        error: "rate_limit_exceeded",
+        message: "Too many signing requests. Please try again later.",
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(SIGN_RATE_LIMIT.windowSec) },
+      },
+    );
+  }
+
+  // 3. Parse request body
   let body: SignRequest;
   try {
     body = await c.req.json<SignRequest>();
@@ -255,8 +314,7 @@ export async function signHandler(
     );
   }
 
-  // 3. Validate wallet matches authenticated user
-  const walletAddress = authInfo.extra?.walletAddress as string | undefined;
+  // 4. Validate wallet matches authenticated user
   if (body.wallet !== walletAddress) {
     return c.json<SignErrorResponse>(
       {
@@ -267,7 +325,7 @@ export async function signHandler(
     );
   }
 
-  // 4. Get executor key and sign
+  // 5. Get executor key and sign
   const executorKey = c.env.EXECUTOR_KEY;
   if (!executorKey) {
     console.error("EXECUTOR_KEY not configured");
@@ -278,17 +336,17 @@ export async function signHandler(
   }
 
   try {
-    // 5. Decode executor keypair from base58 env var
+    // 6. Decode executor keypair from base58 env var
     const executorBytes = base58Decode(executorKey);
     const executorSigner = await createKeyPairSignerFromBytes(executorBytes);
 
-    // 6. Decode transaction from base64
+    // 7. Decode transaction from base64
     const base64Encoder = getBase64Encoder();
     const transactionBytes = base64Encoder.encode(body.unsignedTx);
     const transactionDecoder = getTransactionDecoder();
     const transaction = transactionDecoder.decode(transactionBytes);
 
-    // 7. Validate transaction before signing (security critical)
+    // 8. Validate transaction before signing (security critical)
     const rpc = createSolanaRpc(c.env.HELIUS_RPC_URL);
     const validation = await validateSpendingLimitTx(
       rpc,
@@ -307,7 +365,7 @@ export async function signHandler(
       );
     }
 
-    // 8. Sign the transaction message
+    // 9. Sign the transaction message
     const signableMessage = {
       content: transaction.messageBytes,
       signatures: transaction.signatures,
@@ -317,7 +375,7 @@ export async function signHandler(
       signableMessage as never,
     ]);
 
-    // 9. Merge signatures
+    // 10. Merge signatures
     const signedTx = {
       ...transaction,
       signatures: {
@@ -326,7 +384,7 @@ export async function signHandler(
       },
     };
 
-    // 10. Encode and return
+    // 11. Encode and return
     const signedBase64 = getBase64EncodedWireTransaction(signedTx);
 
     return c.json<SignResponse>({ transaction: signedBase64 });
