@@ -606,20 +606,39 @@ return mcpResponse;
 
 ### 4.6 Tabs Data Storage
 
-**Decision:** On-chain only. All Tabs account data derived from chain:
+**Decision:** On-chain only. Tabs account data queried from chain.
+
+**Important:** Squads v4 Settings PDAs use a **global counter** (`accountIndex`), not the user's wallet address. The user's wallet is stored as `settingsAuthority` inside the account, not in the PDA seeds.
 
 ```typescript
-function getTabsAccountPdas(userWallet: Address) {
-  const [multisigPda] = getMultisigPda({ createKey: userWallet });
-  const [spendingLimitPda] = getSpendingLimitPda({
-    multisig: multisigPda,
-    createKey: EXECUTOR_PUBKEY,  // Gateway's executor key
-  });
-  const vaultAta = getAssociatedTokenAddress(multisigPda, USDC_MINT);
+// Settings PDA derivation (from Squads v4):
+// Seeds: ["smart_account", "settings", accountIndex (u128)]
+// accountIndex is a global counter from ProgramConfig, NOT the wallet
 
-  return { multisigPda, spendingLimitPda, vaultAta };
+// To find a user's Tabs account, must query chain:
+async function findTabsAccount(rpc: Rpc, userWallet: Address) {
+  // Query for Settings where settingsAuthority == userWallet
+  const accounts = await rpc.getProgramAccounts(SQUADS_PROGRAM, {
+    filters: [{
+      memcmp: {
+        offset: 24,  // settingsAuthority field offset
+        bytes: base58Encode(userWallet),
+      }
+    }]
+  });
+
+  if (accounts.length === 0) return null;
+
+  const settingsAddress = accounts[0].pubkey;
+  const spendingLimitPda = await deriveSpendingLimit(settingsAddress, EXECUTOR_PUBKEY);
+  const vaultPda = await deriveSmartAccount(settingsAddress);
+  const vaultAta = getAssociatedTokenAddress(vaultPda, USDC_MINT);
+
+  return { settingsAddress, spendingLimitPda, vaultPda, vaultAta };
 }
 ```
+
+**Performance note:** Use KV cache (`wallet → settingsAddress`) after first lookup to avoid repeated `getProgramAccounts` calls.
 
 ### 4.7 Service Data Storage
 

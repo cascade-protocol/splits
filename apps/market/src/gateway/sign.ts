@@ -39,6 +39,7 @@ interface Bindings {
   EXECUTOR_KEY: string;
   HELIUS_RPC_URL: string;
   KV: KVNamespace;
+  AUDIT: AnalyticsEngineDataset;
 }
 
 // Rate limit config for /sign endpoint
@@ -386,6 +387,14 @@ export async function signHandler(
 
     // 11. Encode and return
     const signedBase64 = getBase64EncodedWireTransaction(signedTx);
+
+    // 12. Audit log (W8: executor action forensics)
+    // Non-blocking - writeDataPoint returns immediately
+    c.env.AUDIT.writeDataPoint({
+      blobs: [walletAddress, body.splitVault], // wallet, destination vault
+      doubles: [Number(body.price), Date.now()], // amount, timestamp
+      indexes: [walletAddress], // sampling key
+    });
 
     return c.json<SignResponse>({ transaction: signedBase64 });
   } catch (error) {

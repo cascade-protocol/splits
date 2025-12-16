@@ -28,6 +28,11 @@
     }
   ],
 
+  // Analytics Engine for executor audit trail (W8)
+  "analytics_engine_datasets": [
+    { "binding": "AUDIT", "dataset": "executor_signing_audit" }
+  ],
+
   // Durable Objects for tunnel relay (per-service WebSocket relay)
   "durable_objects": {
     "bindings": [
