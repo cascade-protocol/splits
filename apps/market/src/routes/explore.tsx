@@ -1,27 +1,28 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Server, ExternalLink } from "lucide-react";
-import { usdc } from "@/lib/utils";
+/**
+ * Explore Page
+ *
+ * Per ADR-0004 §4.7: Service discovery uses on-chain SplitConfig PDAs.
+ * For MVP, shows a placeholder. Full implementation queries Solana RPC.
+ */
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Server, Construction } from "lucide-react";
+
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Empty,
   EmptyMedia,
   EmptyTitle,
   EmptyDescription,
 } from "@/components/ui/empty";
-import { getPublicServices } from "@/server/services";
 
 export const Route = createFileRoute("/explore")({
-  ssr: true, // SSR for SEO
-  loader: () => getPublicServices({ data: { limit: 50 } }),
+  ssr: true,
   component: ExplorePage,
 });
 
 function ExplorePage() {
-  const services = Route.useLoaderData();
-
   return (
     <div className="container mx-auto px-4 py-8 md:px-6">
       {/* Page Header */}
@@ -32,82 +33,57 @@ function ExplorePage() {
         </p>
       </div>
 
-      {/* Services Grid */}
-      {services.length === 0 ? (
-        <Card>
-          <CardContent className="py-12">
-            <Empty>
-              <EmptyMedia variant="icon">
-                <Server className="h-6 w-6" />
-              </EmptyMedia>
-              <EmptyTitle>No services available</EmptyTitle>
-              <EmptyDescription>
-                Be the first to publish a paid MCP endpoint!
-              </EmptyDescription>
+      {/* Coming Soon */}
+      <Card>
+        <CardContent className="py-12">
+          <Empty>
+            <EmptyMedia variant="icon">
+              <Construction className="h-6 w-6" />
+            </EmptyMedia>
+            <EmptyTitle>Service Discovery Coming Soon</EmptyTitle>
+            <EmptyDescription>
+              On-chain service discovery is being implemented. In the meantime,
+              you can create your own service and share the endpoint directly.
+            </EmptyDescription>
+            <div className="flex gap-2">
               <Button asChild>
                 <Link to="/services/new">Create Service</Link>
               </Button>
-            </Empty>
+            </div>
+          </Empty>
+        </CardContent>
+      </Card>
+
+      {/* How It Works */}
+      <div className="mt-8 grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="pt-6">
+            <Server className="h-8 w-8 mb-4 text-muted-foreground" />
+            <h3 className="font-semibold mb-2">1. Create Service</h3>
+            <p className="text-sm text-muted-foreground">
+              Register your MCP with a @namespace/name and price per call.
+            </p>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {services.map((service) => (
-            <ServiceCard key={service.id} service={service} />
-          ))}
-        </div>
-      )}
+        <Card>
+          <CardContent className="pt-6">
+            <Server className="h-8 w-8 mb-4 text-muted-foreground" />
+            <h3 className="font-semibold mb-2">2. Connect CLI</h3>
+            <p className="text-sm text-muted-foreground">
+              Run `cascade serve` to tunnel your local MCP to the market.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <Server className="h-8 w-8 mb-4 text-muted-foreground" />
+            <h3 className="font-semibold mb-2">3. Get Paid</h3>
+            <p className="text-sm text-muted-foreground">
+              Revenue is automatically split via your Cascade Split.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
-  );
-}
-
-function ServiceCard({
-  service,
-}: {
-  service: {
-    id: string;
-    name: string;
-    price: string;
-    status: string;
-    total_calls: number;
-    total_revenue: string;
-  };
-}) {
-  const priceDisplay = `$${usdc.toDecimalString(BigInt(service.price))}`;
-
-  return (
-    <Card className="hover:border-foreground/20 transition-colors">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{service.name}</CardTitle>
-          <Badge variant="default">Online</Badge>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {service.name}.mcps.market.cascade.fyi
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Price per call</span>
-          <span className="font-medium">{priceDisplay}</span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Total calls</span>
-          <span className="font-medium">
-            {service.total_calls.toLocaleString()}
-          </span>
-        </div>
-        <Button variant="outline" className="w-full" asChild>
-          <a
-            href={`https://${service.name}.mcps.market.cascade.fyi`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            View Endpoint
-          </a>
-        </Button>
-      </CardContent>
-    </Card>
   );
 }

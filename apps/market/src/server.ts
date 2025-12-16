@@ -1,9 +1,10 @@
 /**
  * Cascade Market - Custom Server Entry
  *
- * Routes requests by hostname:
- * - cascade.fyi → TanStack Start (dashboard, server functions)
- * - *.mcps.cascade.fyi → Hono (gateway, x402 payments, tunnels)
+ * Routes requests by path (per ADR-0004 §4.1):
+ * - /mcps/* → Hono Gateway (x402 payments, tunnels)
+ * - /sign → Hono Gateway (Tabs co-signing)
+ * - /* → TanStack Start (dashboard, server functions)
  */
 
 import handler from "@tanstack/react-start/server-entry";
@@ -16,6 +17,9 @@ export { TunnelRelay } from "./gateway/tunnel";
 interface Env {
   DB: D1Database;
   TUNNEL_RELAY: DurableObjectNamespace;
+  JWT_SECRET: string;
+  EXECUTOR_KEY: string;
+  HELIUS_RPC_URL: string;
 }
 
 export default {
@@ -26,12 +30,12 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
 
-    // Gateway: *.mcps.cascade.fyi → Hono (x402, tunnels)
-    if (url.hostname.endsWith(".mcps.cascade.fyi")) {
+    // Gateway: /mcps/* and /sign → Hono (x402, tunnels, signing)
+    if (url.pathname.startsWith("/mcps/") || url.pathname === "/sign") {
       return gatewayApp.fetch(request, env, ctx);
     }
 
-    // Market: cascade.fyi (or localhost) → TanStack Start
+    // Market: everything else → TanStack Start
     return handler.fetch(request);
   },
 };

@@ -10,7 +10,7 @@
   },
   "upload_source_maps": true,
 
-  // D1 Database for service registry
+  // D1 Database for OAuth only (service data is on-chain + tokens per ADR-0004 §4.7)
   "d1_databases": [
     {
       "binding": "DB",
@@ -38,10 +38,9 @@
     ]
   },
 
-  // Routes: market.cascade.fyi + *.mcps.cascade.fyi (gateway)
+  // Route: market.cascade.fyi (gateway at /mcps/* per ADR-0004)
   "routes": [
-    { "pattern": "market.cascade.fyi", "custom_domain": true },
-    { "pattern": "*.mcps.cascade.fyi", "custom_domain": true }
+    { "pattern": "market.cascade.fyi", "custom_domain": true }
   ],
 
   // Durable Object migrations
