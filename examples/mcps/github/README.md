@@ -70,8 +70,15 @@ Server runs at `http://localhost:3000/mcp`
 ## Deploy to Cascade Market
 
 ```bash
-cascade --token <your-token> localhost:3000
+# 1. Create service at market.cascade.fyi/services/new to get token
+# 2. Run your MCP locally
+GITHUB_TOKEN=ghp_xxx pnpm dev
+
+# 3. In another terminal, start the tunnel
+cascade serve --token csc_xxx localhost:3000
 ```
+
+Your MCP is now live at `market.cascade.fyi/mcps/@yournamespace/github`
 
 ## Environment Variables
 

@@ -192,8 +192,9 @@ export class TunnelRelay extends DurableObject<Env> {
   private async forwardToTunnel(request: Request): Promise<Response> {
     // Find active WebSocket for this service
     const activeWs = Array.from(this.sessions.keys())[0];
+    const session = activeWs ? this.sessions.get(activeWs) : undefined;
 
-    if (!activeWs) {
+    if (!activeWs || !session) {
       return new Response(
         JSON.stringify({
           error: "Service offline",
@@ -209,12 +210,20 @@ export class TunnelRelay extends DurableObject<Env> {
     // Create request ID for correlation
     const requestId = crypto.randomUUID();
 
+    // Strip service prefix from path
+    // e.g., /mcps/cascade/github/mcp → /mcp
+    const fullPath = new URL(request.url).pathname;
+    const servicePrefix = `/mcps/${session.servicePath.replace("@", "")}`;
+    const localPath = fullPath.startsWith(servicePrefix)
+      ? fullPath.slice(servicePrefix.length) || "/"
+      : fullPath;
+
     // Build tunnel request message
     const tunnelRequest: TunnelRequest = {
       type: "request",
       id: requestId,
       method: request.method,
-      path: new URL(request.url).pathname,
+      path: localPath,
       headers: Object.fromEntries(request.headers),
       body: await request.text(),
     };
