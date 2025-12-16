@@ -18,6 +18,8 @@
       "!!**/dist",
       "!**/idl.json",
       "!apps/dashboard/src/components/ui",
+      "!apps/market/src/components/ui",
+      "!apps/market/src/routeTree.gen.ts",
       "!packages/**/generated",
       "!apps/docs/.source",
       "!apps/docs/.react-router"
