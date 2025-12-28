@@ -53,10 +53,9 @@ Cascade Market
 │                                                                             │
 │  1. Connect Solana wallet                                                   │
 │  2. Enter namespace + name (e.g., @cascade/twitter)                         │
-│  3. Set price per call (e.g., $0.001)                                       │
-│  4. Click "Create Service"                                                  │
-│  5. Sign transaction → creates Cascade Split on-chain                       │
-│  6. Receive CLI token (csc_xxx)                                             │
+│  3. Click "Create Service"                                                  │
+│  4. Sign transaction → creates Cascade Split on-chain                       │
+│  5. Receive CLI token (csc_xxx)                                             │
 │                                                                             │
 │  Outcome: Split created, token generated                                    │
 │                                                                             │
@@ -69,8 +68,8 @@ Cascade Market
 │                                                                             │
 │  $ cascade serve --token csc_xxx localhost:3000                             │
 │                                                                             │
-│  ✓ Authenticated: @cascade/twitter                                          │
-│  ✓ Price: $0.001/call                                                       │
+│  ✓ Service: @cascade/twitter (from token)                                   │
+│  ✓ Price: $0.0001/call (default), discovery free                            │
 │  ✓ Live at: market.cascade.fyi/mcps/@cascade/twitter                        │
 │                                                                             │
 │  Outcome: MCP is publicly accessible, payments routed to Split              │
@@ -91,7 +90,7 @@ Cascade Market
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Total steps:** 6 to go live, then CLI running whenever serving
+**Total steps:** 5 to go live, then CLI running whenever serving
 
 ---
 
@@ -220,7 +219,7 @@ Cascade Market
 │  └── cascade status             Show balance, daily spend, active MCPs      │
 │                                                                             │
 │  Supplier commands:                                                         │
-│  └── cascade serve --token csc_xxx localhost:3000                           │
+│  └── cascade serve [options] [url]             Expose local MCP via tunnel  │
 │                                                                             │
 │  Credentials: $XDG_CONFIG_HOME/cascade/credentials (OAuth tokens)           │
 │                                                                             │
@@ -294,11 +293,11 @@ Developer creates service:
   Browser                    Market                      Solana
      │                          │                           │
      │  1. Create service       │                           │
-     │  (@namespace/name,price) │                           │
+     │  (@namespace/name)       │                           │
      │ ─────────────────────────>                           │
      │                          │                           │
      │                          │  2. Build createSplit tx  │
-     │                          │  uniqueId = labelToSeed("@namespace/name")
+     │                          │  uniqueId = labelToUniqueId("@namespace/name")
      │                          │ ─────────────────────────>│
      │                          │                           │
      │  3. Sign tx              │                           │
@@ -312,11 +311,12 @@ Developer creates service:
      │  6. Return CLI token     │                           │
      │  (contains: namespace,   │                           │
      │   name, splitConfig,     │                           │
-     │   vault, price, sig)     │                           │
+     │   token, sig)            │                           │
      │ <─────────────────────────                           │
      │                          │                           │
 
 No D1 storage — Split exists on-chain, token is self-contained.
+Price is NOT in token — configured at runtime via CLI flag, config, or default.
 
 
 Developer connects CLI:
@@ -324,19 +324,22 @@ Developer connects CLI:
   CLI                       TunnelRelay (DO)
    │                            │
    │  1. WebSocket connect      │
-   │  + X-SERVICE-TOKEN header  │
+   │  + X-SERVICE-TOKEN header  │  (contains namespace, name, splitConfig)
+   │  + X-SERVICE-PRICE header  │  (from --price flag, config, or default)
    │ ──────────────────────────>│
    │                            │
    │                            │  2. Verify token signature
-   │                            │  3. Decode config from token
-   │                            │  4. Store in WebSocket attachment
+   │                            │  3. Extract @namespace/name from token
+   │                            │  4. Store price in DO state
    │                            │
    │  5. Connected              │
    │ <──────────────────────────│
    │                            │
 
-No D1 — config lives in token, attached to WebSocket while connected.
-DO keyed by "@namespace/name" (full service path).
+Service identity (namespace, name) comes from token — no duplication needed.
+Price resolved by CLI: --price flag > config > default (0.0001).
+DO keyed by "@namespace/name" (extracted from token).
+On disconnect, DO persists lastPrice + lastSeen for /explore discoverability.
 ```
 
 ### 3.3 Client Data Flow (x402-Native)
@@ -456,7 +459,7 @@ market.cascade.fyi/mcps/@someorg/api        ← Org-owned
 **Service name encoding:**
 ```typescript
 // Full scoped name encoded in uniqueId
-const uniqueId = labelToSeed("@cascade/twitter");
+const uniqueId = labelToUniqueId("@cascade/twitter");
 const splitConfig = deriveSplitConfig(ownerWallet, USDC_MINT, uniqueId);
 ```
 
@@ -665,34 +668,150 @@ async function findTabsAccount(rpc: Rpc, userWallet: Address) {
 
 ### 4.7 Service Data Storage
 
-**Decision:** No D1 for services. All service data derived from on-chain + token.
+**Decision:** KV for service catalog (Sati-compatible JSON), DO for runtime state, on-chain for identity.
 
 | Data | Source |
 |------|--------|
 | Service existence | On-chain (Split PDA exists) |
 | Service owner | On-chain (`authority` field in SplitConfig) |
-| Service name | On-chain (`seedToLabel(uniqueId)`) |
-| Service price | Token → Durable Object (while CLI connected) |
-| Online/offline | Durable Object (WebSocket connected?) |
-| Analytics | On-chain (vault transaction history) |
+| Service identity | Service token (namespace, name, splitConfig) |
+| Tool catalog | KV (populated on CLI connect) |
+| Pricing config | KV (from CLI on connect) |
+| Online/offline | KV + DO (updated on connect/disconnect) |
+| Last seen | KV (timestamp of last disconnect) |
+| Analytics | Analytics Engine (connect/disconnect/request events) |
 
-**Service discovery for `/explore`:**
-- Uses `getProgramAccounts` to query all SplitConfig PDAs
-- Filters by marketplace prefix in label (e.g., `@cascade/`, `@tenequm/`)
-- Labels follow format: `@namespace/service-name`
-- MVP approach — sufficient for initial scale, can add caching/indexer later if needed
+#### 4.7.1 KV Storage (Sati-Compatible)
+
+Service records stored in KV as JSON, directly compatible with ERC-8004 registration files for future Sati migration:
+
+```
+Key: service:@{namespace}/{name}
+Value: ServiceRecord JSON
+```
+
+```typescript
+interface ServiceRecord {
+  // ERC-8004 standard fields (Sati-compatible)
+  type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1";
+  name: string;                    // "@cascade/github"
+  description?: string;
+
+  endpoints: Array<{
+    name: string;                  // "MCP"
+    endpoint: string;              // "wss://market.cascade.fyi/mcps/@cascade/github"
+    version: string;               // "2024-11-05"
+  }>;
+
+  // Future: when registered on Sati
+  registrations?: Array<{
+    agentId: string;               // "sati:mainnet:GH1Bmint..."
+    agentRegistry: string;         // CAIP-2 format
+  }>;
+
+  // Cascade-specific extension
+  "x-cascade": {
+    // Identity (from service token)
+    splitConfig: string;           // Solana pubkey
+    tokenMint: string;             // USDC mint
+
+    // Pricing
+    pricing: {
+      default: number;             // Default price for tools/call (USDC)
+      discovery: boolean;          // If true, bill discovery endpoints too
+      tools?: Record<string, number>;  // Per-tool overrides: { "ai_review": 0.05 }
+    };
+
+    // Tool catalog (populated on connect via tools/list)
+    tools: Array<{
+      name: string;
+      description?: string;
+      inputSchema?: object;
+      price?: number;              // null = use default
+    }>;
+
+    // Runtime status
+    status: {
+      isOnline: boolean;
+      lastSeen?: string;           // ISO timestamp
+      connectedAt?: string;        // ISO timestamp (if online)
+    };
+
+    // Metadata
+    createdAt: string;
+  };
+}
+```
+
+**Why KV:**
+- Simple key-value lookups for service data
+- `list({ prefix: "service:" })` for /explore discovery
+- JSON blobs are Sati-compatible — publish to IPFS when ready
+- No D1 setup required
+- Eventually consistent is acceptable (service appearing 60s late on /explore is fine)
+
+#### 4.7.2 Pricing Model
+
+**What gets billed:**
+- `tools/call` — billed at tool's price (or default)
+- `tools/list`, `resources/*`, `prompts/*` — free by default (discovery)
+- `initialize`, `ping` — always free (protocol overhead)
+
+**Anti-spam option:** `--disable-free-discovery` flag (or `free_discovery: false` in config) bills discovery endpoints at default price.
+
+**Price resolution (highest to lowest):**
+1. Per-tool price in config (`serve.tools.<name>`)
+2. CLI `--price` flag
+3. Config `serve.price_per_call`
+4. Default: 0.0001 USDC
+
+**Price lifecycle:**
+1. CLI resolves pricing config using precedence above
+2. CLI sends pricing to DO on WebSocket connect (X-SERVICE-PRICING header)
+3. DO fetches tool catalog via `tools/list` from local MCP
+4. DO builds ServiceRecord and writes to KV
+5. On disconnect, DO updates `status.isOnline=false`, `status.lastSeen`
+6. Price can change on each reconnect (dynamic pricing)
+
+#### 4.7.3 Service Discovery for /explore
+
+```typescript
+// List all services
+const { keys } = await env.SERVICES_KV.list({ prefix: "service:" });
+
+// Get each service record
+const services = await Promise.all(
+  keys.map(k => env.SERVICES_KV.get<ServiceRecord>(k.name, "json"))
+);
+
+// Filter online (in code, simple for MVP)
+const online = services.filter(s => s["x-cascade"].status.isOnline);
+```
+
+**Display:**
+- Online: "@cascade/github — $0.001/call — 12 tools"
+- Offline: "@cascade/github — last seen 2 days ago"
+- Per-tool pricing shown on detail page
+
+#### 4.7.4 Migration to Sati (Future)
+
+When ready for on-chain service registry:
+1. Service owner clicks "Register on Sati" in web UI
+2. Publish existing ServiceRecord JSON to IPFS (already compatible!)
+3. Create Sati agent NFT with `uri` → IPFS hash
+4. Update ServiceRecord with `registrations` array
+5. KV becomes cache/index of on-chain data
 
 ### 4.8 Service Token Design
 
-Signed token with `csc_` prefix. Contains everything needed for CLI operation:
+Signed token with `csc_` prefix. Proves service ownership; price configured separately.
 
 ```typescript
 interface ServiceToken {
   namespace: string;      // e.g., "@cascade"
   name: string;           // e.g., "twitter"
   splitConfig: string;    // SplitConfig PDA
-  splitVault: string;     // Vault ATA (payment destination)
-  price: number;          // USDC base units per call (e.g., 1000 = $0.001)
+  token: string;          // Token mint (Solana) or ERC20 address (EVM)
   createdAt: number;      // Unix timestamp
   expiresAt: number;      // Unix timestamp (default: createdAt + 30 days)
   signature: string;      // HMAC signature (covers all fields above)
@@ -700,6 +819,12 @@ interface ServiceToken {
 
 // Format: csc_<base64url(JSON)>
 ```
+
+**Derivable from token fields:**
+- `vault` = ATA(splitConfig, token) — no need to include in token
+
+**Not in token (configured separately):**
+- `price` — set in cascade.yaml, allows dynamic pricing without token regeneration
 
 **Token lifecycle:**
 - **Generation:** Created on service registration, 30-day TTL by default
@@ -944,15 +1069,25 @@ apps/facilitator/
 
 ### 5.3 Storage Architecture
 
-**No D1 database.** All storage uses KV or on-chain data:
+**No D1 database.** All storage uses KV, Analytics Engine, or on-chain data:
 
 | Data | Storage | Details |
 |------|---------|---------|
 | OAuth tokens | KV (OAUTH_KV) | Managed by `workers-oauth-provider`, AES-GCM encrypted |
 | Rate limits | KV | Sliding window counters with TTL |
 | SIWS nonces | KV | Short-lived (5 min TTL) |
-| Service config | On-chain | SplitConfig PDA + service token |
+| **Service catalog** | **KV (SERVICES_KV)** | **Sati-compatible JSON (see §4.7.1)** |
+| Service identity | On-chain | SplitConfig PDA + service token |
 | Tabs accounts | On-chain | Squads v4 Settings + SpendingLimit |
+| **Service events** | **Analytics Engine** | **Connect/disconnect/error events (see §5.7)** |
+| Audit trail | Analytics Engine | Sign operations (executor forensics) |
+
+**KV namespaces:**
+```
+OAUTH_KV     → OAuth tokens (workers-oauth-provider)
+KV           → Rate limits, SIWS nonces
+SERVICES_KV  → Service catalog (Sati-compatible JSON)
+```
 
 **KV key patterns:**
 ```
@@ -960,293 +1095,161 @@ oauth:access:<token_id>     → encrypted props + metadata
 oauth:refresh:<token_id>    → encrypted props + metadata
 ratelimit:sign:<wallet>:<window> → request count
 siws:nonce:<nonce>          → wallet address (pending verification)
+service:@namespace/name     → ServiceRecord JSON (Sati-compatible)
 ```
 
-### 5.4 Gateway Implementation
+### 5.4 Gateway Endpoints
 
-**Entry point with OAuthProvider:**
+**OAuth entry point:**
 
-```typescript
-// server.ts - OAuthProvider wraps the Worker
-import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
-import { WorkerEntrypoint } from "cloudflare:workers";
+Uses `@cloudflare/workers-oauth-provider` which wraps the Worker:
+- `apiRoute: ["/mcps/", "/sign"]` — Protected routes, receive validated `ctx.props`
+- `defaultHandler` — TanStack Start + consent page
+- `scopesSupported: ["tabs:spend", "mcps:access"]`
 
-// Protected routes handler - receives validated ctx.props
-class GatewayHandler extends WorkerEntrypoint<Env> {
-  async fetch(request: Request) {
-    // Pass wallet address to Hono via header (ctx.props set by OAuthProvider)
-    const headers = new Headers(request.headers);
-    headers.set("X-Auth-Props", JSON.stringify(this.ctx.props));
-    return gatewayApp.fetch(new Request(request, { headers }), this.env, this.ctx);
-  }
-}
+**Consent page (`/oauth/authorize`):**
+- Minimal HTML (no React) for security
+- State A: "Connect Wallet" button (wallet-standard)
+- State B: Tabs setup for first-time users
+- State C: SIWS sign-in
+- On approve: `completeAuthorization()` with `props: { walletAddress }`
 
-export default new OAuthProvider({
-  apiRoute: ["/mcps/", "/sign"],
-  apiHandler: GatewayHandler,
-  defaultHandler: marketHandler,  // TanStack + consent page
-  authorizeEndpoint: "/oauth/authorize",
-  tokenEndpoint: "/oauth/token",
-  scopesSupported: ["tabs:spend", "mcps:access"],
-  refreshTokenTTL: 30 * 24 * 60 * 60,
-});
+**`POST /sign` — Tabs signing service:**
+
+```
+Request:  { unsignedTx: "base64...", wallet: "DYw8..." }
+Response: { transaction: "base64..." }
 ```
 
-**Consent page (HTML, no React):**
+Validates spending limit tx belongs to authenticated wallet, signs with executor key.
 
-The `/oauth/authorize` endpoint serves a minimal HTML page:
-- If no session: shows "Connect Wallet" button with inline JS for wallet-standard
-- If session exists: shows consent form with scopes and Approve/Deny buttons
-- On approve: calls `OAUTH_PROVIDER.completeAuthorization()` and redirects
+**`POST /mcps/:ns/:name/*` — x402 MCP endpoint:**
 
-This separation keeps the security-critical consent page minimal while wallet connection (which requires JavaScript) is handled inline with a small script.
+Flow:
+1. Extract payment from `_meta["x402/payment"]`
+2. No payment → return 402 with `PaymentRequired`
+3. Verify via `facilitator.cascade.fyi/verify`
+4. Forward to supplier tunnel
+5. On success → settle via `facilitator.cascade.fyi/settle`
+6. Return response with receipt in `_meta["x402/payment-response"]`
 
-**Gateway auth helper:**
+### 5.5 CLI x402 Flow
 
-```typescript
-// gateway/auth.ts
-export function getAuthProps(c: Context): { walletAddress: string } {
-  const props = c.req.header("X-Auth-Props");
-  if (!props) throw new Error("Missing auth props");
-  return JSON.parse(props);
-}
-```
+**`cascade mcp proxy` — stdio proxy:**
 
-**Sign endpoint (simplified):**
+1. Read JSON-RPC from stdin
+2. Forward to Gateway (`POST /mcps/<service>`)
+3. On 402: build unsigned tx → `POST /sign` → retry with signed payment
+4. Write response to stdout
 
-```typescript
-// gateway/sign.ts - Tabs signing endpoint
-export async function signHandler(c: Context) {
-  // OAuthProvider already validated Bearer token
-  const { walletAddress } = getAuthProps(c);
-  const { unsignedTx } = await c.req.json();
+**Payment construction:**
 
-  // Validate tx is a valid spending limit use from this wallet
-  const validation = validateSpendingLimitTx(unsignedTx, { userWallet: walletAddress });
-  if (!validation.valid) {
-    return c.json({ error: validation.reason }, 400);
-  }
+Uses `@cascade-fyi/tabs-sdk` to build spending limit transactions:
+- Input: wallet, destination (Split vault), amount, mint
+- Output: unsigned transaction (base64)
 
-  // Sign with executor key
-  const transaction = signWithExecutorKey(unsignedTx);
-  return c.json({ transaction });
-}
-```
+**x402 payment payload:**
 
 ```typescript
-// gateway/x402.ts - MCP endpoint (standard x402, expects SIGNED tx)
-const FACILITATOR_URL = 'https://facilitator.cascade.fyi';
-
-export async function handleMcpRequest(c: Context) {
-  const { namespace, name } = c.req.param();
-  const servicePath = `@${namespace}/${name}`;
-
-  // Get service config from DO
-  const serviceConfig = await getServiceConfig(servicePath);
-  if (!serviceConfig?.isOnline) {
-    return c.json({ error: 'Service offline' }, 503);
-  }
-
-  // Extract payment from x402 MCP transport
-  const payment = extractPayment(c.req);  // From _meta["x402/payment"]
-
-  // No payment → 402
-  if (!payment) {
-    return c.json({
-      jsonrpc: '2.0',
-      error: {
-        code: 402,
-        message: 'Payment required',
-        data: buildPaymentRequired(serviceConfig)
-      }
-    }, 402);
-  }
-
-  // Verify payment via facilitator (HTTP call)
-  const verifyResp = await fetch(`${FACILITATOR_URL}/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      paymentPayload: payment,
-      paymentRequirements: buildPaymentRequired(serviceConfig),
-    }),
-  });
-  const { isValid, invalidReason } = await verifyResp.json();
-
-  if (!isValid) {
-    return c.json({ error: invalidReason }, 400);
-  }
-
-  // Forward to supplier BEFORE settlement (x402 standard)
-  const mcpRequest = stripPaymentMeta(await c.req.json());
-  const mcpResponse = await forwardToTunnel(servicePath, mcpRequest);
-
-  // Only settle if MCP succeeded
-  if (!mcpResponse.error) {
-    const settleResp = await fetch(`${FACILITATOR_URL}/settle`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        paymentPayload: payment,
-        paymentRequirements: buildPaymentRequired(serviceConfig),
-      }),
-    });
-    const receipt = await settleResp.json();
-
-    // Add receipt to response
-    mcpResponse.result = {
-      ...mcpResponse.result,
-      _meta: { 'x402/payment-response': receipt }
-    };
-  }
-
-  return c.json(mcpResponse);
-}
-```
-
-### 5.5 CLI Proxy Logic
-
-```typescript
-// src/commands/mcp/proxy.ts
-import { createInterface } from 'readline';
-import { loadCredentials } from '../../lib/auth';
-import { buildSpendingLimitTx } from '@cascade-fyi/tabs-sdk';
-import type { PaymentRequired, PaymentPayload } from '@x402/core';
-
-const GATEWAY_BASE = 'https://market.cascade.fyi';
-
-export async function runProxy(service: string) {
-  const creds = await loadCredentials();
-  if (!creds) {
-    throw new Error('Not logged in. Run: cascade login');
-  }
-
-  // stdio MCP proxy - read from stdin, write to stdout
-  const rl = createInterface({ input: process.stdin });
-
-  for await (const line of rl) {
-    const request = JSON.parse(line);
-    const response = await callWithPayment(service, request, creds);
-    console.log(JSON.stringify(response));
-  }
-}
-
-async function callWithPayment(
-  service: string,
-  request: object,
-  creds: Credentials
-): Promise<object> {
-  const mcpUrl = `${GATEWAY_BASE}/mcps/${service}`;
-
-  // First attempt (might get 402)
-  let resp = await fetch(mcpUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-
-  // Handle 402 Payment Required
-  if (resp.status === 402) {
-    const { error } = await resp.json();
-    const requirements = error.data as PaymentRequired;
-
-    // 1. Build unsigned tx using tabs-sdk
-    const unsignedTx = await buildSpendingLimitTx({
-      userWallet: creds.wallet,
-      destination: requirements.accepts[0].payTo,
-      amount: BigInt(requirements.accepts[0].amount),
-      mint: requirements.accepts[0].asset,
-    });
-
-    // 2. Get signature from /sign endpoint
-    const signResp = await fetch(`${GATEWAY_BASE}/sign`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${creds.accessToken}`,
-      },
-      body: JSON.stringify({
-        unsignedTx: Buffer.from(unsignedTx.serialize()).toString('base64'),
-        wallet: creds.wallet,
-      }),
-    });
-
-    if (!signResp.ok) {
-      throw new Error(`Signing failed: ${await signResp.text()}`);
+{
+  "_meta": {
+    "x402/payment": {
+      "x402Version": 2,
+      "accepted": { /* chosen requirement */ },
+      "payload": { "transaction": "base64..." }
     }
-
-    const { transaction } = await signResp.json();
-
-    // 3. Retry with SIGNED tx (standard x402)
-    const requestWithPayment = {
-      ...request,
-      params: {
-        ...(request as any).params,
-        _meta: {
-          'x402/payment': {
-            x402Version: 2,
-            accepted: requirements.accepts[0],
-            payload: { transaction },  // Standard x402 SVM payload field
-          } satisfies PaymentPayload,
-        },
-      },
-    };
-
-    resp = await fetch(mcpUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestWithPayment),
-    });
   }
-
-  return resp.json();
 }
 ```
 
-```typescript
-// src/lib/x402.ts
-import { buildSpendingLimitTx } from '@cascade-fyi/tabs-sdk';
+### 5.6 Analytics Engine
 
-export async function buildUnsignedPaymentTx(
-  wallet: string,
-  payTo: string,
-  amount: string,
-  asset: string
-) {
-  const unsignedTx = await buildSpendingLimitTx({
-    userWallet: wallet,
-    destination: payTo,
-    amount: BigInt(amount),
-    mint: asset,
-  });
+Two datasets for observability:
 
-  return Buffer.from(unsignedTx.serialize()).toString('base64');
-}
+| Dataset | Binding | Purpose |
+|---------|---------|---------|
+| `executor_signing_audit` | AUDIT | Security forensics for /sign endpoint |
+| `service_events` | SERVICE_EVENTS | Service availability monitoring |
 
-export async function getSignedTransaction(
-  unsignedTx: string,
-  wallet: string,
-  accessToken: string
-): Promise<string> {
-  const resp = await fetch('https://market.cascade.fyi/sign', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ unsignedTx, wallet }),
-  });
+**Service events schema:**
 
-  if (!resp.ok) {
-    throw new Error(`Signing failed: ${await resp.text()}`);
-  }
+| Field | Type | Description |
+|-------|------|-------------|
+| `blob1` | string | Service path (`@namespace/name`) |
+| `blob2` | string | Event type: `connect`, `disconnect`, `error` |
+| `blob3` | string | Context: splitConfig (connect), close code (disconnect), error message |
+| `double1` | number | Timestamp |
+| `double2` | number | Session start (disconnect only, for duration calc) |
+| `index1` | string | Service path (sampling key) |
 
-  const { transaction } = await resp.json();
-  return transaction;
-}
+Events written on: WebSocket connect, disconnect, error in TunnelRelay DO.
+
+### 5.7 CLI Configuration
+
+**`cascade serve` command:**
+
+```
+cascade serve [options] [url]
+
+Arguments:
+  url                       Local MCP URL (default: http://localhost:3000/mcp)
+
+Options:
+  --token <token>           Service token (required if no config)
+  --price <price>           Default price per tools/call in USDC (default: 0.0001)
+  --disable-free-discovery  Bill discovery endpoints (tools/list, resources/*, prompts/*)
+  --config <path>           Config file path (auto-discovers if not set)
 ```
 
-### 5.6 Build Order
+**Config file format (`cascade.yaml`):**
+
+```yaml
+serve:
+  token: ${CASCADE_SERVICE_TOKEN}
+  url: ${MCP_ENDPOINT:-http://localhost:3000/mcp}
+  price_per_call: 0.001
+  free_discovery: true              # Set to false to bill discovery endpoints
+  tools:                            # Optional per-tool pricing
+    ai_code_review: 0.05
+    simple_lookup: 0.0001
+```
+
+**Resolution precedence (highest to lowest):**
+1. CLI flags (`--token`, `--price`, `--disable-free-discovery`)
+2. Auto-mapped env vars (`CASCADE_SERVE_*`)
+3. Config file values
+4. Defaults (price=0.0001, free_discovery=true, url=localhost:3000/mcp)
+
+**Auto-mapped env vars:**
+
+| Env Var | Config Path |
+|---------|-------------|
+| `CASCADE_SERVE_URL` | serve.url |
+| `CASCADE_SERVE_TOKEN` | serve.token |
+| `CASCADE_SERVE_PRICE` | serve.price_per_call |
+| `CASCADE_SERVE_FREE_DISCOVERY` | serve.free_discovery |
+
+**Config discovery:** `./cascade.yaml` → `./cascade.yml` → `/etc/cascade/cascade.yaml`
+
+**Container deployment:**
+
+```yaml
+# docker-compose.yaml
+services:
+  my-mcp:
+    build: .
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+
+  cascade:
+    image: ghcr.io/cascade-fyi/cascade:latest
+    volumes: ['./cascade.yaml:/etc/cascade/cascade.yaml:ro']
+    environment:
+      CASCADE_SERVICE_TOKEN: ${CASCADE_SERVICE_TOKEN}
+      CASCADE_SERVE_URL: http://my-mcp:3000/mcp
+```
+
+### 5.8 Build Order
 
 1. **CLI login flow** — OAuth, SIWS, credential storage
 2. **CLI mcp add** — Add to Claude Code config
@@ -1267,24 +1270,27 @@ export async function getSignedTransaction(
 - ✅ Who handles x402 → CLI (not Claude Code directly)
 - ✅ When to settle → After successful response (x402 standard)
 - ✅ Where to store Tabs → On-chain only
-- ✅ Where to store services → On-chain + DO (no D1)
+- ✅ Where to store services → KV (Sati-compatible JSON) + on-chain identity
 - ✅ CLI architecture → Dual-purpose (consumer + supplier)
 - ✅ CLI language → TypeScript (reuse existing SDKs)
 - ✅ x402 scheme → Standard `exact` scheme (no custom spec)
 - ✅ Who builds tx → CLI builds unsigned tx
 - ✅ Signing architecture → Decoupled `/sign` endpoint (Gateway MCP expects signed tx)
 - ✅ External client support → Any x402 client can use Gateway directly
+- ✅ Per-tool pricing → Config-based (`serve.tools.<name>: <price>`)
+- ✅ Discovery endpoint billing → Opt-in via `--disable-free-discovery` flag
 
 ### Deferred
 - Split executor (batch `execute_split`) — Platform bears gas, implement later
 - Multi-chain support (Base) — See ADR-0005
 - Custom split configurations — Revenue sharing with API providers
 - Subscription/tiered pricing
-- MCP tool-level pricing (different prices per tool)
 - User-managed signing keys — Allow users to authorize their own keypair instead of Gateway executor
 - Optimize Tabs round trips — Cache requirements, batch /sign with retry (currently 3 calls, could be 1-2)
 - HTTP transport (`/api/*`) — x402 headers (PAYMENT-REQUIRED/PAYMENT-SIGNATURE) for non-MCP clients
 - Resource server extensions — x402 extension metadata enrichment
+- Full price history — Track all price changes over time via Analytics Engine (currently only last price persisted)
+- On-chain service metadata — Optional PDA for description, pricing tiers, endpoint specs (enables trustless discovery)
 
 ---
 
