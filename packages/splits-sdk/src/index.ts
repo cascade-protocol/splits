@@ -105,6 +105,8 @@ export {
   // Label-based seeds (cross-chain compatible)
   labelToSeed,
   seedToLabel,
+  labelToUniqueId,
+  uniqueIdToLabel,
   // Token program detection
   detectTokenProgram,
   // Recipient comparison

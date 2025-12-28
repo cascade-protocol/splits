@@ -538,6 +538,8 @@ const MAX_LABEL_LENGTH = 27;
  *
  * Cross-chain compatible: same label produces same seed bytes on Solana and EVM.
  *
+ * @deprecated Use `labelToUniqueId()` instead for clarity.
+ *
  * @param label - Human-readable label (max 27 ASCII characters)
  * @returns Deterministic Address usable as `uniqueId` or `seed` parameter
  *
@@ -577,6 +579,8 @@ export function labelToSeed(label: string): Address {
  * @param seed - Seed Address or raw bytes to inspect
  * @returns Label string if seed was labeled, null otherwise
  *
+ * @deprecated Use `uniqueIdToLabel()` instead for clarity.
+ *
  * @example
  * ```typescript
  * // Display logic for split list
@@ -613,6 +617,61 @@ export function seedToLabel(seed: Address | Uint8Array): string | null {
   }
 
   return new TextDecoder().decode(bytes.subarray(labelStart, labelEnd));
+}
+
+/**
+ * Convert a human-readable label to a deterministic uniqueId (Address).
+ *
+ * Labels are encoded directly into 32 bytes with a "CSPL:" prefix,
+ * enabling reverse lookup via `uniqueIdToLabel()`. This is NOT hashing—
+ * labels are limited to 27 characters.
+ *
+ * Cross-chain compatible: same label produces same uniqueId bytes on Solana and EVM.
+ *
+ * @param label - Human-readable label (max 27 ASCII characters)
+ * @returns Deterministic Address usable as `uniqueId` parameter
+ *
+ * @example
+ * ```typescript
+ * // Service name becomes uniqueId
+ * const uniqueId = labelToUniqueId("@cascade/github");
+ * await ensureSplitConfig({ rpc, rpcSubscriptions, signer, recipients, uniqueId });
+ *
+ * // Same label = same split address (idempotent)
+ * const uniqueId2 = labelToUniqueId("@cascade/github");
+ * // uniqueId === uniqueId2
+ * ```
+ */
+export function labelToUniqueId(label: string): Address {
+  return labelToSeed(label);
+}
+
+/**
+ * Extract human-readable label from a uniqueId, if it was created via `labelToUniqueId()`.
+ *
+ * Returns `null` for random uniqueIds (created via `generateUniqueId()`),
+ * enabling graceful fallback in UI display.
+ *
+ * @param uniqueId - UniqueId Address or raw bytes to inspect
+ * @returns Label string if uniqueId was labeled, null otherwise
+ *
+ * @example
+ * ```typescript
+ * // Display logic for split list
+ * function getSplitDisplayName(split: SplitConfig): string {
+ *   const label = uniqueIdToLabel(split.uniqueId);
+ *   return label ?? `Vault ${truncate(split.vault)}`;
+ * }
+ *
+ * // Labeled uniqueId
+ * uniqueIdToLabel(labelToUniqueId("@cascade/github")); // "@cascade/github"
+ *
+ * // Random uniqueId
+ * uniqueIdToLabel(generateUniqueId()); // null
+ * ```
+ */
+export function uniqueIdToLabel(uniqueId: Address | Uint8Array): string | null {
+  return seedToLabel(uniqueId);
 }
 
 // =============================================================================
