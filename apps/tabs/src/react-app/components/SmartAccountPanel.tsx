@@ -67,6 +67,8 @@ export function SmartAccountPanel() {
     apiKey,
     isLoading,
     isPending,
+    solBalance,
+    hasMinimumSol,
     createAccount,
     deposit,
     withdraw,
@@ -83,7 +85,12 @@ export function SmartAccountPanel() {
 
   if (!account) {
     return (
-      <OnboardingCard onCreateAccount={createAccount} isPending={isPending} />
+      <OnboardingCard
+        onCreateAccount={createAccount}
+        isPending={isPending}
+        solBalance={solBalance}
+        hasMinimumSol={hasMinimumSol}
+      />
     );
   }
 
@@ -160,10 +167,16 @@ function LoadingState() {
 function OnboardingCard({
   onCreateAccount,
   isPending,
+  solBalance,
+  hasMinimumSol,
 }: {
   onCreateAccount: () => Promise<void>;
   isPending: boolean;
+  solBalance: bigint;
+  hasMinimumSol: boolean;
 }) {
+  // Format SOL balance for display
+  const formattedSolBalance = (Number(solBalance) / 1e9).toFixed(4);
   return (
     <div className="space-y-6">
       {/* Hero */}
@@ -235,18 +248,46 @@ function OnboardingCard({
       {/* CTA */}
       <Card>
         <CardContent className="pt-6">
-          <Button
-            onClick={onCreateAccount}
-            disabled={isPending}
-            className="w-full"
-            size="lg"
-          >
-            {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Create Smart Account
-          </Button>
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            You'll always retain full control. Withdraw anytime.
-          </p>
+          {hasMinimumSol ? (
+            <>
+              <Button
+                onClick={onCreateAccount}
+                disabled={isPending}
+                className="w-full"
+                size="lg"
+              >
+                {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Create Smart Account
+              </Button>
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                You'll always retain full control. Withdraw anytime.
+              </p>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
+                <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                  SOL required for transaction fees
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your wallet needs SOL to pay for network fees. Current
+                  balance: {formattedSolBalance} SOL
+                </p>
+              </div>
+              <Button variant="outline" className="w-full" asChild>
+                <a
+                  href="https://www.coinbase.com/how-to-buy/solana"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Get SOL →
+                </a>
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Need at least ~0.005 SOL for account creation
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
