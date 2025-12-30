@@ -62,6 +62,10 @@ export interface UseSmartAccountReturn {
   error: Error | null;
   /** Whether any mutation is in progress */
   isPending: boolean;
+  /** SOL balance in lamports */
+  solBalance: bigint;
+  /** Whether wallet has minimum SOL for transactions (~0.005 SOL) */
+  hasMinimumSol: boolean;
 
   // Actions
   /** Create a new smart account */
@@ -125,6 +129,22 @@ export function useSmartAccount(): UseSmartAccountReturn {
     staleTime: 30_000, // 30 seconds
     refetchInterval: 60_000, // 1 minute
   });
+
+  // Fetch SOL balance for pre-flight checks
+  // Wallets with 0 SOL don't exist on-chain and will fail with "AccountNotFound"
+  const { data: solBalance = 0n } = useQuery({
+    queryKey: [...QUERY_KEY, "sol-balance", client?.address],
+    queryFn: async () => {
+      if (!client) return 0n;
+      const { value } = await client.rpc.getBalance(client.address).send();
+      return value;
+    },
+    enabled: !!client,
+    staleTime: 30_000, // 30 seconds
+  });
+
+  // ~0.005 SOL covers transaction fees + account rent with buffer
+  const hasMinimumSol = solBalance >= 5_000_000n;
 
   // Derive API key from spending limit
   const apiKey = useMemo(() => {
@@ -467,6 +487,8 @@ export function useSmartAccount(): UseSmartAccountReturn {
     isLoading,
     error: error as Error | null,
     isPending,
+    solBalance,
+    hasMinimumSol,
 
     createAccount: useCallback(async () => {
       await createAccountMutation.mutateAsync();
