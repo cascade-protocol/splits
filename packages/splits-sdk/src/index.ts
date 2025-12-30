@@ -47,6 +47,9 @@ export {
   SYSTEM_PROGRAM_ADDRESS,
 } from "./constants.js";
 
+// Account discriminators (for getProgramAccounts filtering)
+export { SPLIT_CONFIG_DISCRIMINATOR } from "./generated/accounts/splitConfig.js";
+
 // =============================================================================
 // Types and Conversion Helpers
 // =============================================================================
@@ -89,6 +92,7 @@ export {
   getSplitConfigFromVault,
   getProtocolConfig,
   getVaultBalance,
+  getSplitsByAuthority,
   // Split detection (cached internally)
   isCascadeSplit,
   // PDA derivation
@@ -101,6 +105,8 @@ export {
   // Label-based seeds (cross-chain compatible)
   labelToSeed,
   seedToLabel,
+  labelToUniqueId,
+  uniqueIdToLabel,
   // Token program detection
   detectTokenProgram,
   // Recipient comparison
@@ -111,6 +117,7 @@ export {
   type MissingAta,
   // Types
   type SplitConfig,
+  type SplitWithBalance,
   type SplitRecipient,
   type ProtocolConfig,
   type UnclaimedAmount,
@@ -163,6 +170,11 @@ export {
   type CloseBlockedReason,
   type CloseOptions,
 } from "./closeSplit.js";
+
+export {
+  executeAndSendSplit,
+  type ExecuteAndSendResult,
+} from "./executeAndSend.js";
 
 // Client types (for wallet adapter implementations)
 export type {

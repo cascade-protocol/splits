@@ -93,6 +93,16 @@
         "default": "./dist/generated/index.cjs"
       }
     },
+    "./adapters/framework-kit": {
+      "import": {
+        "types": "./dist/adapters/framework-kit.d.mts",
+        "default": "./dist/adapters/framework-kit.mjs"
+      },
+      "require": {
+        "types": "./dist/adapters/framework-kit.d.cts",
+        "default": "./dist/adapters/framework-kit.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "files": [

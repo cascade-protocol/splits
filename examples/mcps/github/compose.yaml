@@ -1,0 +1,14 @@
+services:
+  github-mcp:
+    build: .
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+
+  cascade:
+    image: ghcr.io/cascade-fyi/cascade:latest
+    volumes: ['./cascade.yaml:/etc/cascade/cascade.yaml:ro']
+    environment:
+      CASCADE_SERVICE_TOKEN: ${CASCADE_SERVICE_TOKEN}
+      CASCADE_SERVE_URL: http://github-mcp:3000/mcp
+      # CASCADE_SERVE_PRICE: "0.001"                 # Override default price
+      # CASCADE_SERVE_FREE_DISCOVERY: "false"       # Bill discovery endpoints

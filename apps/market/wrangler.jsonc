@@ -1,0 +1,56 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cascade-market",
+  "account_id": "3db7dd8ff22ae68593205855d8bc0b25",
+  "main": "./src/server.ts",
+  "compatibility_date": "2025-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+
+  // KV namespaces (per ADR-0004 §5.3)
+  // - KV: rate limiting, SIWS nonces
+  // - OAUTH_KV: OAuth tokens (workers-oauth-provider, AES-GCM encrypted)
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "adfccc6e137546f8b3f4ce37a60dcede",
+      "preview_id": "2bf87e8bc7bb4447b26cee074604d59b"
+    },
+    {
+      "binding": "OAUTH_KV",
+      "id": "a97c11e3b6864475b259e96e310fe375",
+      "preview_id": "8f0333083b8a4dfebb47ec8c256730f4"
+    }
+  ],
+
+  // Analytics Engine for executor audit trail (W8)
+  "analytics_engine_datasets": [
+    { "binding": "AUDIT", "dataset": "executor_signing_audit" }
+  ],
+
+  // Durable Objects for tunnel relay (per-service WebSocket relay)
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TUNNEL_RELAY",
+        "class_name": "TunnelRelay"
+      }
+    ]
+  },
+
+  // Route: market.cascade.fyi (gateway at /mcps/* per ADR-0004)
+  "routes": [
+    { "pattern": "market.cascade.fyi", "custom_domain": true }
+  ],
+
+  // Durable Object migrations
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["TunnelRelay"]
+    }
+  ]
+}

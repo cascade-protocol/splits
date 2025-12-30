@@ -1,0 +1,13 @@
+# Cascade Market configuration
+# Exposes this MCP through market.cascade.fyi
+
+serve:
+  token: ${CASCADE_SERVICE_TOKEN}                     # Service token (contains identity)
+  url: ${CASCADE_SERVE_URL:-http://localhost:3000/mcp}
+  price_per_call: 0.001                               # Default price for tools/call in USDC
+  free_discovery: true                                # Discovery endpoints are free (default)
+
+  # Optional: per-tool pricing overrides
+  # tools:
+  #   ai_code_review: 0.05                            # Expensive AI-powered tool
+  #   simple_lookup: 0.0001                           # Cheap tool
