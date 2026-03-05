@@ -51,7 +51,10 @@ export async function verifyHandler(c: Context<{ Bindings: Env }>) {
   const { paymentPayload, paymentRequirements } = body ?? {};
   if (!paymentPayload?.accepted || !paymentRequirements) {
     return c.json(
-      { isValid: false, invalidReason: "invalid_request_body" } as VerifyResponse,
+      {
+        isValid: false,
+        invalidReason: "invalid_request_body",
+      } as VerifyResponse,
       400,
     );
   }
@@ -89,7 +92,9 @@ export async function verifyHandler(c: Context<{ Bindings: Env }>) {
 
   // Create signer
   const ctx = await createFacilitatorContext(FEE_PAYER_KEY, HELIUS_RPC_URL);
-  const feePayerAddresses = [...ctx.signer.getAddresses()].map((a) => a.toString());
+  const feePayerAddresses = [...ctx.signer.getAddresses()].map((a) =>
+    a.toString(),
+  );
 
   // Validate fee payer in requirements
   const requestedFeePayer = paymentRequirements.extra?.feePayer;

@@ -20,7 +20,10 @@ export async function supportedHandler(c: Context<{ Bindings: Env }>) {
   }
 
   // Get fee payer address
-  const { signer } = await createFacilitatorContext(FEE_PAYER_KEY, HELIUS_RPC_URL);
+  const { signer } = await createFacilitatorContext(
+    FEE_PAYER_KEY,
+    HELIUS_RPC_URL,
+  );
   const addresses = signer.getAddresses();
   const feePayer = addresses[0];
 

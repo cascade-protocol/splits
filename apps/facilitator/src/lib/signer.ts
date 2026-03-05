@@ -11,11 +11,9 @@
  */
 
 import {
-  type Address,
   type KeyPairSigner,
   type Transaction,
   type Base64EncodedWireTransaction,
-  createSolanaRpc,
   createKeyPairSignerFromBytes,
   getBase58Encoder,
   getBase64Encoder,
@@ -23,6 +21,8 @@ import {
 } from "@solana/kit";
 import {
   toFacilitatorSvmSigner,
+  createRpcClient,
+  SOLANA_MAINNET_CAIP2,
   type FacilitatorSvmSigner,
 } from "@x402/svm";
 
@@ -85,7 +85,7 @@ export async function createFacilitatorContext(
   const keyBytes = base58Encoder.encode(feePayerKeyBase58);
   const keyPairSigner = await createKeyPairSignerFromBytes(keyBytes);
 
-  const rpc = createSolanaRpc(rpcUrl as `https://${string}`);
+  const rpc = createRpcClient(SOLANA_MAINNET_CAIP2, rpcUrl);
   const signer = toFacilitatorSvmSigner(keyPairSigner, rpc);
 
   return {

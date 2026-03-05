@@ -106,7 +106,9 @@ export async function settleHandler(c: Context<{ Bindings: Env }>) {
 
   // Create context
   const ctx = await createFacilitatorContext(FEE_PAYER_KEY, HELIUS_RPC_URL);
-  const feePayerAddresses = [...ctx.signer.getAddresses()].map((a) => a.toString());
+  const feePayerAddresses = [...ctx.signer.getAddresses()].map((a) =>
+    a.toString(),
+  );
 
   // Validate fee payer in requirements
   const requestedFeePayer = paymentRequirements.extra?.feePayer;
