@@ -49,6 +49,12 @@ const DEADLINE_VALIDATOR_PROGRAM =
 /** Associated Token Program address */
 const ASSOCIATED_TOKEN_PROGRAM = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 
+/** Memo program address (MemoSv2) - used by x402 SVM clients for replay protection */
+const MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
+
+/** Phantom/Solflare Lighthouse program - injected by wallets for user protection */
+const LIGHTHOUSE_PROGRAM = "L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95";
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -69,6 +75,8 @@ export interface InstructionLayout {
   ataCreateIndex?: number;
   transferIndex: number;
   isDirectTransfer: boolean;
+  /** Number of trailing optional instructions (Memo, Lighthouse) after transfer */
+  trailingCount: number;
 }
 
 /** Parsed TransferChecked instruction structure (compatible with Token and Token-2022) */
@@ -89,15 +97,15 @@ interface ParsedTransferChecked {
 
 /**
  * Detect the instruction layout of a transaction.
- * Supports RFC #646 layouts with 3-6 instructions.
+ * Supports layouts with 3-9 instructions:
+ *   [nonce?] [computeLimit] [computePrice] [deadline?] [ataCreate?] [transfer] [lighthouse?...] [memo?]
  */
 export function detectInstructionLayout(
   instructions: ReadonlyArray<{ programAddress: Address }>,
 ): InstructionLayout | null {
   const count = instructions.length;
 
-  // Must have 3-6 instructions
-  if (count < 3 || count > 6) {
+  if (count < 3 || count > 9) {
     return null;
   }
 
@@ -151,17 +159,25 @@ export function detectInstructionLayout(
     offset++;
   }
 
-  // Last instruction must be the transfer
-  const transferIndex = count - 1;
-  if (offset !== transferIndex) {
+  // Transfer instruction at current offset
+  if (offset >= count) {
     return null;
   }
 
-  // Check if it's a direct token transfer
+  const transferIndex = offset;
   const transferProgram = instructions[transferIndex].programAddress.toString();
   const isDirectTransfer =
     transferProgram === TOKEN_PROGRAM_ADDRESS.toString() ||
     transferProgram === TOKEN_2022_PROGRAM_ADDRESS.toString();
+
+  // Trailing instructions after transfer must all be Memo or Lighthouse
+  const trailingCount = count - transferIndex - 1;
+  for (let i = transferIndex + 1; i < count; i++) {
+    const program = instructions[i].programAddress.toString();
+    if (program !== MEMO_PROGRAM && program !== LIGHTHOUSE_PROGRAM) {
+      return null;
+    }
+  }
 
   return {
     hasNonceAdvance,
@@ -173,6 +189,7 @@ export function detectInstructionLayout(
     ataCreateIndex,
     transferIndex,
     isDirectTransfer,
+    trailingCount,
   };
 }
 
@@ -601,10 +618,16 @@ export function verifyFeePayerSafety(
   const staticAccounts = compiled.staticAccounts ?? [];
   const instructions = compiled.instructions ?? [];
 
-  // Check each instruction (except compute budget) to ensure fee payer isn't in accounts
+  // Check each instruction (except compute budget and trailing Memo/Lighthouse)
+  // to ensure fee payer isn't in accounts
+  const trailingStart = layout.transferIndex + 1;
   for (let i = 0; i < instructions.length; i++) {
-    // Skip compute budget instructions
-    if (i === layout.computeLimitIndex || i === layout.computePriceIndex) {
+    // Skip compute budget and trailing instructions
+    if (
+      i === layout.computeLimitIndex ||
+      i === layout.computePriceIndex ||
+      i >= trailingStart
+    ) {
       continue;
     }
 

@@ -14,13 +14,13 @@
   },
   "dependencies": {
     "@cascade-fyi/splits-sdk": "workspace:*",
-    "@coinbase/x402": "^2.0.0",
+    "@coinbase/x402": "^2.1.0",
     "@solana-program/compute-budget": "^0.7.0",
     "@solana-program/system": "^0.10.0",
     "@solana-program/token": "^0.8.0",
     "@solana-program/token-2022": "^0.4.0",
     "@solana/kit": "^5.0.0",
-    "@x402/core": "^2.0.0",
+    "@x402/core": "^2.5.0",
     "hono": "^4.10.8"
   },
   "devDependencies": {

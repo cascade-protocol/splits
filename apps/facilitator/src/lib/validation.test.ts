@@ -484,6 +484,7 @@ describe("verifyFeePayerSafety", () => {
     hasAtaCreate: false,
     transferIndex: 2,
     isDirectTransfer: true,
+    trailingCount: 0,
   };
 
   it("accepts when fee payer not in instruction accounts", () => {
