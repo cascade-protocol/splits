@@ -12,7 +12,7 @@ import type { Context } from "hono";
 import type { VerifyRequest, VerifyResponse } from "@x402/core/types";
 import type { Env, ExactSvmPayload } from "../types.js";
 import {
-  createFacilitatorSigner,
+  createFacilitatorContext,
   type SimulationResult,
 } from "../lib/signer.js";
 import {
@@ -48,7 +48,13 @@ export async function verifyHandler(c: Context<{ Bindings: Env }>) {
     );
   }
 
-  const { paymentPayload, paymentRequirements } = body;
+  const { paymentPayload, paymentRequirements } = body ?? {};
+  if (!paymentPayload?.accepted || !paymentRequirements) {
+    return c.json(
+      { isValid: false, invalidReason: "invalid_request_body" } as VerifyResponse,
+      400,
+    );
+  }
 
   // Validate scheme
   if (
@@ -82,8 +88,8 @@ export async function verifyHandler(c: Context<{ Bindings: Env }>) {
   }
 
   // Create signer
-  const signer = await createFacilitatorSigner(FEE_PAYER_KEY, HELIUS_RPC_URL);
-  const feePayerAddresses = [...signer.getAddresses()].map((a) => a.toString());
+  const ctx = await createFacilitatorContext(FEE_PAYER_KEY, HELIUS_RPC_URL);
+  const feePayerAddresses = [...ctx.signer.getAddresses()].map((a) => a.toString());
 
   // Validate fee payer in requirements
   const requestedFeePayer = paymentRequirements.extra?.feePayer;
@@ -135,7 +141,7 @@ export async function verifyHandler(c: Context<{ Bindings: Env }>) {
   if (needsSimulation) {
     let signedTransaction: string;
     try {
-      signedTransaction = await signer.signTransaction(
+      signedTransaction = await ctx.signer.signTransaction(
         svmPayload.transaction,
         requestedFeePayer as Address,
         paymentRequirements.network,
@@ -151,7 +157,7 @@ export async function verifyHandler(c: Context<{ Bindings: Env }>) {
     }
 
     try {
-      simulationResult = await signer.simulateTransaction(
+      simulationResult = await ctx.simulateForCpi(
         signedTransaction,
         paymentRequirements.network,
       );

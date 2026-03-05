@@ -7,7 +7,7 @@
 import type { Context } from "hono";
 import type { SupportedResponse } from "@x402/core/types";
 import type { Env } from "../types.js";
-import { createFacilitatorSigner } from "../lib/signer.js";
+import { createFacilitatorContext } from "../lib/signer.js";
 
 // Solana mainnet CAIP-2 identifier
 const SOLANA_MAINNET = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
@@ -20,7 +20,7 @@ export async function supportedHandler(c: Context<{ Bindings: Env }>) {
   }
 
   // Get fee payer address
-  const signer = await createFacilitatorSigner(FEE_PAYER_KEY, HELIUS_RPC_URL);
+  const { signer } = await createFacilitatorContext(FEE_PAYER_KEY, HELIUS_RPC_URL);
   const addresses = signer.getAddresses();
   const feePayer = addresses[0];
 

@@ -76,7 +76,7 @@ const RATE_LIMIT = {
 };
 
 // Cascade facilitator URL (x402 v2)
-const FACILITATOR_URL = "https://facilitator.cascade.fyi";
+const FACILITATOR_URL = "https://facilitator-old.cascade.fyi";
 
 type Variables = {
   servicePath?: string;

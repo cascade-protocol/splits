@@ -15,16 +15,20 @@ import type {
 
 // Mock the signer module
 vi.mock("../lib/signer.js", () => ({
-  createFacilitatorSigner: vi.fn().mockResolvedValue({
-    getAddresses: () => ["F2vVvFwrbGHtsBEqFkSkLvsM6SJmDMm7KqhiW2P64WxY"],
-    signTransaction: vi.fn().mockResolvedValue("signed-tx-base64"),
-    simulateTransaction: vi.fn().mockResolvedValue({
+  createFacilitatorContext: vi.fn().mockResolvedValue({
+    signer: {
+      getAddresses: () => ["F2vVvFwrbGHtsBEqFkSkLvsM6SJmDMm7KqhiW2P64WxY"],
+      signTransaction: vi.fn().mockResolvedValue("signed-tx-base64"),
+      simulateTransaction: vi.fn().mockResolvedValue(undefined),
+      sendTransaction: vi.fn().mockResolvedValue("tx-signature-123"),
+      confirmTransaction: vi.fn().mockResolvedValue(undefined),
+    },
+    keyPairSigner: {},
+    simulateForCpi: vi.fn().mockResolvedValue({
       success: true,
       logs: [],
       innerInstructions: [],
     }),
-    sendTransaction: vi.fn().mockResolvedValue("tx-signature-123"),
-    confirmTransaction: vi.fn().mockResolvedValue(undefined),
   }),
   decodeTransaction: vi.fn().mockReturnValue({
     messageBytes: new Uint8Array(100),

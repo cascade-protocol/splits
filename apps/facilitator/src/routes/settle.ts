@@ -8,7 +8,7 @@ import type { Context } from "hono";
 import type { SettleRequest, SettleResponse } from "@x402/core/types";
 import type { Env, ExactSvmPayload } from "../types.js";
 import {
-  createFacilitatorSigner,
+  createFacilitatorContext,
   type SimulationResult,
 } from "../lib/signer.js";
 import {
@@ -48,7 +48,18 @@ export async function settleHandler(c: Context<{ Bindings: Env }>) {
     );
   }
 
-  const { paymentPayload, paymentRequirements } = body;
+  const { paymentPayload, paymentRequirements } = body ?? {};
+  if (!paymentPayload?.accepted || !paymentRequirements) {
+    return c.json(
+      {
+        success: false,
+        errorReason: "invalid_request_body",
+        transaction: "",
+        network: "unknown:unknown",
+      } as SettleResponse,
+      400,
+    );
+  }
 
   // Validate scheme
   if (
@@ -93,9 +104,9 @@ export async function settleHandler(c: Context<{ Bindings: Env }>) {
     );
   }
 
-  // Create signer
-  const signer = await createFacilitatorSigner(FEE_PAYER_KEY, HELIUS_RPC_URL);
-  const feePayerAddresses = [...signer.getAddresses()].map((a) => a.toString());
+  // Create context
+  const ctx = await createFacilitatorContext(FEE_PAYER_KEY, HELIUS_RPC_URL);
+  const feePayerAddresses = [...ctx.signer.getAddresses()].map((a) => a.toString());
 
   // Validate fee payer in requirements
   const requestedFeePayer = paymentRequirements.extra?.feePayer;
@@ -148,7 +159,7 @@ export async function settleHandler(c: Context<{ Bindings: Env }>) {
   // Sign transaction (facilitator adds fee payer signature)
   let signedTransaction: string;
   try {
-    signedTransaction = await signer.signTransaction(
+    signedTransaction = await ctx.signer.signTransaction(
       svmPayload.transaction,
       requestedFeePayer as Address,
       paymentRequirements.network,
@@ -165,23 +176,31 @@ export async function settleHandler(c: Context<{ Bindings: Env }>) {
     );
   }
 
-  // Simulate transaction
-  let simulationResult: SimulationResult;
-  try {
-    simulationResult = await signer.simulateTransaction(
+  // Simulate for CPI verification if needed, otherwise use upstream's void simulation
+  let cpiSimulationResult: SimulationResult | undefined;
+  if (needsSimulation) {
+    cpiSimulationResult = await ctx.simulateForCpi(
       signedTransaction,
       paymentRequirements.network,
     );
-  } catch (error) {
-    return c.json(
-      {
-        success: false,
-        errorReason: `simulation_failed: ${error instanceof Error ? error.message : "unknown"}`,
-        transaction: "",
-        network: paymentRequirements.network,
-      } as SettleResponse,
-      400,
-    );
+  } else {
+    // For direct transfers, use upstream simulation (throws on failure)
+    try {
+      await ctx.signer.simulateTransaction(
+        signedTransaction,
+        paymentRequirements.network,
+      );
+    } catch (error) {
+      return c.json(
+        {
+          success: false,
+          errorReason: `simulation_failed: ${error instanceof Error ? error.message : "unknown"}`,
+          transaction: "",
+          network: paymentRequirements.network,
+        } as SettleResponse,
+        400,
+      );
+    }
   }
 
   // Verify transaction
@@ -189,7 +208,7 @@ export async function settleHandler(c: Context<{ Bindings: Env }>) {
     svmPayload.transaction,
     paymentRequirements,
     feePayerAddresses,
-    needsSimulation ? simulationResult : undefined,
+    cpiSimulationResult,
   );
 
   if (!verifyResult.isValid) {
@@ -208,7 +227,7 @@ export async function settleHandler(c: Context<{ Bindings: Env }>) {
   // Send transaction
   let signature: string;
   try {
-    signature = await signer.sendTransaction(
+    signature = await ctx.signer.sendTransaction(
       signedTransaction,
       paymentRequirements.network,
     );
@@ -227,7 +246,7 @@ export async function settleHandler(c: Context<{ Bindings: Env }>) {
 
   // Wait for confirmation
   try {
-    await signer.confirmTransaction(signature, paymentRequirements.network);
+    await ctx.signer.confirmTransaction(signature, paymentRequirements.network);
   } catch {
     // Transaction was sent but confirmation failed/timed out
     // Return success with the signature - the transaction may still land
@@ -244,7 +263,7 @@ export async function settleHandler(c: Context<{ Bindings: Env }>) {
   executeAndSendSplit({
     rpc,
     splitConfig: paymentRequirements.payTo as Address,
-    signer: signer.keyPairSigner,
+    signer: ctx.keyPairSigner,
   }).then((r) => {
     if (r.sent) {
       console.log(`[splits] Executed: ${r.signature}`);

@@ -12,7 +12,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { json } from "@tanstack/react-start";
 
 // Tabs executor URL - where the signing key lives
-const TABS_EXECUTOR_URL = "https://facilitator.cascade.fyi";
+const TABS_EXECUTOR_URL = "https://facilitator-old.cascade.fyi";
 
 interface SettleRequest {
   apiKey: string;

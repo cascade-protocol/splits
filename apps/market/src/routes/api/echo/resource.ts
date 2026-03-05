@@ -16,7 +16,7 @@ import {
 import type { PaymentPayload, Network } from "@x402/core/types";
 
 // Facilitator URL
-const FACILITATOR_URL = "https://facilitator.cascade.fyi";
+const FACILITATOR_URL = "https://facilitator-old.cascade.fyi";
 
 // Demo payTo address - facilitator's fee payer
 const DEMO_PAY_TO = "CMdouXzA7neGHzUcX5ZwKrceqhQK6duTpLA56cwZfVF6";
