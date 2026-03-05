@@ -86,7 +86,11 @@ export async function createFacilitatorContext(
   const keyPairSigner = await createKeyPairSignerFromBytes(keyBytes);
 
   const rpc = createRpcClient(SOLANA_MAINNET_CAIP2, rpcUrl);
-  const signer = toFacilitatorSvmSigner(keyPairSigner, rpc);
+  // Pass as explicit network map - the Proxy-based RPC from @solana/kit
+  // fails the `"getBalance" in rpc` detection in toFacilitatorSvmSigner
+  const signer = toFacilitatorSvmSigner(keyPairSigner, {
+    [SOLANA_MAINNET_CAIP2]: rpc,
+  });
 
   return {
     signer,
