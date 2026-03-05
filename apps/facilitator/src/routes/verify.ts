@@ -129,39 +129,41 @@ export async function verifyHandler(c: Context<{ Bindings: Env }>) {
     );
   }
 
-  // Sign transaction first (facilitator adds fee payer signature)
-  let signedTransaction: string;
-  try {
-    signedTransaction = await signer.signTransaction(
-      svmPayload.transaction,
-      requestedFeePayer as Address,
-      paymentRequirements.network,
-    );
-  } catch (error) {
-    return c.json(
-      {
-        isValid: false,
-        invalidReason: `signing_failed: ${error instanceof Error ? error.message : "unknown"}`,
-      } as VerifyResponse,
-      400,
-    );
-  }
+  // Sign + simulate only for CPI transfers (smart wallets).
+  // Direct SPL transfers are fully verified statically - no RPC needed.
+  let simulationResult: SimulationResult | undefined;
+  if (needsSimulation) {
+    let signedTransaction: string;
+    try {
+      signedTransaction = await signer.signTransaction(
+        svmPayload.transaction,
+        requestedFeePayer as Address,
+        paymentRequirements.network,
+      );
+    } catch (error) {
+      return c.json(
+        {
+          isValid: false,
+          invalidReason: `signing_failed: ${error instanceof Error ? error.message : "unknown"}`,
+        } as VerifyResponse,
+        400,
+      );
+    }
 
-  // Simulate if needed (for CPI verification or general validation)
-  let simulationResult: SimulationResult;
-  try {
-    simulationResult = await signer.simulateTransaction(
-      signedTransaction,
-      paymentRequirements.network,
-    );
-  } catch (error) {
-    return c.json(
-      {
-        isValid: false,
-        invalidReason: `simulation_failed: ${error instanceof Error ? error.message : "unknown"}`,
-      } as VerifyResponse,
-      400,
-    );
+    try {
+      simulationResult = await signer.simulateTransaction(
+        signedTransaction,
+        paymentRequirements.network,
+      );
+    } catch (error) {
+      return c.json(
+        {
+          isValid: false,
+          invalidReason: `simulation_failed: ${error instanceof Error ? error.message : "unknown"}`,
+        } as VerifyResponse,
+        400,
+      );
+    }
   }
 
   // Verify transaction
@@ -169,7 +171,7 @@ export async function verifyHandler(c: Context<{ Bindings: Env }>) {
     svmPayload.transaction,
     paymentRequirements,
     feePayerAddresses,
-    needsSimulation ? simulationResult : undefined,
+    simulationResult,
   );
 
   return c.json(result as VerifyResponse);
