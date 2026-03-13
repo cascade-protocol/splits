@@ -1,38 +1,89 @@
 ---
-title: Getting Started
-description: Learn how to use Cascade Splits for permissionless payment splitting on Solana
+title: Cascade Splits
+description: Permissionless payment splitter for Solana and Base
+template: splash
+hero:
+  tagline: Non-custodial payment splitting protocol. Distribute tokens to multiple recipients by percentage.
+  actions:
+    - text: Get Started
+      link: /specification/solana/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/cascade-protocol/splits
+      icon: external
+      variant: minimal
 ---
 
-Cascade Splits is a permissionless payment splitter on Solana. It allows you to distribute tokens from a vault to multiple recipients based on percentage allocations.
+import { Card, CardGrid } from "@astrojs/starlight/components";
 
-## What is Cascade Splits?
+## Features
 
-Cascade Splits lets you create a **vault** that automatically distributes incoming tokens to a predefined list of recipients. Each recipient receives their share based on a percentage you set when creating the split.
-
-### Key Features
-
-- **Permissionless execution** - Anyone can trigger the split distribution
-- **On-chain configuration** - All split settings are stored on Solana
-- **SPL Token support** - Works with any SPL token (USDC, etc.)
-- **Transparent fees** - 1% protocol fee on distributions
+<CardGrid stagger>
+  <Card title="Multi-chain" icon="rocket">
+    Deploy on Solana (SPL Token & Token-2022) or Base (ERC20). Same SDK
+    interface across chains.
+  </Card>
+  <Card title="Permissionless" icon="open-book">
+    Anyone can trigger distributions. No admin keys required for execution.
+  </Card>
+  <Card title="Self-healing" icon="approve-check">
+    Failed transfers are stored as unclaimed and automatically retried on next
+    execution.
+  </Card>
+  <Card title="1% Protocol Fee" icon="document">
+    Transparent, on-chain enforced. Recipients control the remaining 99%.
+  </Card>
+</CardGrid>
 
 ## Quick Start
 
-1. **Connect your wallet** at [cascade.fyi](https://cascade.fyi)
-2. **Create a split** with your recipient addresses and percentages
-3. **Share your vault address** to receive payments
-4. **Execute the split** to distribute funds (anyone can do this)
+### Solana SDK
 
-<Cards>
-  <Card title="How It Works" href="/how-it-works" />
-</Cards>
-
-## Program Address
-
-The Cascade Splits program is deployed on Solana mainnet:
-
-```
-SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB
+```bash
+pnpm add @cascade-fyi/splits-sdk
 ```
 
-View on [Solscan](https://solscan.io/account/SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB).
+```typescript
+import { createSplitConfig, executeSplit } from "@cascade-fyi/splits-sdk";
+
+// Create a split
+const { instruction, vault } = await createSplitConfig({
+  authority: wallet.publicKey,
+  mint: USDC_MINT,
+  recipients: [
+    { address: "Agent...", share: 90 },
+    { address: "Platform...", share: 9 },
+  ],
+});
+
+// Execute distribution (permissionless)
+const executeIx = await executeSplit({ vault });
+```
+
+### EVM SDK (Base)
+
+```bash
+pnpm add @cascade-fyi/splits-sdk-evm
+```
+
+```typescript
+import { createEvmSplitsClient } from "@cascade-fyi/splits-sdk-evm/client";
+import { base } from "viem/chains";
+
+const client = createEvmSplitsClient(base, { account });
+
+const result = await client.ensureSplit({
+  uniqueId: "0x...",
+  recipients: [
+    { address: "0xAlice...", share: 90 },
+    { address: "0xBob...", share: 9 },
+  ],
+});
+```
+
+## Program Addresses
+
+| Chain  | Address                                        |
+| ------ | ---------------------------------------------- |
+| Solana | `SPL1T3rERcu6P6dyBiG7K8LUr21CssZqDAszwANzNMB`  |
+| Base   | `0x946Cd053514b1Ab7829dD8fEc85E0ade5550dcf7`   |

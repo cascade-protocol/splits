@@ -39,6 +39,56 @@ Protocol authority transfer requires two transactions:
 
 Can be overwritten by calling transfer again. Cancel by setting to `Pubkey::default()`.
 
+### 7. TanStack Start + Cloudflare Workers (apps/market)
+
+**Problem:** `cloudflare:workers` imports fail during client bundle build because Rollup can't resolve them.
+
+**Root Cause:** When a route file imports from `@/server/foo.ts`, Rollup walks the entire module tree. If `foo.ts` imports `cloudflare:workers`, the build fails—even with dynamic imports.
+
+**Solution:** Follow Cloudflare's official pattern:
+
+```typescript
+// ✅ CORRECT: In route file (e.g., routes/oauth/authorize.tsx)
+import { createServerFn } from "@tanstack/react-start";
+import { env } from "cloudflare:workers";  // Static import OK in route files
+import { businessLogic } from "@/server/oauth";  // Pure function, no cloudflare imports
+
+const myServerFn = createServerFn({ method: "POST" })
+  .inputValidator((data: MyType) => data)
+  .handler(async ({ data }) => {
+    // Access env INSIDE the handler - this runs server-side only
+    return businessLogic(env.DB, env.JWT_SECRET, data);
+  });
+```
+
+```typescript
+// ✅ CORRECT: In server module (e.g., server/oauth.ts)
+// NO cloudflare:workers import here!
+export async function businessLogic(
+  db: D1Database,
+  jwtSecret: string,
+  data: MyType
+) {
+  // Pure function - dependencies passed as parameters
+  return db.prepare("...").bind(...).run();
+}
+```
+
+```typescript
+// ❌ WRONG: Server module importing cloudflare:workers
+import { env } from "cloudflare:workers";  // Breaks client build!
+export async function businessLogic(data: MyType) {
+  return env.DB.prepare("...").run();
+}
+```
+
+**Why it works:** TanStack Start code-splits `createServerFn` handlers from client bundles. The `@cloudflare/vite-plugin` handles `cloudflare:workers` for SSR. By keeping the import in the route file (not shared modules), only server code sees it.
+
+**File organization:**
+- `@/server/*.ts` - Pure functions accepting `db`, `jwtSecret`, etc. as params
+- `routes/**/*.tsx` - Server functions with `cloudflare:workers` import
+- `gateway/*.ts` - Server-only (Hono/Durable Objects), can import directly
+
 ## Architecture
 
 ```

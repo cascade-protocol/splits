@@ -3,6 +3,7 @@ packages:
   - packages/*
 
 onlyBuiltDependencies:
+  - '@coinbase/x402'
   - '@swc/core'
   - bigint-buffer
   - blake-hash

@@ -6,9 +6,11 @@ import {
   type Address,
   type Rpc,
   type SolanaRpcApi,
+  type Base58EncodedBytes,
   getProgramDerivedAddress,
   getAddressEncoder,
   getAddressDecoder,
+  getBase58Decoder,
 } from "@solana/kit";
 import type { Instruction } from "@solana/kit";
 import {
@@ -33,7 +35,10 @@ import {
   ProtocolNotInitializedError,
   MintNotFoundError,
 } from "./errors.js";
-import { fetchMaybeSplitConfig } from "./generated/accounts/splitConfig.js";
+import {
+  fetchMaybeSplitConfig,
+  SPLIT_CONFIG_DISCRIMINATOR,
+} from "./generated/accounts/splitConfig.js";
 import { fetchProtocolConfig } from "./generated/accounts/protocolConfig.js";
 
 const addressEncoder = getAddressEncoder();
@@ -105,6 +110,13 @@ export interface SplitConfig {
   lastActivity: bigint;
   /** Account that paid rent */
   rentPayer: Address;
+}
+
+/**
+ * Split configuration with vault balance for display
+ */
+export interface SplitWithBalance extends SplitConfig {
+  vaultBalance: bigint;
 }
 
 /**
@@ -424,6 +436,74 @@ export async function isCascadeSplit(
   }
 }
 
+/**
+ * Get all splits owned by an authority.
+ *
+ * Uses getProgramAccounts with memcmp filters to find all split configs
+ * where the authority matches. Returns splits with their vault balances.
+ *
+ * @example
+ * ```typescript
+ * const splits = await getSplitsByAuthority(rpc, walletAddress);
+ * for (const split of splits) {
+ *   console.log(split.address, split.vaultBalance);
+ * }
+ * ```
+ */
+export async function getSplitsByAuthority(
+  rpc: Rpc<SolanaRpcApi>,
+  authority: Address,
+): Promise<SplitWithBalance[]> {
+  const base58Decoder = getBase58Decoder();
+
+  // Build filters:
+  // - discriminator at offset 0 (8 bytes)
+  // - authority at offset 9 (after 8-byte discriminator + 1-byte version)
+  const discriminatorBase58 = base58Decoder.decode(
+    SPLIT_CONFIG_DISCRIMINATOR,
+  ) as Base58EncodedBytes;
+  const authorityBytes = addressEncoder.encode(authority);
+  const authorityBase58 = base58Decoder.decode(
+    authorityBytes,
+  ) as Base58EncodedBytes;
+
+  // Fetch all split config accounts for this authority
+  const accounts = await rpc
+    .getProgramAccounts(PROGRAM_ID, {
+      encoding: "base64",
+      filters: [
+        {
+          memcmp: {
+            offset: 0n,
+            bytes: discriminatorBase58,
+            encoding: "base58",
+          },
+        },
+        {
+          memcmp: {
+            offset: 9n,
+            bytes: authorityBase58,
+            encoding: "base58",
+          },
+        },
+      ],
+    })
+    .send();
+
+  // Parse accounts and fetch balances in parallel
+  const results = await Promise.all(
+    accounts.map(async ({ pubkey }) => {
+      const config = await getSplitConfig(rpc, pubkey);
+      const vaultBalance = await getVaultBalance(rpc, config.vault).catch(
+        () => 0n,
+      );
+      return { ...config, vaultBalance };
+    }),
+  );
+
+  return results;
+}
+
 // =============================================================================
 // Utilities
 // =============================================================================
@@ -457,6 +537,8 @@ const MAX_LABEL_LENGTH = 27;
  * labels are limited to 27 characters.
  *
  * Cross-chain compatible: same label produces same seed bytes on Solana and EVM.
+ *
+ * @deprecated Use `labelToUniqueId()` instead for clarity.
  *
  * @param label - Human-readable label (max 27 ASCII characters)
  * @returns Deterministic Address usable as `uniqueId` or `seed` parameter
@@ -497,6 +579,8 @@ export function labelToSeed(label: string): Address {
  * @param seed - Seed Address or raw bytes to inspect
  * @returns Label string if seed was labeled, null otherwise
  *
+ * @deprecated Use `uniqueIdToLabel()` instead for clarity.
+ *
  * @example
  * ```typescript
  * // Display logic for split list
@@ -533,6 +617,61 @@ export function seedToLabel(seed: Address | Uint8Array): string | null {
   }
 
   return new TextDecoder().decode(bytes.subarray(labelStart, labelEnd));
+}
+
+/**
+ * Convert a human-readable label to a deterministic uniqueId (Address).
+ *
+ * Labels are encoded directly into 32 bytes with a "CSPL:" prefix,
+ * enabling reverse lookup via `uniqueIdToLabel()`. This is NOT hashing—
+ * labels are limited to 27 characters.
+ *
+ * Cross-chain compatible: same label produces same uniqueId bytes on Solana and EVM.
+ *
+ * @param label - Human-readable label (max 27 ASCII characters)
+ * @returns Deterministic Address usable as `uniqueId` parameter
+ *
+ * @example
+ * ```typescript
+ * // Service name becomes uniqueId
+ * const uniqueId = labelToUniqueId("@cascade/github");
+ * await ensureSplitConfig({ rpc, rpcSubscriptions, signer, recipients, uniqueId });
+ *
+ * // Same label = same split address (idempotent)
+ * const uniqueId2 = labelToUniqueId("@cascade/github");
+ * // uniqueId === uniqueId2
+ * ```
+ */
+export function labelToUniqueId(label: string): Address {
+  return labelToSeed(label);
+}
+
+/**
+ * Extract human-readable label from a uniqueId, if it was created via `labelToUniqueId()`.
+ *
+ * Returns `null` for random uniqueIds (created via `generateUniqueId()`),
+ * enabling graceful fallback in UI display.
+ *
+ * @param uniqueId - UniqueId Address or raw bytes to inspect
+ * @returns Label string if uniqueId was labeled, null otherwise
+ *
+ * @example
+ * ```typescript
+ * // Display logic for split list
+ * function getSplitDisplayName(split: SplitConfig): string {
+ *   const label = uniqueIdToLabel(split.uniqueId);
+ *   return label ?? `Vault ${truncate(split.vault)}`;
+ * }
+ *
+ * // Labeled uniqueId
+ * uniqueIdToLabel(labelToUniqueId("@cascade/github")); // "@cascade/github"
+ *
+ * // Random uniqueId
+ * uniqueIdToLabel(generateUniqueId()); // null
+ * ```
+ */
+export function uniqueIdToLabel(uniqueId: Address | Uint8Array): string | null {
+  return seedToLabel(uniqueId);
 }
 
 // =============================================================================
